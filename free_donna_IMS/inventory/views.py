@@ -1,10 +1,29 @@
 from django.shortcuts import render, HttpResponse
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
+from django.shortcuts import redirect
 from .models import Producto, Articulo
+from .forms import UserRegisterForm
+from django.contrib.auth import authenticate, login
 
 def home(request):
     return render(request, "inventory/base.html")
+
+class SignUpView(View):
+    def get(self, request):
+        form = UserRegisterForm()
+        return render(request, "inventory/signup.html", {"form": form})
+
+    def post(self, request):
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            form.save()
+            user = authenticate(username=form.cleaned_data['username'],
+                                password=form.cleaned_data['password1'])
+            login(request, user)
+            return redirect("inventory:producto_list")
+        return render(request, "inventory/signup.html", {"form": form})
+
 
 def productos(request):
     prods = Producto.objects.all()

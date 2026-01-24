@@ -2,6 +2,8 @@
 <html lang="es">
   <head>
     {% load static %}
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'inventory/static/img/header.jpg' %}">
     <meta charset="UTF-8" />
     <title>{% block title %}Free Donna IMS{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -22,7 +24,7 @@
   <div style="display:flex; align-items:center; gap:12px;">
     <!-- Imagen -->
     <img 
-      src="{% static 'inventory/static/img/fd' %}"
+      src="{% static 'inventory/static/img/header.jpg' %}"
       alt="Free Donna"
       style="
         height:48px;
@@ -48,7 +50,7 @@
 
 
     <!-- CONTENIDO -->
-    <main style="padding: 30px; background-color: #0c4fdf;">{% block content %}{% endblock %}</main>
+    <main style="padding: 30px; background-color: #d7e2f9;;">{% block content %}{% endblock %}</main>
 
     <!-- FOOTER -->
     <footer
