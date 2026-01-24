@@ -1,193 +1,10 @@
 {% extends "inventory/base.html" %}
+{% load static %}
 
 {% block title %}Productos{% endblock %}
 
 {% block content %}
-<style>
-  .page-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
-    margin-bottom:18px;
-  }
-
-  .page-header h2{
-    margin:0;
-  }
-
-  .btn-primary{
-    border:0;
-    background:#2c3e50;
-    color:#fff;
-    padding:10px 14px;
-    border-radius:10px;
-    text-decoration:none;
-    font-weight:700;
-    cursor:pointer;
-  }
-
-  .btn-primary:hover{ opacity:0.92; }
-
-  .subtle{
-    color:#667085;
-    margin:6px 0 0 0;
-    font-size:14px;
-  }
-
-  .grid{
-    display:grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap:14px;
-    margin-top:14px;
-  }
-
-  .card{
-    background:#fff;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:14px;
-    cursor:pointer;
-    box-shadow:0 1px 2px rgba(0,0,0,0.04);
-    transition: transform .12s ease, box-shadow .12s ease;
-  }
-
-  .card:hover{
-    transform: translateY(-2px);
-    box-shadow:0 8px 18px rgba(0,0,0,0.08);
-  }
-
-  .card-title{
-    margin:0 0 6px 0;
-    font-size:16px;
-    font-weight:800;
-    color:#111827;
-  }
-
-  .pill-row{
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    margin-top:10px;
-  }
-
-  .pill{
-    display:inline-block;
-    padding:6px 10px;
-    border-radius:999px;
-    background:#f3f4f6;
-    color:#374151;
-    font-size:12px;
-    font-weight:700;
-  }
-
-  .price{
-    margin-top:10px;
-    font-size:16px;
-    font-weight:900;
-    color:#111827;
-  }
-
-  .empty{
-    background:#fff;
-    border:1px dashed #cbd5e1;
-    padding:18px;
-    border-radius:14px;
-  }
-
-  /* Modal */
-  .modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(17,24,39,0.55);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:18px;
-    z-index:9999;
-  }
-
-  .modal{
-    width:100%;
-    max-width:520px;
-    background:#fff;
-    border-radius:16px;
-    border:1px solid #e5e7eb;
-    box-shadow:0 18px 60px rgba(0,0,0,0.25);
-    overflow:hidden;
-  }
-
-  .modal-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:12px;
-    padding:16px 16px 10px 16px;
-    background:#f9fafb;
-    border-bottom:1px solid #e5e7eb;
-  }
-
-  .modal-header h3{
-    margin:0;
-    font-size:18px;
-    font-weight:900;
-    color:#111827;
-  }
-
-  .modal-close{
-    border:0;
-    background:transparent;
-    font-size:22px;
-    line-height:1;
-    cursor:pointer;
-    color:#6b7280;
-    padding:2px 6px;
-    border-radius:10px;
-  }
-
-  .modal-close:hover{ background:#eef2f7; }
-
-  .modal-body{
-    padding:16px;
-  }
-
-  .kv{
-    display:grid;
-    grid-template-columns: 140px 1fr;
-    gap:10px 12px;
-    margin:0;
-  }
-
-  .kv dt{
-    font-weight:800;
-    color:#374151;
-  }
-
-  .kv dd{
-    margin:0;
-    color:#111827;
-  }
-
-  .modal-actions{
-    padding:12px 16px 16px 16px;
-    display:flex;
-    gap:10px;
-    justify-content:flex-end;
-  }
-
-  .btn-secondary{
-    border:1px solid #d1d5db;
-    background:#fff;
-    color:#111827;
-    padding:9px 12px;
-    border-radius:10px;
-    text-decoration:none;
-    font-weight:800;
-    cursor:pointer;
-  }
-
-  .btn-secondary:hover{ background:#f3f4f6; }
-</style>
+<link rel="stylesheet" href="{% static 'inventory/static/css/productos.css' %}">
 
 <div class="page-header">
   <div>
@@ -197,6 +14,21 @@
 
   <a class="btn-primary" href="{% url 'inventory:producto_create' %}">+ Nuevo producto</a>
 </div>
+<form method="get" class="search-row">
+  <input
+    name="q"
+    value="{{ q }}"
+    class="search-input"
+    type="text"
+    placeholder="Buscar por nombre..."
+    autocomplete="off"
+  />
+  <button class="btn-secondary" type="submit">Buscar</button>
+
+  {% if q %}
+    <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Limpiar</a>
+  {% endif %}
+</form>
 
 {% if productos %}
   <div class="grid">
@@ -232,7 +64,7 @@
   </div>
 {% endif %}
 
-<!-- Modal primitivo -->
+<!-- Modal -->
 <div id="productoModalOverlay" class="modal-overlay" onclick="closeProductoModal(event)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productoModalTitle">
     <div class="modal-header">
@@ -255,8 +87,14 @@
     </div>
 
     <div class="modal-actions">
-      <!-- Si todavía no tenés edit, podés borrar este link -->
       <a id="m_editar" class="btn-secondary" href="#">Editar</a>
+
+      <!-- Borrar por POST (correcto) -->
+      <form id="m_borrar_form" method="post" action="#" style="margin:0;">
+        {% csrf_token %}
+        <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
+      </form>
+
       <button class="btn-primary" type="button" onclick="closeProductoModal()">Cerrar</button>
     </div>
   </div>
@@ -282,13 +120,17 @@
     document.getElementById("m_material").textContent = material || "—";
     document.getElementById("m_precio").textContent = precio ? ("$ " + precio) : "—";
 
-    // Link de editar (si tu URL es /productos/<pk>/editar/)
-    var editarLink = document.getElementById("m_editar");
-    editarLink.href = "/productos/" + id + "/editar/";
+    // Editar (usa tu ruta namespaced si aplica)
+    document.getElementById("m_editar").href = "/productos/" + id + "/editar/";
+
+    // Borrar (POST) - usa la ruta que ya definiste
+    // Ajustá ESTE PATH si tu delete real difiere:
+    var deleteUrl = "/productos/" + id + "/borrar/";
+    var form = document.getElementById("m_borrar_form");
+    form.action = deleteUrl;
 
     overlay.style.display = "flex";
 
-    // accesibilidad básica: focus
     setTimeout(function(){
       var closeBtn = document.querySelector(".modal-close");
       if (closeBtn) closeBtn.focus();
@@ -296,14 +138,18 @@
   }
 
   function closeProductoModal(evt){
-    // Si el click fue en el fondo (overlay), cerramos. Si fue dentro del modal, no.
     if (evt && evt.target && evt.target.id !== "productoModalOverlay") return;
-
-    var overlay = document.getElementById("productoModalOverlay");
-    overlay.style.display = "none";
+    document.getElementById("productoModalOverlay").style.display = "none";
   }
 
-  // Cerrar con ESC
+  // Confirmación antes de borrar
+  document.getElementById("m_borrar_form").addEventListener("submit", function(e){
+    var nombre = document.getElementById("m_nombre").textContent || "este producto";
+    if (!confirm("¿Seguro que querés borrar " + nombre + "? Esta acción no se puede deshacer.")) {
+      e.preventDefault();
+    }
+  });
+
   document.addEventListener("keydown", function(e){
     if (e.key === "Escape"){
       var overlay = document.getElementById("productoModalOverlay");

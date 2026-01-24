@@ -1,0 +1,32 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Inicio · Free Donna IMS{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/index.css' %}">
+
+<div class="home-wrapper">
+  <h1 class="home-title">Bienvenido a Free Donna IMS</h1>
+  <p class="home-subtitle">Seleccione una opción para comenzar</p>
+<link rel="stylesheet">
+  <div class="panel-grid">
+
+    <a href="{% url 'inventory:producto_list' %}" class="panel-card">
+      <h2>Gestionar Productos</h2>
+      <p>Alta, edición y control de productos.</p>
+    </a>
+
+    <a href="#" class="panel-card">
+      <h2>Gestionar Artículos</h2>
+      <p>Administrar unidades físicas y estados.</p>
+    </a>
+
+    <a href="#" class="panel-card">
+      <h2>Ver Movimientos de Stock</h2>
+      <p>Entradas, salidas e historial.</p>
+    </a>
+
+  </div>
+</div>
+{% endblock %}

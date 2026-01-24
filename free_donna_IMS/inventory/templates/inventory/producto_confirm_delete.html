@@ -1,0 +1,18 @@
+{% extends "inventory/base.html" %}
+{% block title %}Eliminar producto{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Eliminar producto</h2>    
+  <p>¿Seguro que desea eliminar este producto?</p>
+  <p>Esta accion no se puede deshacer.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-actions">
+      <button type="submit" class="btn-danger">Eliminar</button>
+      <a href="{% url 'inventory:producto_list' %}" class="btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

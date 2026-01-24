@@ -1,0 +1,48 @@
+.home-wrapper {
+  min-height: calc(100vh - 180px);
+  display: flex;
+  flex-direction: column;
+  justify-content: top;
+  align-items: center;
+  text-align: center;
+  
+}
+
+/* Contenedor */
+.panel-grid {
+  display: flex;
+  width: 100%;
+  max-width: 1100px;
+  gap: 24px;
+}
+
+/* Tarjetas */
+.panel-card {
+  flex: 1;                /* MISMO TAMAÑO */
+  min-height: 200px;
+  background: white;
+  border-radius: 12px;
+  padding: 30px 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  text-decoration: none;
+  color: #2c3e50;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  transition: all 0.2s ease;
+}
+
+.panel-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  background: #eef3ff;
+}
+
+@media (max-width: 900px) {
+  .panel-grid {
+    flex-direction: column;
+  }
+}

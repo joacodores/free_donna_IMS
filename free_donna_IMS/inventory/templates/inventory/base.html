@@ -3,6 +3,8 @@
   <head>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/productos.css' %}">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
     <link rel="icon" type="image/x-icon" href="{% static 'inventory/static/img/header.jpg' %}">
     <meta charset="UTF-8" />
     <title>{% block title %}Free Donna IMS{% endblock %}</title>
@@ -45,9 +47,9 @@
     <a href="{% url 'inventory:producto_list' %}" style="color:white; text-decoration:none;">Productos</a>
     <a href="#" style="color:white; text-decoration:none;">Artículos</a>
     {% if request.user.is_authenticated %}
-      <a href="{% url 'inventory:logout' %}">Salir</a>
+      <a style="color: beige;" href="{% url 'inventory:logout' %}">Salir</a>
     {% else %}
-      <a href="{% url 'inventory:login' %}">Ingresar</a>
+      <a  style="color: beige;" href="{% url 'inventory:login' %}">Ingresar</a>
     {% endif %}
   </nav>
 </header>

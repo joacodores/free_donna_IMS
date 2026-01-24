@@ -6,8 +6,8 @@ from .models import Producto, Articulo
 from .forms import UserLoginForm, UserRegisterForm
 from django.contrib.auth import authenticate, login, logout
 
-def home(request):
-    return render(request, "inventory/base.html")
+def index(request):
+    return render(request, "inventory/index.html")
 
 class SignUpView(View):
     def get(self, request):
@@ -62,7 +62,19 @@ class ProductoListView(ListView):
     model = Producto
     template_name = "inventory/producto_list.html"
     context_object_name = "productos"
-    paginate_by = 20  # opcional
+    paginate_by = 20  
+    
+    def get_queryset(self):
+        qs = super().get_queryset().order_by("nombre")
+        q = (self.request.GET.get("q") or "").strip()
+        if q:
+            qs = qs.filter(nombre__icontains=q)
+        return qs
+    
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = (self.request.GET.get("q") or "").strip()
+        return ctx  
 
 class ProductoDetailView(DetailView):
     model = Producto
@@ -80,3 +92,14 @@ class ProductoUpdateView(UpdateView):
     fields = ["nombre", "tipo_producto", "material", "marca", "precio"]
     template_name = "inventory/producto_form.html"
     success_url = reverse_lazy("inventory:producto_list")
+    
+class ProductoDeleteView(View):
+    model = Producto
+    template_name = "inventory/producto_confirm_delete.html"
+    success_url = reverse_lazy("inventory:producto_list")
+    
+    def post(self, request, pk):
+        producto = Producto.objects.get(pk=pk)
+        producto.delete()
+        return redirect(self.success_url)
+    
