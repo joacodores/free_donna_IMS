@@ -1,0 +1,18 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Articulos{% endblock %}
+
+{% block content %}
+<h2>Articulos</h2>
+
+{% if articulos %}
+<ul>
+  {% for articulo in articulos %}
+  <li>{{ articulo.sku }} — {{ articulo.articulo_id }} </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>No hay articulos cargados.</p>
+{% endif %}
+
+{% endblock %}

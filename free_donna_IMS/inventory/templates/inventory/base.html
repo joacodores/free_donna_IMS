@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    {% load static %}
+    <meta charset="UTF-8" />
+    <title>{% block title %}Free Donna IMS{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+
+  <body style="margin: 0; font-family: Arial, sans-serif; background: #f5f6fa">
+    <!-- HEADER -->
+    <header style="
+  background:#2c3e50;
+  color:white;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 20px;
+  gap:12px;
+">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <!-- Imagen -->
+    <img 
+      src="{% static 'inventory/static/img/fd' %}"
+      alt="Free Donna"
+      style="
+        height:48px;
+        width:auto;
+        max-width:120px;
+        object-fit:contain;
+      "
+    />
+
+    <!-- Título -->
+    <div style="font-size:20px; font-weight:bold;">
+      Free Donna IMS
+    </div>
+  </div>
+
+  <!-- Menú -->
+  <nav style="display:flex; gap:14px; flex-wrap:wrap;">
+    <a href="{% url 'inventory:producto_list' %}" style="color:white; text-decoration:none;">Productos</a>
+    <a href="#" style="color:white; text-decoration:none;">Artículos</a>
+    <a href="#" style="color:white; text-decoration:none;">Movimientos</a>
+  </nav>
+</header>
+
+
+    <!-- CONTENIDO -->
+    <main style="padding: 30px; background-color: #0c4fdf;">{% block content %}{% endblock %}</main>
+
+    <!-- FOOTER -->
+    <footer
+      style="
+        background: #634a2f;
+        color: #bdc3c7;
+        text-align: center;
+        padding: 12px;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        font-size: 14px;
+      "
+    >
+      Free Donna IMS · Sistema de Gestión de Inventario
+      <br />
+      © {{ now|default:"2026" }}
+    </footer>
+  </body>
+</html>

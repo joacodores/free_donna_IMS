@@ -1,0 +1,316 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Productos{% endblock %}
+
+{% block content %}
+<style>
+  .page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+  }
+
+  .page-header h2{
+    margin:0;
+  }
+
+  .btn-primary{
+    border:0;
+    background:#2c3e50;
+    color:#fff;
+    padding:10px 14px;
+    border-radius:10px;
+    text-decoration:none;
+    font-weight:700;
+    cursor:pointer;
+  }
+
+  .btn-primary:hover{ opacity:0.92; }
+
+  .subtle{
+    color:#667085;
+    margin:6px 0 0 0;
+    font-size:14px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap:14px;
+    margin-top:14px;
+  }
+
+  .card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:14px;
+    cursor:pointer;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+
+  .card:hover{
+    transform: translateY(-2px);
+    box-shadow:0 8px 18px rgba(0,0,0,0.08);
+  }
+
+  .card-title{
+    margin:0 0 6px 0;
+    font-size:16px;
+    font-weight:800;
+    color:#111827;
+  }
+
+  .pill-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .pill{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#f3f4f6;
+    color:#374151;
+    font-size:12px;
+    font-weight:700;
+  }
+
+  .price{
+    margin-top:10px;
+    font-size:16px;
+    font-weight:900;
+    color:#111827;
+  }
+
+  .empty{
+    background:#fff;
+    border:1px dashed #cbd5e1;
+    padding:18px;
+    border-radius:14px;
+  }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(17,24,39,0.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    z-index:9999;
+  }
+
+  .modal{
+    width:100%;
+    max-width:520px;
+    background:#fff;
+    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 18px 60px rgba(0,0,0,0.25);
+    overflow:hidden;
+  }
+
+  .modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding:16px 16px 10px 16px;
+    background:#f9fafb;
+    border-bottom:1px solid #e5e7eb;
+  }
+
+  .modal-header h3{
+    margin:0;
+    font-size:18px;
+    font-weight:900;
+    color:#111827;
+  }
+
+  .modal-close{
+    border:0;
+    background:transparent;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+    color:#6b7280;
+    padding:2px 6px;
+    border-radius:10px;
+  }
+
+  .modal-close:hover{ background:#eef2f7; }
+
+  .modal-body{
+    padding:16px;
+  }
+
+  .kv{
+    display:grid;
+    grid-template-columns: 140px 1fr;
+    gap:10px 12px;
+    margin:0;
+  }
+
+  .kv dt{
+    font-weight:800;
+    color:#374151;
+  }
+
+  .kv dd{
+    margin:0;
+    color:#111827;
+  }
+
+  .modal-actions{
+    padding:12px 16px 16px 16px;
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+  }
+
+  .btn-secondary{
+    border:1px solid #d1d5db;
+    background:#fff;
+    color:#111827;
+    padding:9px 12px;
+    border-radius:10px;
+    text-decoration:none;
+    font-weight:800;
+    cursor:pointer;
+  }
+
+  .btn-secondary:hover{ background:#f3f4f6; }
+</style>
+
+<div class="page-header">
+  <div>
+    <h2>Productos</h2>
+    <p class="subtle">Click en un producto para ver el detalle.</p>
+  </div>
+
+  <a class="btn-primary" href="{% url 'inventory:producto_create' %}">+ Nuevo producto</a>
+</div>
+
+{% if productos %}
+  <div class="grid">
+    {% for producto in productos %}
+      <div
+        class="card"
+        role="button"
+        tabindex="0"
+        onclick="openProductoModal(this)"
+        data-id="{{ producto.product_id }}"
+        data-nombre="{{ producto.nombre|escapejs }}"
+        data-marca="{{ producto.marca|escapejs }}"
+        data-tipo="{{ producto.tipo_producto|escapejs }}"
+        data-material="{{ producto.material|escapejs }}"
+        data-precio="{{ producto.precio }}"
+      >
+        <h3 class="card-title">{{ producto.nombre }}</h3>
+        <div class="subtle">{{ producto.marca }}</div>
+
+        <div class="pill-row">
+          <span class="pill">{{ producto.tipo_producto }}</span>
+          <span class="pill">{{ producto.material }}</span>
+        </div>
+
+        <div class="price">$ {{ producto.precio }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:800;">No hay productos cargados.</p>
+    <p class="subtle" style="margin-bottom:0;">Usá el botón “Nuevo producto” para agregar el primero.</p>
+  </div>
+{% endif %}
+
+<!-- Modal primitivo -->
+<div id="productoModalOverlay" class="modal-overlay" onclick="closeProductoModal(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productoModalTitle">
+    <div class="modal-header">
+      <div>
+        <h3 id="productoModalTitle">Detalle de producto</h3>
+        <p class="subtle" id="productoModalSubtitle" style="margin:6px 0 0 0;"></p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeProductoModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <dl class="kv">
+        <dt>ID</dt><dd id="m_id">—</dd>
+        <dt>Nombre</dt><dd id="m_nombre">—</dd>
+        <dt>Marca</dt><dd id="m_marca">—</dd>
+        <dt>Tipo</dt><dd id="m_tipo">—</dd>
+        <dt>Material</dt><dd id="m_material">—</dd>
+        <dt>Precio</dt><dd id="m_precio">—</dd>
+      </dl>
+    </div>
+
+    <div class="modal-actions">
+      <!-- Si todavía no tenés edit, podés borrar este link -->
+      <a id="m_editar" class="btn-secondary" href="#">Editar</a>
+      <button class="btn-primary" type="button" onclick="closeProductoModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openProductoModal(cardEl){
+    var overlay = document.getElementById("productoModalOverlay");
+    var id = cardEl.dataset.id || "";
+    var nombre = cardEl.dataset.nombre || "";
+    var marca = cardEl.dataset.marca || "";
+    var tipo = cardEl.dataset.tipo || "";
+    var material = cardEl.dataset.material || "";
+    var precio = cardEl.dataset.precio || "";
+
+    document.getElementById("productoModalTitle").textContent = nombre || "Detalle de producto";
+    document.getElementById("productoModalSubtitle").textContent = marca ? ("Marca: " + marca) : "";
+
+    document.getElementById("m_id").textContent = id || "—";
+    document.getElementById("m_nombre").textContent = nombre || "—";
+    document.getElementById("m_marca").textContent = marca || "—";
+    document.getElementById("m_tipo").textContent = tipo || "—";
+    document.getElementById("m_material").textContent = material || "—";
+    document.getElementById("m_precio").textContent = precio ? ("$ " + precio) : "—";
+
+    // Link de editar (si tu URL es /productos/<pk>/editar/)
+    var editarLink = document.getElementById("m_editar");
+    editarLink.href = "/productos/" + id + "/editar/";
+
+    overlay.style.display = "flex";
+
+    // accesibilidad básica: focus
+    setTimeout(function(){
+      var closeBtn = document.querySelector(".modal-close");
+      if (closeBtn) closeBtn.focus();
+    }, 0);
+  }
+
+  function closeProductoModal(evt){
+    // Si el click fue en el fondo (overlay), cerramos. Si fue dentro del modal, no.
+    if (evt && evt.target && evt.target.id !== "productoModalOverlay") return;
+
+    var overlay = document.getElementById("productoModalOverlay");
+    overlay.style.display = "none";
+  }
+
+  // Cerrar con ESC
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){
+      var overlay = document.getElementById("productoModalOverlay");
+      if (overlay && overlay.style.display === "flex"){
+        overlay.style.display = "none";
+      }
+    }
+  });
+</script>
+{% endblock %}

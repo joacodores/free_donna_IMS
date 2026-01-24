@@ -11,3 +11,13 @@ class Producto(models.Model):
     
     def __str__(self):
         return f"[{self.product_id}] {self.nombre} ({self.marca})"
+
+class Articulo(models.Model):
+    articulo_id = models.AutoField(primary_key=True)
+    product_id = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    sku = models.CharField(max_length=100)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"[{self.articulo_id}] {self.sku}"
