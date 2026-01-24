@@ -3,8 +3,8 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.shortcuts import redirect
 from .models import Producto, Articulo
-from .forms import UserRegisterForm
-from django.contrib.auth import authenticate, login
+from .forms import UserLoginForm, UserRegisterForm
+from django.contrib.auth import authenticate, login, logout
 
 def home(request):
     return render(request, "inventory/base.html")
@@ -24,7 +24,32 @@ class SignUpView(View):
             return redirect("inventory:producto_list")
         return render(request, "inventory/signup.html", {"form": form})
 
-
+class LoginView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect("inventory:producto_list")
+        form = UserLoginForm()
+        return render(request, "inventory/login.html", {"form": form})
+    
+    def post(self, request):
+        form = UserLoginForm(request.POST)
+        if form.is_valid():
+            user = authenticate(
+                request, 
+                username=form.cleaned_data['username'],
+                password=form.cleaned_data['password'])
+            if user is not None:
+                login(request, user)
+                return redirect("inventory:producto_list")
+            else:
+                form.add_error(None, "Credenciales inválidas")
+        return render(request, "inventory/login.html", {"form": form})
+    
+class LogoutView(View):
+    def get(self, request):
+        logout(request)
+        return redirect("inventory:login")
+    
 def productos(request):
     prods = Producto.objects.all()
     return render(request, "inventory/producto_list.html", {"productos": prods})
