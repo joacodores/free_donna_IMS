@@ -53,58 +53,100 @@
   font-size:14px;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap:14px;
-  margin-top:14px;
+.table-wrap{
+margin-top: 14px;
+background:#fff;
+border:1px solid #e5e7eb;
+border-radius:14px;
+overflow:hidden;
+box-shadow:0 1px 2px rgba(0,0,0,0.04);
 }
 
-.card{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:14px;
-  padding:14px;
-  cursor:pointer;
-  box-shadow:0 1px 2px rgba(0,0,0,0.04);
-  transition: transform .12s ease, box-shadow .12s ease;
+
+.table{
+width:100%;
+border-collapse:separate;
+border-spacing:0;
+font-size:14px;
 }
 
-.card:hover{
-  transform: translateY(-2px);
-  box-shadow:0 8px 18px rgba(0,0,0,0.08);
+
+.table thead th{
+background:#f9fafb;
+color:#374151;
+font-weight:900;
+text-align:left;
+padding:12px 12px;
+border-bottom:1px solid #e5e7eb;
+position:sticky; /* opcional: se queda arriba al scrollear */
+top:0;
+z-index:1;
 }
 
-.card-title{
-  margin:0 0 6px 0;
-  font-size:16px;
-  font-weight:800;
-  color:#111827;
+
+.table tbody td{
+padding:12px 12px;
+border-bottom:1px solid #eef2f7;
+color:#111827;
+vertical-align:middle;
 }
 
-.pill-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top:10px;
+
+.table tbody tr:last-child td{
+border-bottom:0;
 }
 
-.pill{
-  display:inline-block;
-  padding:6px 10px;
-  border-radius:999px;
-  background:#f3f4f6;
-  color:#374151;
-  font-size:12px;
-  font-weight:700;
+
+.row-click{
+cursor:pointer;
+outline:none;
 }
 
-.price{
-  margin-top:10px;
-  font-size:16px;
-  font-weight:900;
-  color:#111827;
+
+.row-click:hover{
+background:#f8fafc;
 }
+
+
+.row-click:focus{
+box-shadow: inset 0 0 0 2px rgba(126,166,255,0.6);
+background:#f8fafc;
+}
+
+
+.mono{
+font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+color:#475569;
+}
+
+
+.strong{
+font-weight:900;
+}
+
+
+.tag{
+display:inline-block;
+padding:6px 10px;
+border-radius:999px;
+background:#f3f4f6;
+color:#374151;
+font-size:12px;
+font-weight:800;
+}
+
+
+.price-cell{
+font-weight:900;
+text-align:right;
+white-space:nowrap;
+}
+
+
+.col-id{ width: 90px; }
+.col-precio{ width: 140px; text-align:right; }
+.table thead th.col-precio{ text-align:right; }
+
 
 .empty{
   background:#fff;

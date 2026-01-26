@@ -31,31 +31,44 @@
 </form>
 
 {% if productos %}
-  <div class="grid">
-    {% for producto in productos %}
-      <div
-        class="card"
-        role="button"
-        tabindex="0"
-        onclick="openProductoModal(this)"
-        data-id="{{ producto.product_id }}"
-        data-nombre="{{ producto.nombre|escapejs }}"
-        data-marca="{{ producto.marca|escapejs }}"
-        data-tipo="{{ producto.tipo_producto|escapejs }}"
-        data-material="{{ producto.material|escapejs }}"
-        data-precio="{{ producto.precio }}"
-      >
-        <h3 class="card-title">{{ producto.nombre }}</h3>
-        <div class="subtle">{{ producto.marca }}</div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="col-id">ID</th>
+          <th>Nombre</th>
+          <th>Marca</th>
+          <th>Tipo</th>
+          <th>Material</th>
+          <th class="col-precio">Precio</th>
+        </tr>
+      </thead>
 
-        <div class="pill-row">
-          <span class="pill">{{ producto.tipo_producto }}</span>
-          <span class="pill">{{ producto.material }}</span>
-        </div>
-
-        <div class="price">$ {{ producto.precio }}</div>
-      </div>
-    {% endfor %}
+      <tbody>
+        {% for producto in productos %}
+          <tr
+            class="row-click"
+            role="button"
+            tabindex="0"
+            onclick="openProductoModal(this)"
+            onkeydown="if(event.key==='Enter'||event.key===' '){ event.preventDefault(); openProductoModal(this); }"
+            data-id="{{ producto.product_id }}"
+            data-nombre="{{ producto.nombre|escapejs }}"
+            data-marca="{{ producto.marca|escapejs }}"
+            data-tipo="{{ producto.tipo_producto|escapejs }}"
+            data-material="{{ producto.material|escapejs }}"
+            data-precio="{{ producto.precio }}"
+          >
+            <td class="mono">{{ producto.product_id }}</td>
+            <td class="strong">{{ producto.nombre }}</td>
+            <td>{{ producto.marca }}</td>
+            <td><span class="tag">{{ producto.tipo_producto }}</span></td>
+            <td><span class="tag">{{ producto.material }}</span></td>
+            <td class="price-cell">$ {{ producto.precio }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 {% else %}
   <div class="empty">
