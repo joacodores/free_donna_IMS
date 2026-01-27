@@ -1,0 +1,25 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Editar artículo{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'inventory/static/css/articulos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Editar artículo</h2>
+    <p class="subtle">ID: {{ articulo.articulo_id }}</p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
+</div>
+
+<form method="post" class="form-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+
+  <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+    <button class="btn-primary" type="submit">Guardar cambios</button>
+  </div>
+</form>
+{% endblock %}

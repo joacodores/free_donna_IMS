@@ -1,0 +1,64 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Cargar artículos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Cargar artículos</h2>
+    <p class="subtle">Un artículo es una unidad singular. Podés cargar varias unidades iguales con “Cantidad”.</p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
+</div>
+
+<form method="post" class="form-card" autocomplete="off">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Producto</label>
+      {{ form.product_id }}
+      {{ form.product_id.errors }}
+    </div>
+
+    <div class="field">
+      <label>SKU</label>
+      {{ form.sku }}
+      {{ form.sku.errors }}
+    </div>
+
+    <div class="field">
+      <label>Barcode</label>
+      {{ form.barcode }}
+      {{ form.barcode.errors }}
+      <div class="subtle" style="margin-top:6px;">Escaneá o pegá el código (Enter no hace falta).</div>
+    </div>
+
+    <div class="field">
+      <label>Talle</label>
+      {{ form.talle }}
+      {{ form.talle.errors }}
+    </div>
+
+    <div class="field">
+      <label>Color</label>
+      {{ form.color }}
+      {{ form.color.errors }}
+    </div>
+
+    <div class="field">
+      <label>Cantidad</label>
+      {{ form.cantidad }}
+      {{ form.cantidad.errors }}
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+    <button class="btn-primary" type="submit">Guardar</button>
+  </div>
+</form>
+{% endblock %}

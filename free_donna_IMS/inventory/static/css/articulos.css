@@ -1,0 +1,59 @@
+/* Contenedores simétricos */
+.scan-row,
+.search-row{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:10px;
+  align-items:center;
+  margin: 10px 0 16px 0;
+  max-width: 820px;   /* MISMO ancho para ambos */
+}
+
+/* Input grande (scan) */
+.scan-input{
+  width:100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid #cfd6e4;
+  outline: none;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* Input normal (search) */
+.search-input{
+  width:100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid #cfd6e4;
+  outline: none;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Focus unificado */
+.scan-input:focus,
+.search-input:focus{
+  border-color:#7ea6ff;
+  box-shadow: 0 0 0 3px rgba(126,166,255,0.25);
+}
+
+/* Select alineado al alto de los inputs */
+.select{
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 2px solid #cfd6e4;
+  background:#fff;
+  font-weight:800;
+}
+
+/* Botones alineados visualmente */
+.scan-row .btn-primary,
+.search-row .btn-secondary{
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}

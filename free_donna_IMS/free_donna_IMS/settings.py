@@ -24,9 +24,15 @@ SECRET_KEY = 'django-insecure-ix+-fdc^#uky#o_7r!ekhjvg%1a#g!#2a&6qwf94hduefpym4v
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 ALLOWED_HOSTS = []
 
+#SECURITY LOGIN/MIDDLEWARE SETTINGS
+PUBLIC_URL_NAMES = [
+    "inventory:login",
+        "inventory:signup",
+    "inventory:logout",
+]
+LOGIN_URL = '/login/'
 
 # Application definition
 
@@ -48,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'free_donna_IMS.middleware.LoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'free_donna_IMS.urls'
