@@ -152,27 +152,31 @@ class ArticuloListView(LoginRequiredMixin, ListView):
                 n = int(q)
                 filt |= Q(talle=n) | Q(articulo_id=n)
                 return qs.filter(filt)
-            if field == "sku":
-                return qs.filter(sku__icontains=q)
-            if field == "producto":
-                return qs.filter(product_id__nombre__icontains=q)
-            if field == "marca":
-                return qs.filter(product_id__marca__icontains=q)
-            if field == "color":
-                return qs.filter(color__icontains=q)
-            if field == "talle":
-                return qs.filter(talle=int(q)) if q.isdigit() else qs.none()
-            if field == "id":
-                return qs.filter(articulo_id=int(q)) if q.isdigit() else qs.none()
-
-            return qs
+        if field == "sku":
+            return qs.filter(sku__icontains=q)
+        if field == "producto":
+            return qs.filter(product_id__nombre__icontains=q)
+        if field == "marca":
+            return qs.filter(product_id__marca__icontains=q)
+        if field == "color":
+            return qs.filter(color__icontains=q)
+        if field == "talle":
+            return qs.filter(talle=int(q)) if q.isdigit() else qs.none()
+        if field == "id":
+            return qs.filter(articulo_id=int(q)) if q.isdigit() else qs.none()
+        
+        return qs
     
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["scan"] = (self.request.GET.get("scan") or "").strip()
         ctx["q"] = (self.request.GET.get("q") or "").strip()
-        ctx["field"] = (self.request.GET.get("field") or "all").strip().lower()
-        
+
+        field = (self.request.GET.get("field") or "all").strip().lower()
+        if field not in ["all", "sku", "producto", "marca", "color", "talle", "id", "barcode"]:
+            field = "all"
+        ctx["field"] = field
+
         ctx["auto_open_first"] = bool(ctx["scan"] and ctx["articulos"])
         return ctx
     
@@ -197,6 +201,7 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
                 product_id=producto,
                 sku=sku,
                 barcode=barcode,
+                estado=Articulo.Estado.DISPONIBLE,
                 talle=talle,
                 color=color,
             )
@@ -205,3 +210,9 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         Articulo.objects.bulk_create(articulos)
         messages.success(self.request, f"Se cargaron {cantidad} artículo(s) para {producto}.")
         return super().form_valid(form)
+    
+
+CART_KEY = "pos_cart"
+
+def _get_cart(session):
+    return session.get(CART_KEY, {})

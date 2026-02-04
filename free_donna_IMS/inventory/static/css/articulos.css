@@ -57,3 +57,32 @@
   align-items:center;
   justify-content:center;
 }
+
+/* Estado */
+.pill{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+  border:1px solid transparent;
+}
+
+.pill-disp{          /* Disponible */
+  background:#ecfdf3;
+  color:#047857;
+  border-color:#a7f3d0;
+}
+
+.pill-vend{          /* Vendido */
+  background:#eff6ff;
+  color:#1d4ed8;
+  border-color:#bfdbfe;
+}
+
+.pill-baja{          /* Baja */
+  background:#fef2f2;
+  color:#b91c1c;
+  border-color:#fecaca;
+}
