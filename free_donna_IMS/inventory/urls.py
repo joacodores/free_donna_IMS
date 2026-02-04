@@ -17,4 +17,9 @@ urlpatterns = [
     path("articulos/nuevo/", views.ArticuloCreateView.as_view(), name="articulo_create"),
     path("articulos/<int:articulo_id>/editar/", views.ArticuloUpdateView.as_view(), name="articulo_edit"),
     path("articulos/<int:articulo_id>/borrar/", views.ArticuloDeleteView.as_view(), name="articulo_delete"),
+    path("pos/", views.POSView.as_view(), name="pos"),
+    path("pos/add/", views.POSAddItemByBarcodeView.as_view(), name="pos_add"),
+    path("pos/remove/", views.POSRemoveItemView.as_view(), name="pos_remove"),
+    path("pos/clear/", views.POSClearView.as_view(), name="pos_clear"),
+    path("pos/checkout/", views.POSCheckoutView.as_view(), name="pos_checkout"),
 ]

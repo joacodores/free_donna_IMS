@@ -1,0 +1,100 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}POS{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'inventory/static/css/articulos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>POS</h2>
+    <p class="subtle">Escaneá barcode para agregar al carrito. Enter del scanner agrega 1 unidad.</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Artículos</a>
+  </div>
+</div>
+
+<form method="post" action="{% url 'inventory:pos_add' %}" class="scan-row" autocomplete="off">
+  {% csrf_token %}
+  <input
+    name="barcode"
+    class="scan-input"
+    type="text"
+    inputmode="numeric"
+    placeholder="Escanear código de barras…"
+    id="scanInput"
+    autofocus
+  />
+  <button class="btn-primary" type="submit">Agregar</button>
+</form>
+
+{% if cart %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>SKU</th>
+          <th>Barcode</th>
+          <th class="col-talle">Cant.</th>
+          <th class="col-talle">P.Unit</th>
+          <th class="col-talle">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, it in cart.items %}
+          <tr>
+            <td>
+              <div class="strong">{{ it.producto_nombre }}</div>
+              <div class="subtle" style="margin:4px 0 0 0;">{{ it.marca }} · {{ it.color }} · Talle {{ it.talle }}</div>
+            </td>
+            <td class="mono">{{ it.sku }}</td>
+            <td class="mono">{{ it.barcode }}</td>
+            <td class="num strong">{{ it.qty }}</td>
+            <td class="num">$ {{ it.precio }}</td>
+            <td class="num strong">$ {{ it.line_total|floatformat:"2" }}</td>
+            <td style="text-align:right;">
+              <form method="post" action="{% url 'inventory:pos_remove' %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="key" value="{{ key }}">
+                <button class="btn-danger" type="submit">Quitar</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" style="margin-top:16px;">
+    <div class="strong">Total: $ {{ total|floatformat:"2" }}</div>
+    <div class="pagination-right">
+      <form method="post" action="{% url 'inventory:pos_clear' %}" style="margin:0;">
+        {% csrf_token %}
+        <button class="btn-secondary" type="submit">Vaciar</button>
+      </form>
+
+      <form method="post" action="{% url 'inventory:pos_checkout' %}" style="margin:0;">
+        {% csrf_token %}
+        <button class="btn-primary" type="submit">Cerrar venta</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">Carrito vacío.</p>
+    <p class="subtle" style="margin-bottom:0;">Escaneá un código para empezar.</p>
+  </div>
+{% endif %}
+
+<script>
+  // Mantener foco para scanner
+  document.addEventListener("DOMContentLoaded", function(){
+    var scan = document.getElementById("scanInput");
+    if (scan) scan.focus();
+  });
+</script>
+{% endblock %}

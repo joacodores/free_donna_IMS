@@ -37,42 +37,42 @@ class Articulo(models.Model):
     def __str__(self):
         return f"[{self.articulo_id}] {self.sku}"
 
-#class Venta(models.Model):
-#    class Estado(models.TextChoices):
-#        ABIERTA = "OPEN", "Abierta"
-#        CERRADA = "CLOSED", "Cerrada"
-#        ANULADA = "VOID", "Anulada"
-#        
-#    venta_id = models.AutoField(primary_key=True)
-#    fecha = models.DateTimeField(auto_now_add=True)
-#    usuario = models.ForeignKey("auth.User", on_delete=models.PROTECT)
-#    estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ABIERTA)
-#    
-#    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-#    total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-#    nota = models.TextField(blank=True)
-#    
-#    def __str__(self):
-#        return f"Venta #{self.venta_id}"
-#    
-#class VentaItem(models.Model):
-#    item_id = models.AutoField(primary_key=True)
-#    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="items")
-#    
-#    #variante vendida
-#    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
-#    sku = models.CharField(max_length=100)
-#    barcode = models.CharField(max_length=64)
-#    talle = models.IntegerField()
-#    color = models.CharField(max_length=50)
-#    
-#    cantidad = models.IntegerField()
-#    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-#    total_linea = models.DecimalField(max_digits=12, decimal_places=2)
+class Venta(models.Model):
+    class Estado(models.TextChoices):
+        ABIERTA = "OPEN", "Abierta"
+        CERRADA = "CLOSED", "Cerrada"
+        ANULADA = "VOID", "Anulada"
+        
+    venta_id = models.AutoField(primary_key=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey("auth.User", on_delete=models.PROTECT)
+    estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ABIERTA)
     
-#class VentaArticulo(models.Model): #unidad exacta vendida
-#    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="unidades")
-#    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, unique=True)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    nota = models.TextField(blank=True)
+    
+    def __str__(self):
+        return f"Venta #{self.venta_id}"
+    
+class VentaItem(models.Model):
+    item_id = models.AutoField(primary_key=True)
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="items")
+    
+    #variante vendida
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    sku = models.CharField(max_length=100)
+    barcode = models.CharField(max_length=64)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=50)
+    
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    total_linea = models.DecimalField(max_digits=12, decimal_places=2)
+    
+class VentaArticulo(models.Model): #unidad exacta vendida
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="unidades")
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, unique=True)
 
 
 
