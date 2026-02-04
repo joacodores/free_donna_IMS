@@ -11,6 +11,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.edit import FormView
 from django.db import transaction
 from django.contrib import messages
+from datetime import datetime as Datetime
 
 @login_required
 def index(request):
@@ -128,14 +129,19 @@ class ArticuloListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        qs = super().get_queryset().select_related("product_id").order_by("sku", "talle", "color", "articulo_id")
+        qs = super().get_queryset().select_related("product_id")
+        estado = (self.request.GET.get("estado") or "DISP").strip().upper()
+        if estado in ["DISP", "VEND", "BAJA"]:
+            qs = qs.filter(estado=estado)
+        qs = qs.order_by("created_at", "articulo_id")
         
         scan = (self.request.GET.get("scan") or "").strip()
         if scan:
-            return qs.filter(barcode=scan)
+            return qs.filter(barcode=scan, estado="DISP")
         
         q = (self.request.GET.get("q") or "").strip()
         field = (self.request.GET.get("field") or "all").strip().lower()
+        
         if field not in ["all", "sku", "producto", "color", "talle", "nombre", "marca"]:
             field = "all"
         if not q:
@@ -176,7 +182,7 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         if field not in ["all", "sku", "producto", "marca", "color", "talle", "id", "barcode"]:
             field = "all"
         ctx["field"] = field
-
+        ctx["estado"] = (self.request.GET.get("estado") or "DISP").upper()
         ctx["auto_open_first"] = bool(ctx["scan"] and ctx["articulos"])
         return ctx
     
@@ -192,6 +198,7 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         producto = form.cleaned_data['product_id']
         sku = form.cleaned_data['sku']
         barcode = form.cleaned_data['barcode']
+        created_at = Datetime.now()
         talle = form.cleaned_data['talle']
         color = form.cleaned_data['color']
         cantidad = form.cleaned_data['cantidad']
@@ -201,6 +208,7 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
                 product_id=producto,
                 sku=sku,
                 barcode=barcode,
+                created_at=created_at,
                 estado=Articulo.Estado.DISPONIBLE,
                 talle=talle,
                 color=color,
