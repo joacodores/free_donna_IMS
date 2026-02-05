@@ -34,7 +34,7 @@ class Articulo(models.Model):
     color = models.CharField(max_length=50)
     estado = models.CharField(max_length=4, choices=Estado.choices, default=Estado.DISPONIBLE, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    #local = models.ForeignKey(Local, on_delete=models.PROTECT, db_index=True)
+    local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, db_index=True)
     ingreso_item = models.ForeignKey("IngresoItem", on_delete=models.PROTECT, null=True, blank=True) 
     
     class Meta:
@@ -60,6 +60,7 @@ class Venta(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     nota = models.TextField(blank=True)
+    local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT)
     
     def __str__(self):
         return f"Venta #{self.venta_id}"
@@ -81,7 +82,7 @@ class VentaItem(models.Model):
     
 class VentaArticulo(models.Model): #unidad exacta vendida
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="unidades")
-    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, unique=True)
+    articulo = models.OneToOneField(Articulo, on_delete=models.PROTECT, unique=True)
 
 
 class Ingreso(models.Model):
@@ -89,7 +90,7 @@ class Ingreso(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey("auth.User", on_delete=models.PROTECT)
     
-    #local = models.ForeignKey(Local, on_delete=models.PROTECT, db_index=True)
+    local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, db_index=True)
     referencia = models.CharField(max_length=80, blank=True)
     nota = models.TextField(blank=True)
     

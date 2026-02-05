@@ -73,6 +73,9 @@ TEMPLATES = [
         },
     },
 ]
+TEMPLATES[0]["OPTIONS"]["context_processors"] += [
+    "inventory.context_processors.locales_context",
+]
 
 WSGI_APPLICATION = 'free_donna_IMS.wsgi.application'
 

@@ -45,6 +45,19 @@
 
   <!-- Menú -->
 <nav style="display:flex; gap:18px; flex-wrap:wrap; align-items:center;">
+  
+  {% if request.user.is_authenticated %}
+    <form method="post" action="{% url 'inventory:set_local' %}" style="margin:0; display:flex; gap:8px; align-items:center;">
+      {% csrf_token %}
+     <select name="local_id" onchange="this.form.submit()" style="padding:6px 10px; border-radius:10px; border:0;">
+       {% for l in locales %}
+          <option value="{{ l.local_id }}" {% if l.local_id == local_activo_id %}selected{% endif %}>
+           {{ l.nombre }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  {% endif %}
 
   <!-- POS / Carrito -->
   <a 

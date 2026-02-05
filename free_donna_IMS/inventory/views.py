@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView
 from django.db.models import Q, Count
 from django.shortcuts import redirect
-from .models import Ingreso, IngresoItem, Producto, Articulo, Venta, VentaItem, VentaArticulo
+from .models import Ingreso, IngresoItem, Local, Producto, Articulo, Venta, VentaItem, VentaArticulo
 from .forms import UserLoginForm, UserRegisterForm, ArticuloCreateForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -108,6 +108,14 @@ class ProductoDeleteView(LoginRequiredMixin, View):
         producto.delete()
         return redirect(self.success_url)
 
+
+class SetLocalView(LoginRequiredMixin, View):
+    def post(self, request):
+        local_id = request.POST.get("local_id")
+        if Local.objects.filter(local_id=local_id).exists():
+            request.session["local_id"] = int(local_id)
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
 class ArticuloUpdateView(LoginRequiredMixin, UpdateView):
     model = Articulo
     fields = ["product_id", "sku", "talle", "color"]
@@ -133,6 +141,9 @@ class ArticuloListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         qs = super().get_queryset().select_related("product_id")
         estado = (self.request.GET.get("estado") or "DISP").strip().upper()
+        local_id= self.request.session.get("local_id")
+        if local_id:
+            qs = qs.filter(local_id=local_id)
         if estado in ["DISP", "VEND", "BAJA"]:
             qs = qs.filter(estado=estado)
         qs = qs.order_by("created_at", "articulo_id")
@@ -204,7 +215,7 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         talle = form.cleaned_data['talle']
         color = form.cleaned_data['color']
         cantidad = form.cleaned_data['cantidad']
-        
+        local=_get_local_activo(self.request)
         referencia = (form.cleaned_data.get('referencia') or "").strip()
         costo_unitario = Decimal(form.cleaned_data.get('costo_unitario', 0))
         
@@ -235,6 +246,7 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
                 estado=Articulo.Estado.DISPONIBLE,
                 talle=talle,
                 color=color,
+                local=local,
                 ingreso_item=item
             )
             for _ in range(cantidad)
@@ -260,6 +272,12 @@ def _cart_totals(cart):
         it["line_total"] = str(line_total)  # guardo string para render simple
         subtotal += line_total
     return subtotal, subtotal
+
+def _get_local_activo(request):
+    local_id = request.session.get("local_id")
+    if not local_id:
+        return None
+    return Local.objects.get(local_id=local_id)
 
 class POSView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos.html"
@@ -288,16 +306,21 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
         if not barcode:
             messages.error(request, "Escaneá un código de barras.")
             return redirect("inventory:pos")
+        local=_get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:pos")
+        
         art = (Articulo.objects
                 .select_related("product_id")
-                .filter(barcode=barcode)
+                .filter(local=local,barcode=barcode)
                 .order_by("articulo_id")
                 .first())
         if not art:
             messages.error(request, f"No existe ningún artículo cargado con código de barras {barcode}.")
             return redirect("inventory:pos")
         
-        disponibles = Articulo.objects.filter(barcode=barcode, estado=Articulo.Estado.DISPONIBLE).count()
+        disponibles = Articulo.objects.filter(local=local, barcode=barcode, estado=Articulo.Estado.DISPONIBLE).count()
         if disponibles <= 0:
             messages.error(request, f"No hay unidades disponibles para el artículo '{art.product_id.nombre}' (Código de barras: {barcode}).")
             return redirect("inventory:pos")
@@ -351,8 +374,11 @@ class POSCheckoutView(LoginRequiredMixin, View):
         if not cart:
             messages.error(request, "El carrito está vacío.")
             return redirect("inventory:pos")
-
-        venta = Venta.objects.create(usuario=request.user, estado=Venta.Estado.ABIERTA)
+        local=_get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:pos")
+        venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA)
 
         subtotal = Decimal("0.00")
 
@@ -364,7 +390,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
 
             disponibles_qs = (Articulo.objects
                               .select_for_update()
-                              .filter(barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
+                              .filter(local=local,barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
                               .order_by("articulo_id"))
             articulos = list(disponibles_qs[:qty])
             if len(articulos) < qty:
