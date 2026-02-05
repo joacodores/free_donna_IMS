@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView
 from django.db.models import Q, Count
 from django.shortcuts import redirect
-from .models import Producto, Articulo, Venta, VentaItem, VentaArticulo
+from .models import Ingreso, IngresoItem, Producto, Articulo, Venta, VentaItem, VentaArticulo
 from .forms import UserLoginForm, UserRegisterForm, ArticuloCreateForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -205,6 +205,27 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         color = form.cleaned_data['color']
         cantidad = form.cleaned_data['cantidad']
         
+        referencia = (form.cleaned_data.get('referencia') or "").strip()
+        costo_unitario = Decimal(form.cleaned_data.get('costo_unitario', 0))
+        
+        ingreso = Ingreso.objects.create(
+            usuario=self.request.user,
+            referencia=referencia,
+            nota="Ingreso por carga de artículos"
+        )
+        total_linea = costo_unitario * cantidad
+        item = IngresoItem.objects.create(
+            ingreso=ingreso,
+            producto=producto,
+            sku=sku,
+            barcode=barcode,
+            talle=talle,
+            color=color,
+            cantidad=cantidad,
+            costo_unitario=costo_unitario,
+            total_linea=total_linea
+        )
+        
         articulos = [
             Articulo(
                 product_id=producto,
@@ -214,11 +235,12 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
                 estado=Articulo.Estado.DISPONIBLE,
                 talle=talle,
                 color=color,
+                ingreso_item=item
             )
             for _ in range(cantidad)
         ]
         Articulo.objects.bulk_create(articulos)
-        messages.success(self.request, f"Se cargaron {cantidad} artículo(s) para {producto}.")
+        messages.success(self.request, f"Ingreso #{ingreso.ingreso_id} registrado: {cantidad} unidad(es) de {producto}.")
         return super().form_valid(form)
     
 

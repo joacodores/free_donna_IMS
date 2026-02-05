@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import forms 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
@@ -41,12 +42,15 @@ class ArticuloCreateForm(forms.Form):
     talle = forms.IntegerField(min_value=1, label="Talle")
     color = forms.CharField(max_length=50, label="Color")
     cantidad = forms.IntegerField(min_value=1, max_value=500, initial=1, label="Cantidad")
+    referencia = forms.CharField(max_length=80, required=False, label="Referencia")
+    costo_unitario = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal(0), label="Costo Unitario")
     
     def clean_sku(self):
         sku = (self.cleaned_data['sku'] or "").strip()
         if not sku:
             raise forms.ValidationError("El SKU es obligatorio")
         return sku
+    
     def clean_barcode(self):
         barcode = (self.cleaned_data["barcode"] or "").strip()
         if not barcode:
