@@ -68,7 +68,7 @@ class Venta(models.Model):
     nota = models.TextField(blank=True)
     local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT)
     metodo_de_pago = models.CharField(max_length=15, choices=MetodoPago.choices, default=MetodoPago.EFECTIVO, db_index=True)
-    
+    profit_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     def __str__(self):
         return f"Venta #{self.venta_id}"
     
@@ -85,6 +85,8 @@ class VentaItem(models.Model):
     
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    profit_linea = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_linea = models.DecimalField(max_digits=12, decimal_places=2)
     
 class VentaArticulo(models.Model): #unidad exacta vendida

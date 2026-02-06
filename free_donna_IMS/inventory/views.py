@@ -410,6 +410,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
         venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA, metodo_de_pago=metodo_de_pago)
 
         subtotal = Decimal("0.00")
+        profit_total = Decimal("0.00")
 
         
         for it in cart.values():
@@ -428,10 +429,15 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 raise ValueError(
                     f"Stock insuficiente para barcode {barcode}. Pediste {qty}, hay {len(articulos)}."
                 )
-
-            total_linea = precio * qty
+            
+            costo_total = sum(Decimal(a.ingreso_item.costo_unitario) for a in articulos)
+            qty_d = Decimal(qty)
+            costo_unitario_prom = (costo_total / qty_d) if qty else Decimal("0.00")
+            total_linea = precio * qty_d
+            profit_linea = (precio - costo_unitario_prom) * qty_d
+            
             subtotal += total_linea
-
+            profit_total += profit_linea
             VentaItem.objects.create(
                 venta=venta,
                 producto_id=it["producto_id"],
@@ -441,6 +447,8 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 color=it["color"],
                 cantidad=qty,
                 precio_unitario=precio,
+                costo_unitario=costo_unitario_prom,
+                profit_linea=profit_linea,
                 total_linea=total_linea,
             )
 
@@ -457,8 +465,9 @@ class POSCheckoutView(LoginRequiredMixin, View):
         #Cerrar venta 
         venta.subtotal = subtotal
         venta.total = subtotal
+        venta.profit_total = profit_total
         venta.estado = Venta.Estado.CERRADA
-        venta.save(update_fields=["subtotal", "total", "estado"])
+        venta.save(update_fields=["subtotal", "total", "profit_total", "estado"])
 
         
         _save_cart(request.session, {})
