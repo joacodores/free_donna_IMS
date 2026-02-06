@@ -69,18 +69,16 @@
     </table>
   </div>
 
-  <div class="pagination" style="margin-top:16px;">
+  <div class="pagination" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
     <div class="strong">Total: $ {{ total|floatformat:"2" }}</div>
     <div class="pagination-right">
-      <form method="post" action="{% url 'inventory:pos_clear' %}" style="margin:0;">
+      
         {% csrf_token %}
-        <button class="btn-secondary" type="submit">Vaciar</button>
-      </form>
+        <a class="btn-secondary"href="{% url 'inventory:pos_clear' %}">Vaciar</a>
+      
 
-      <form method="post" action="{% url 'inventory:pos_checkout' %}" style="margin:0;">
-        {% csrf_token %}
-        <button class="btn-primary" type="submit">Cerrar venta</button>
-      </form>
+      <a class="btn-primary" href="{% url 'inventory:pos_checkout' %}">Cerrar venta</a>
+
     </div>
   </div>
 {% else %}

@@ -5,7 +5,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, V
 from django.db.models import Q, Count
 from django.shortcuts import redirect
 from .models import Ingreso, IngresoItem, Local, Producto, Articulo, Venta, VentaItem, VentaArticulo
-from .forms import UserLoginForm, UserRegisterForm, ArticuloCreateForm
+from .forms import CheckoutForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -368,6 +368,23 @@ class POSClearView(LoginRequiredMixin, View):
         return redirect("inventory:pos")
     
 class POSCheckoutView(LoginRequiredMixin, View):
+    template_name = "inventory/pos/pos_checkout.html"
+
+    def get(self, request):
+        form = CheckoutForm()
+        cart = _get_cart(request.session)
+        if not cart:
+            messages.info(request, "El carrito está vacío.")
+            return redirect("inventory:pos")
+
+        subtotal, total = _cart_totals(cart)
+
+        return render(request, self.template_name, {
+            "form": form,
+            "cart": cart,
+            "total": total,
+        })
+
     @transaction.atomic
     def post(self, request):
         cart = _get_cart(request.session)
@@ -378,29 +395,44 @@ class POSCheckoutView(LoginRequiredMixin, View):
         if not local:
             messages.error(request, "No hay un local activo seleccionado.")
             return redirect("inventory:pos")
-        venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA)
+        
+        form = CheckoutForm(request.POST)
+        if not form.is_valid():
+            subtotal, total = _cart_totals(cart)
+            return render(request, self.template_name, {
+                "form": form,
+                "cart": cart,
+                "total": total,
+            })
+            
+        metodo_de_pago = form.cleaned_data["metodo_pago"]
+            
+        venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA, metodo_de_pago=metodo_de_pago)
 
         subtotal = Decimal("0.00")
 
         
-        for key, it in cart.items():
+        for it in cart.values():
             barcode = it["barcode"]
             qty = int(it["qty"])
             precio = Decimal(it["precio"])
 
-            disponibles_qs = (Articulo.objects
-                              .select_for_update()
-                              .filter(local=local,barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
-                              .order_by("articulo_id"))
+            disponibles_qs = (
+                Articulo.objects
+                .select_for_update()
+                .filter(local=local, barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
+                .order_by("articulo_id")
+            )
             articulos = list(disponibles_qs[:qty])
             if len(articulos) < qty:
-                raise ValueError(f"Stock insuficiente para barcode {barcode}. Pediste {qty}, hay {len(articulos)}.")
-
+                raise ValueError(
+                    f"Stock insuficiente para barcode {barcode}. Pediste {qty}, hay {len(articulos)}."
+                )
 
             total_linea = precio * qty
             subtotal += total_linea
 
-            item = VentaItem.objects.create(
+            VentaItem.objects.create(
                 venta=venta,
                 producto_id=it["producto_id"],
                 sku=it["sku"],

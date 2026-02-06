@@ -1,0 +1,61 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Cerrar venta{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'inventory/static/css/pos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Cerrar venta</h2>
+    <p class="subtle">Seleccioná el método de pago y confirmá.</p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:pos' %}">Volver</a>
+</div>
+
+<form method="post" class="form-card">
+  {% csrf_token %}
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Método de pago</label>
+      {{ form.metodo_pago }}
+      {{ form.metodo_pago.errors }}
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:14px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Barcode</th>
+          <th>Producto</th>
+          <th class="num">Cant</th>
+          <th class="num">Unit</th>
+          <th class="num">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in cart.values %}
+          <tr>
+            <td class="mono">{{ it.barcode }}</td>
+            <td>{{ it.nombre|default:it.sku }}</td>
+            <td class="num">{{ it.qty }}</td>
+            <td class="num">$ {{ it.precio }}</td>
+            <td class="num strong">$ {{ it.line_total }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end; margin-top:12px; font-weight:900;">
+    Total: $ {{ total }}
+  </div>
+
+  <div class="modal-actions" style="padding:0; margin-top:14px;">
+    <button class="btn-primary" type="submit">Confirmar venta</button>
+  </div>
+</form>
+{% endblock %}

@@ -2,7 +2,7 @@ from decimal import Decimal
 from django import forms 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Producto
+from .models import Producto, Venta
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
@@ -56,3 +56,11 @@ class ArticuloCreateForm(forms.Form):
         if not barcode:
             raise forms.ValidationError("El código de barras es obligatorio.")
         return barcode
+    
+class CheckoutForm(forms.Form):
+    metodo_pago = forms.ChoiceField(
+        choices=Venta.MetodoPago.choices,
+        initial=Venta.MetodoPago.EFECTIVO,
+        label="Método de pago",
+        widget=forms.Select(attrs={"class": "select"})
+    )

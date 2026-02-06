@@ -51,6 +51,12 @@ class Venta(models.Model):
         ABIERTA = "OPEN", "Abierta"
         CERRADA = "CLOSED", "Cerrada"
         ANULADA = "VOID", "Anulada"
+    
+    class MetodoPago(models.TextChoices):
+        EFECTIVO = "EFEC", "Efectivo"
+        TARJETA = "TARJ", "Tarjeta"
+        TRANSFERENCIA = "TRANS", "Transferencia"
+        OTRO = "OTRO", "Otro"
         
     venta_id = models.AutoField(primary_key=True)
     fecha = models.DateTimeField(auto_now_add=True)
@@ -61,6 +67,7 @@ class Venta(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     nota = models.TextField(blank=True)
     local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT)
+    metodo_de_pago = models.CharField(max_length=15, choices=MetodoPago.choices, default=MetodoPago.EFECTIVO, db_index=True)
     
     def __str__(self):
         return f"Venta #{self.venta_id}"
