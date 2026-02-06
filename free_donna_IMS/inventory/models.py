@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 # Create your models here.
@@ -123,27 +124,43 @@ class IngresoItem(models.Model):
 
     
     
-#class MovimientoStock(models.Model):
-#    class Tipo(models.TextChoices):
-#        ENTRADA = "IN", "Entrada"
-#        SALIDA = "OUT", "Salida"
-#
-#    movimiento_id = models.AutoField(primary_key=True)
-#    tipo = models.CharField(max_length=3, choices=Tipo.choices)
-#    fecha = models.DateTimeField(auto_now_add=True)
-#
-#    
-#    articulo = models.ForeignKey("Articulo", on_delete=models.PROTECT, null=True, blank=True)
-#    venta = models.ForeignKey("Venta", on_delete=models.PROTECT, null=True, blank=True)
-#    # Datos “de lectura rápida” (evita joins en reportes)
-#    producto = models.ForeignKey("Producto", on_delete=models.PROTECT)
-#    sku = models.CharField(max_length=100)
-#    barcode = models.CharField(max_length=64)
-#    talle = models.IntegerField()
-#    color = models.CharField(max_length=50)
-#
-#    cantidad = models.IntegerField()  
-#    usuario = models.ForeignKey("auth.User", on_delete=models.PROTECT)
-#
-#    referencia = models.CharField(max_length=80, blank=True)  
-#    nota = models.TextField(blank=True)
+class MovimientoStock(models.Model):
+    class Tipo(models.TextChoices):
+        INGRESO = "IN", "Ingreso"
+        VENTA = "OUT", "Venta"
+        AJUSTE = "ADJ", "Ajuste"
+        TRANSFERENCIA = "TRF", "Transferencia"
+        BAJA = "BAJ", "Baja"
+        DEVOLUCION = "RET", "Devolución"
+
+    movimiento_id = models.BigAutoField(primary_key=True)
+    fecha = models.DateTimeField(auto_now_add=True,db_index=True)
+    tipo = models.CharField(max_length=3, choices=Tipo.choices, db_index=True)
+
+    local = models.ForeignKey(Local, on_delete=models.PROTECT, db_index=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, related_name="movimientos")
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    sku = models.CharField(max_length=100, db_index=True)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=50)
+    
+    cantidad = models.IntegerField()
+    
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    profit_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    ingreso = models.ForeignKey(Ingreso, null=True, blank=True, on_delete=models.PROTECT)
+    venta = models.ForeignKey(Venta, null=True, blank=True, on_delete=models.PROTECT)
+     
+    nota = models.TextField(blank=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["local", "fecha"]),
+            models.Index(fields=["tipo", "fecha"]),
+            models.Index(fields=["producto"]),
+        ]
+        ordering = ["-fecha", "-movimiento_id"]

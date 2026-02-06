@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView
 from django.db.models import Q, Count
 from django.shortcuts import redirect
-from .models import Ingreso, IngresoItem, Local, Producto, Articulo, Venta, VentaItem, VentaArticulo
+from .models import Ingreso, IngresoItem, Local, MovimientoStock, Producto, Articulo, Venta, VentaItem, VentaArticulo
 from .forms import CheckoutForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -211,16 +211,16 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         producto = form.cleaned_data['product_id']
         sku = form.cleaned_data['sku']
         barcode = form.cleaned_data['barcode']
-        created_at = Datetime.now()
         talle = form.cleaned_data['talle']
         color = form.cleaned_data['color']
         cantidad = form.cleaned_data['cantidad']
-        local=_get_local_activo(self.request)
+        local = _get_local_activo(self.request)
         referencia = (form.cleaned_data.get('referencia') or "").strip()
         costo_unitario = Decimal(form.cleaned_data.get('costo_unitario', 0))
         
         ingreso = Ingreso.objects.create(
             usuario=self.request.user,
+            local=local,
             referencia=referencia,
             nota="Ingreso por carga de artículos"
         )
@@ -242,7 +242,6 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
                 product_id=producto,
                 sku=sku,
                 barcode=barcode,
-                created_at=created_at,
                 estado=Articulo.Estado.DISPONIBLE,
                 talle=talle,
                 color=color,
@@ -451,7 +450,33 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 profit_linea=profit_linea,
                 total_linea=total_linea,
             )
+            movs = []
+            venta_articulos = []
+            art_ids = []
+            for a in articulos:
+                costo_u = Decimal(a.ingreso_item.costo_unitario) if a.ingreso_item else Decimal("0.00")
+                profit_u = precio - costo_u
 
+                movs.append(MovimientoStock(
+                    tipo=MovimientoStock.Tipo.VENTA,
+                    local=local,
+                    usuario=request.user,
+                    articulo=a,
+                    producto=a.product_id,
+                    sku=a.sku,
+                    talle=a.talle,
+                    color=a.color,
+                    cantidad=-1,
+                    costo_unitario=costo_u,
+                    precio_unitario=precio,
+                    profit_unitario=profit_u,
+                    ingreso=None,
+                    venta=venta,
+                    nota=f"Venta #{venta.venta_id}",
+                ))
+
+                venta_articulos.append(VentaArticulo(venta=venta, articulo=a))
+                art_ids.append(a.articulo_id)
             # Marcar unidades como vendidas 
             Articulo.objects.filter(articulo_id__in=[a.articulo_id for a in articulos]).update(
                 estado=Articulo.Estado.VENDIDO
@@ -461,6 +486,8 @@ class POSCheckoutView(LoginRequiredMixin, View):
             VentaArticulo.objects.bulk_create([
                 VentaArticulo(venta=venta, articulo=a) for a in articulos
             ])
+            
+            MovimientoStock.objects.bulk_create(movs)
 
         #Cerrar venta 
         venta.subtotal = subtotal
