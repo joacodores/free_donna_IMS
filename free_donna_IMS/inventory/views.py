@@ -15,10 +15,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.edit import FormView
 from django.db import transaction
 from django.contrib import messages
-from datetime import datetime as Datetime
+from datetime import datetime as Datetime, time, timezone, datetime
 from django.db.models.functions import TruncDate, Coalesce
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from django.utils import timezone
 
 
 @login_required
@@ -550,8 +551,8 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
         mode = (request.GET.get("mode") or "doc").strip().lower()
         tipo = (request.GET.get("tipo") or "all").strip().upper()
         q = (request.GET.get("q") or "").strip()
-        desde = (request.GET.get("desde") or "").strip()
-        hasta = (request.GET.get("hasta") or "").strip()
+        desde = (request.GET.get("from") or "").strip()
+        hasta = (request.GET.get("to") or "").strip()
         base = MovimientoStock.objects.filter(local=local).select_related("local", "usuario", "producto","venta","ingreso", "articulo")
         
         if tipo in ["IN", "OUT", "ADJ", "TRF", "BAJ", "RET"]:
@@ -564,10 +565,13 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
                 Q(producto__nombre__icontains=q) |
                 Q(producto__marca__icontains=q)
             )
-        if desde: 
-            base = base.filter(fecha__date__gte=desde)
-        if hasta: 
-            base = base.filter(fecha__date__lte=hasta)
+        if desde:
+            d = Datetime.strptime(desde, "%Y-%m-%d").date()
+            base = base.filter(fecha__gte=timezone.make_aware(datetime.combine(d, time.min)))
+
+        if hasta:
+            h = Datetime.strptime(hasta, "%Y-%m-%d").date()
+            base = base.filter(fecha__lt=timezone.make_aware(Datetime.combine(h, time.max)))
         if mode=="unit":
             rows = base.order_by("-fecha", "-movimiento_id")[:500]
             ctx = {
