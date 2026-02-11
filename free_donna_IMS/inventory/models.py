@@ -143,6 +143,7 @@ class MovimientoStock(models.Model):
     articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, related_name="movimientos")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
     sku = models.CharField(max_length=100, db_index=True)
+    barcode = models.CharField(max_length=100, db_index=True)
     talle = models.IntegerField()
     color = models.CharField(max_length=50)
     
@@ -158,9 +159,14 @@ class MovimientoStock(models.Model):
     nota = models.TextField(blank=True)
     
     class Meta:
+        ordering = ["-fecha", "-movimiento_id"]
         indexes = [
             models.Index(fields=["local", "fecha"]),
             models.Index(fields=["tipo", "fecha"]),
+            models.Index(fields=["barcode"]),
             models.Index(fields=["producto"]),
+            models.Index(fields=["venta"]),
+            models.Index(fields=["ingreso"]),
         ]
-        ordering = ["-fecha", "-movimiento_id"]
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.movimiento_id}"

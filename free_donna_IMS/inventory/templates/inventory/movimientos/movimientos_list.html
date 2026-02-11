@@ -1,0 +1,296 @@
+{# inventory/templates/inventory/movimientos/movimientos_list.html #}
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Movimientos de stock{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'inventory/static/css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Movimientos de stock</h2>
+    <p class="subtle">Kardex: ingresos, ventas y otros movimientos. Podés agrupar la vista.</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:movimientos_pdf' %}?{{ request.GET.urlencode }}">Exportar PDF</a>
+  </div>
+</div>
+
+{% if error_local %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">No hay un local activo seleccionado.</p>
+    <p class="subtle" style="margin-bottom:0;">Seleccioná un local para ver movimientos.</p>
+  </div>
+{% else %}
+
+<form method="get" class="filters-row">
+  <select name="mode" class="select">
+    <option value="doc" {% if mode == "doc" %}selected{% endif %}>Agrupar por documento</option>
+    <option value="day" {% if mode == "day" %}selected{% endif %}>Resumen por día</option>
+    <option value="variant" {% if mode == "variant" %}selected{% endif %}>Agrupar por variante</option>
+    <option value="unit" {% if mode == "unit" %}selected{% endif %}>Detalle por unidad</option>
+  </select>
+
+  <select name="tipo" class="select">
+    <option value="all" {% if tipo == "all" %}selected{% endif %}>Todos</option>
+    <option value="IN" {% if tipo == "IN" %}selected{% endif %}>Ingresos</option>
+    <option value="OUT" {% if tipo == "OUT" %}selected{% endif %}>Ventas</option>
+    <option value="ADJ" {% if tipo == "ADJ" %}selected{% endif %}>Ajustes</option>
+    <option value="TRF" {% if tipo == "TRF" %}selected{% endif %}>Transferencias</option>
+    <option value="BAJ" {% if tipo == "BAJ" %}selected{% endif %}>Bajas</option>
+    <option value="RET" {% if tipo == "RET" %}selected{% endif %}>Devoluciones</option>
+  </select>
+
+  <input class="search-input" type="text" name="q" value="{{ q }}" placeholder="Buscar barcode / sku / producto / marca">
+  <input class="date-input" type="date" name="from" value="{{ from }}">
+  <input class="date-input" type="date" name="to" value="{{ to }}">
+
+  <button class="btn-secondary" type="submit">Aplicar</button>
+  <a class="btn-secondary" href="{% url 'inventory:movimientos' %}">Limpiar</a>
+</form>
+
+{% if rows %}
+  <div class="table-wrap">
+    <table class="table">
+      {% if mode == "doc" %}
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Documento</th>
+            <th class="num">Unidades</th>
+            <th class="num">Costo</th>
+            <th class="num">Venta</th>
+            <th class="num">Profit</th>
+            <th class="col-menu"></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for r in rows %}
+            {# URLs destino por tipo #}
+            {% if r.tipo == "OUT" and r.venta_id %}
+              {% url 'inventory:venta_detail' r.venta_id as doc_url %}
+              {% url 'inventory:venta_pdf' r.venta_id as doc_pdf_url %}
+              {% with doc_label="Venta #"|add:r.venta_id|stringformat:"s" %}
+              {% endwith %}
+            {% elif r.tipo == "IN" and r.ingreso_id %}
+              {% url 'inventory:ingreso_detail' r.ingreso_id as doc_url %}
+              {% url 'inventory:ingreso_pdf' r.ingreso_id as doc_pdf_url %}
+            {% else %}
+              {% with doc_url="" doc_pdf_url="" %}
+              {% endwith %}
+            {% endif %}
+
+            <tr
+              class="row-click {% if doc_url %}row-link{% endif %}"
+              role="button"
+              tabindex="0"
+              {% if doc_url %}
+                data-href="{{ doc_url }}"
+                onclick="rowGo(this, event)"
+                onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); rowGo(this, event); }"
+              {% endif %}
+            >
+              <td class="mono">{{ r.fecha|date:"Y-m-d H:i" }}</td>
+              <td class="strong">{{ r.tipo }}</td>
+              <td>
+                {% if r.tipo == "OUT" %}
+                  Venta #{{ r.venta_id }}
+                {% else %}
+                  Ingreso #{{ r.ingreso_id }}
+                {% endif %}
+              </td>
+              <td class="num">{{ r.items }}</td>
+              <td class="num mono">$ {{ r.costo_total }}</td>
+              <td class="num mono">$ {{ r.venta_total }}</td>
+              <td class="num mono">$ {{ r.profit_total }}</td>
+
+              <td class="cell-menu" onclick="event.stopPropagation();">
+                <div class="kebab-wrap">
+                  <details class="kebab">
+                    <summary class="kebab-btn" aria-label="Abrir menú">
+                      <span aria-hidden="true">⋮</span>
+                    </summary>
+                
+                  <div class="kebab-menu">
+                    {% if r.tipo == "OUT" %}
+                      <a class="kebab-item" href="{% url 'inventory:venta_detail' r.venta_id %}">Ver</a>
+                      <a class="kebab-item" href="{% url 'inventory:venta_pdf' r.venta_id %}">Exportar PDF</a>
+                    {% else %}
+                      <a class="kebab-item" href="{% url 'inventory:ingreso_detail' r.ingreso_id %}">Ver</a>
+                      <a class="kebab-item" href="{% url 'inventory:ingreso_pdf' r.ingreso_id %}">Exportar PDF</a>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+
+      {% if mode == "day" %}
+        <thead>
+          <tr>
+            <th>Día</th>
+            <th class="num">Movimientos</th>
+            <th class="num">Unidades netas</th>
+            <th class="num">Costo</th>
+            <th class="num">Venta</th>
+            <th class="num">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td class="mono">{{ r.dia|date:"Y-m-d" }}</td>
+              <td class="num">{{ r.movimientos }}</td>
+              <td class="num">{{ r.unidades }}</td>
+              <td class="num mono">$ {{ r.costo_total }}</td>
+              <td class="num mono">$ {{ r.venta_total }}</td>
+              <td class="num mono">$ {{ r.profit_total }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+
+      {% if mode == "variant" %}
+        <thead>
+          <tr>
+            <th>Barcode</th>
+            <th>SKU</th>
+            <th>Producto</th>
+            <th>Variante</th>
+            <th class="num">Mov</th>
+            <th class="num">Unidades netas</th>
+            <th class="num">Costo</th>
+            <th class="num">Venta</th>
+            <th class="num">Profit</th>
+            <th>Último</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td class="mono">{{ r.barcode }}</td>
+              <td class="mono">{{ r.sku }}</td>
+              <td>{{ r.producto__nombre }} <span class="subtle">({{ r.producto__marca }})</span></td>
+              <td class="mono">{{ r.talle }}/{{ r.color }}</td>
+              <td class="num">{{ r.movimientos }}</td>
+              <td class="num">{{ r.unidades }}</td>
+              <td class="num mono">$ {{ r.costo_total }}</td>
+              <td class="num mono">$ {{ r.venta_total }}</td>
+              <td class="num mono">$ {{ r.profit_total }}</td>
+              <td class="mono">{{ r.last_fecha|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+
+      {% if mode == "unit" %}
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Doc</th>
+            <th>ID Art</th>
+            <th>Barcode</th>
+            <th>SKU</th>
+            <th>Var</th>
+            <th class="num">Cant</th>
+            <th class="num">Costo</th>
+            <th class="num">Precio</th>
+            <th class="num">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in rows %}
+            <tr>
+              <td class="mono">{{ m.fecha|date:"Y-m-d H:i" }}</td>
+              <td class="strong">{{ m.tipo }}</td>
+              <td class="mono">
+                {% if m.venta_id %}V#{{ m.venta_id }}{% elif m.ingreso_id %}I#{{ m.ingreso_id }}{% else %}—{% endif %}
+              </td>
+              <td class="mono">{{ m.articulo_id }}</td>
+              <td class="mono">{{ m.barcode }}</td>
+              <td class="mono">{{ m.sku }}</td>
+              <td class="mono">{{ m.talle }}/{{ m.color }}</td>
+              <td class="num">{{ m.cantidad }}</td>
+              <td class="num mono">$ {{ m.costo_unitario }}</td>
+              <td class="num mono">{% if m.precio_unitario %}$ {{ m.precio_unitario }}{% else %}—{% endif %}</td>
+              <td class="num mono">$ {{ m.profit_unitario }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+    </table>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">No hay movimientos para estos filtros.</p>
+    <p class="subtle" style="margin-bottom:0;">Probá cambiar el rango de fechas o el modo.</p>
+  </div>
+{% endif %}
+
+<script>
+  function rowGo(tr, evt){
+    // si el click vino desde el menú, no navegamos
+    if (evt && evt.target && evt.target.closest && evt.target.closest(".kebab")) return;
+    var href = tr.dataset.href;
+    if (href) window.location.href = href;
+  }
+
+    document.addEventListener("click", function(e){
+      const btn = e.target.closest(".kebab-btn");
+    
+      document.querySelectorAll(".kebab").forEach(k=>{
+        if (!btn || k !== btn.parentElement){
+          k.classList.remove("open");
+        }
+      });
+    
+      if (btn){
+        btn.parentElement.classList.toggle("open");
+        e.stopPropagation();
+      }
+    });
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){
+      document.querySelectorAll(".kebab.open").forEach(function(k){ k.classList.remove("open"); });
+    }
+  });
+</script>
+
+<script>
+  function toggleKebab(event, btn){
+    event.stopPropagation();
+  
+    const kebab = btn.closest(".kebab");
+  
+    // cerrar todos
+    document.querySelectorAll(".kebab").forEach(k=>{
+      if (k !== kebab){
+        k.classList.remove("active");
+      }
+    });
+  
+    // toggle actual
+    kebab.classList.toggle("active");
+  }
+  
+  // cerrar al clickear fuera
+  document.addEventListener("click", function(){
+    document.querySelectorAll(".kebab").forEach(k=>{
+      k.classList.remove("active");
+    });
+  });
+</script>
+
+
+
+{% endif %}
+{% endblock %}

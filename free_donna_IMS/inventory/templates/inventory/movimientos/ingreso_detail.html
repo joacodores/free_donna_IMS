@@ -1,0 +1,92 @@
+{# inventory/templates/inventory/ingresos/ingreso_detail.html #}
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Ingreso #{{ ingreso.ingreso_id }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'inventory/static/css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Ingreso #{{ ingreso.ingreso_id }}</h2>
+    <p class="subtle">{{ ingreso.fecha|date:"Y-m-d H:i" }} · Local: {{ ingreso.local }} · Usuario: {{ ingreso.usuario.username }}</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=IN">Volver</a>
+    <a class="btn-secondary" href="{% url 'inventory:ingreso_pdf' ingreso.ingreso_id %}">Exportar PDF</a>
+  </div>
+</div>
+
+{% if ingreso.referencia or ingreso.nota %}
+  <div class="empty" style="border-style:solid;">
+    {% if ingreso.referencia %}<div><b>Referencia:</b> {{ ingreso.referencia }}</div>{% endif %}
+    {% if ingreso.nota %}<div class="subtle" style="margin-top:6px;">{{ ingreso.nota }}</div>{% endif %}
+  </div>
+{% endif %}
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Barcode</th>
+        <th>Variante</th>
+        <th class="num">Cantidad</th>
+        <th class="num">Costo u.</th>
+        <th class="num">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+        <tr>
+          <td class="mono">{{ it.sku }}</td>
+          <td class="mono">{{ it.barcode }}</td>
+          <td class="mono">{{ it.talle }}/{{ it.color }}</td>
+          <td class="num">{{ it.cantidad }}</td>
+          <td class="num mono">$ {{ it.costo_unitario }}</td>
+          <td class="num mono">$ {{ it.total_linea }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" style="margin-top:16px;">
+  <div class="subtle">
+    Unidades: <b>{{ ms_totals.unidades }}</b>
+  </div>
+  <div class="subtle">
+    Costo total: <b>$ {{ ms_totals.costo_total }}</b>
+  </div>
+</div>
+
+<details style="margin-top:14px;">
+  <summary style="cursor:pointer; font-weight:900;">Detalle por unidad (auditoría)</summary>
+  <div class="table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Art ID</th>
+          <th>Barcode</th>
+          <th>SKU</th>
+          <th>Var</th>
+          <th class="num">Costo u.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in unidades %}
+          <tr>
+            <td class="mono">{{ m.articulo_id }}</td>
+            <td class="mono">{{ m.barcode }}</td>
+            <td class="mono">{{ m.sku }}</td>
+            <td class="mono">{{ m.talle }}/{{ m.color }}</td>
+            <td class="num mono">$ {{ m.costo_unitario }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+
+{% endblock %}

@@ -23,4 +23,10 @@ urlpatterns = [
     path("pos/remove/", views.POSRemoveItemView.as_view(), name="pos_remove"),
     path("pos/clear/", views.POSClearView.as_view(), name="pos_clear"),
     path("pos/checkout/", views.POSCheckoutView.as_view(), name="pos_checkout"),
+    path("movimientos/", views.MovimientoStockView.as_view(), name="movimientos"),
+    path("movimientos/pdf/", views.movimiento_pdf, name="movimientos_pdf"),
+    path("ventas/<int:venta_id>/", views.VentaDetailView.as_view(), name="venta_detail"),
+    path("ventas/<int:venta_id>/pdf/", views.venta_pdf, name="venta_pdf"),
+    path("ingresos/<int:ingreso_id>/", views.IngresoDetailView.as_view(), name="ingreso_detail"),
+    path("ingresos/<int:ingreso_id>/pdf/", views.ingreso_pdf, name="ingreso_pdf"),
 ]

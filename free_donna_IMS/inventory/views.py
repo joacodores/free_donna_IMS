@@ -1,8 +1,11 @@
 from decimal import Decimal
-from django.shortcuts import render, HttpResponse
+from email.mime import base
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render, HttpResponse
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum, Max, Value
+from django.db.models.fields import DecimalField
 from django.shortcuts import redirect
 from .models import Ingreso, IngresoItem, Local, MovimientoStock, Producto, Articulo, Venta, VentaItem, VentaArticulo
 from .forms import CheckoutForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm
@@ -13,6 +16,9 @@ from django.views.generic.edit import FormView
 from django.db import transaction
 from django.contrib import messages
 from datetime import datetime as Datetime
+from django.db.models.functions import TruncDate, Coalesce
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 
 @login_required
@@ -251,6 +257,32 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
             for _ in range(cantidad)
         ]
         Articulo.objects.bulk_create(articulos)
+        creados = list(Articulo.objects
+                    .filter(ingreso_item=item, local=local)
+                    .order_by("articulo_id")[:cantidad]
+        )
+        movs = [
+            MovimientoStock(
+                tipo=MovimientoStock.Tipo.INGRESO,
+                local=local,
+                usuario=self.request.user,
+                articulo=a,
+                producto=producto,
+                sku=sku,
+                barcode=barcode,
+                talle=talle,
+                color=color,
+                cantidad=1,
+                costo_unitario=costo_unitario,
+                precio_unitario=None,
+                profit_unitario=Decimal("0.00"),
+                ingreso=ingreso,
+                venta=None,
+                nota=f"Ingreso #{ingreso.ingreso_id}",
+            )
+            for a in creados
+        ]
+        MovimientoStock.objects.bulk_create(movs)
         messages.success(self.request, f"Ingreso #{ingreso.ingreso_id} registrado: {cantidad} unidad(es) de {producto}.")
         return super().form_valid(form)
     
@@ -410,7 +442,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
 
         subtotal = Decimal("0.00")
         profit_total = Decimal("0.00")
-
+        
         
         for it in cart.values():
             barcode = it["barcode"]
@@ -450,9 +482,9 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 profit_linea=profit_linea,
                 total_linea=total_linea,
             )
+            art_ids = [a.articulo_id for a in articulos]
             movs = []
             venta_articulos = []
-            art_ids = []
             for a in articulos:
                 costo_u = Decimal(a.ingreso_item.costo_unitario) if a.ingreso_item else Decimal("0.00")
                 profit_u = precio - costo_u
@@ -463,6 +495,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
                     usuario=request.user,
                     articulo=a,
                     producto=a.product_id,
+                    barcode=a.barcode,
                     sku=a.sku,
                     talle=a.talle,
                     color=a.color,
@@ -502,4 +535,490 @@ class POSCheckoutView(LoginRequiredMixin, View):
         messages.success(request, f"Venta #{venta.venta_id} cerrada. Total: $ {venta.total}")
         return redirect("inventory:pos")
     
+    
+class MovimientoStockView(LoginRequiredMixin, ListView):
+    template_name = "inventory/movimientos/movimientos_list.html"
+    
+    def get(self, request):
+        local = _get_local_activo(request)
+        if not local:
+            return render(request, self.template_name, {
+                "error_local": True,
+                "mode": "doc",
+                "rows": [],
+            })
+        mode = (request.GET.get("mode") or "doc").strip().lower()
+        tipo = (request.GET.get("tipo") or "all").strip().upper()
+        q = (request.GET.get("q") or "").strip()
+        desde = (request.GET.get("desde") or "").strip()
+        hasta = (request.GET.get("hasta") or "").strip()
+        base = MovimientoStock.objects.filter(local=local).select_related("local", "usuario", "producto","venta","ingreso", "articulo")
         
+        if tipo in ["IN", "OUT", "ADJ", "TRF", "BAJ", "RET"]:
+            base = base.filter(tipo=tipo)
+        
+        if q:
+            base = base.filter(
+                Q(barcode__icontains=q) |
+                Q(sku__icontains=q) |
+                Q(producto__nombre__icontains=q) |
+                Q(producto__marca__icontains=q)
+            )
+        if desde: 
+            base = base.filter(fecha__date__gte=desde)
+        if hasta: 
+            base = base.filter(fecha__date__lte=hasta)
+        if mode=="unit":
+            rows = base.order_by("-fecha", "-movimiento_id")[:500]
+            ctx = {
+                "mode": mode,
+                "rows": rows,   
+                "tipo": tipo,
+                "q": q,
+                "from": desde,
+                "to": hasta,
+            }
+            return render(request, self.template_name, ctx)
+        if mode == "doc":
+            # agrupar por documento: venta_id o ingreso_id (según tipo)
+            rows = (base
+                    .values("tipo", "venta_id", "ingreso_id")
+                    .annotate(
+                        fecha=Max("fecha"),
+                        items=Count("movimiento_id"),
+                        unidades=Sum("cantidad"),
+                        costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                        venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                        profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                    )
+                    .order_by("-fecha"))
+            ctx = {
+                "mode": mode,
+                "rows": list(rows),
+                "tipo": tipo, "q": q, "from": desde, "to": hasta,
+            }
+            return render(request, self.template_name, ctx)
+
+        if mode == "day":
+            rows = (base
+                    .annotate(dia=TruncDate("fecha"))
+                    .values("dia")
+                    .annotate(
+                        movimientos=Count("movimiento_id"),
+                        unidades=Sum("cantidad"),
+                        costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                        venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                        profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                    )
+                    .order_by("-dia"))
+            ctx = {
+                "mode": mode,
+                "rows": list(rows),
+                "tipo": tipo, "q": q, "from": desde, "to": hasta,
+            }
+            return render(request, self.template_name, ctx)
+
+        if mode == "variant":
+            rows = (base
+                    .values("barcode", "sku", "talle", "color", "producto_id", "producto__nombre", "producto__marca")
+                    .annotate(
+                        movimientos=Count("movimiento_id"),
+                        unidades=Sum("cantidad"),
+                        costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                        venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                        profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                        last_fecha=Max("fecha"),
+                    )
+                    .order_by("barcode", "talle", "color"))
+            ctx = {
+                "mode": mode,
+                "rows": list(rows),
+                "tipo": tipo, "q": q, "from": desde, "to": hasta,
+            }
+            return render(request, self.template_name, ctx)
+
+        # fallback
+        return render(request, self.template_name, {"mode": "doc", "rows": []})
+
+def movimiento_pdf(request):
+    # reutilizamos la misma lógica de filtros de MovimientoStockView,
+    # pero generando rows (agregados o unitarios) y dibujando líneas.
+    local = _get_local_activo(request)
+    if not local:
+        return HttpResponse("No hay local activo.", status=400)
+
+    mode = (request.GET.get("mode") or "doc").strip().lower()
+    tipo = (request.GET.get("tipo") or "all").strip().upper()
+    q = (request.GET.get("q") or "").strip()
+    desde = (request.GET.get("from") or "").strip()
+    hasta = (request.GET.get("to") or "").strip()
+
+    base = (MovimientoStock.objects
+            .filter(local=local)
+            .select_related("producto", "venta", "ingreso", "articulo", "usuario"))
+
+    if tipo in ["IN", "OUT", "ADJ", "TRF", "BAJ", "RET"]:
+        base = base.filter(tipo=tipo)
+
+    if q:
+        base = base.filter(barcode__icontains=q) | base.filter(sku__icontains=q) | base.filter(producto__nombre__icontains=q) | base.filter(producto__marca__icontains=q)
+
+    if desde:
+        base = base.filter(fecha__date__gte=desde)
+    if hasta:
+        base = base.filter(fecha__date__lte=hasta)
+
+    # rows según modo (igual que en la view HTML)
+    from django.db.models import Sum, Count, Max, Value, DecimalField
+    from django.db.models.functions import TruncDate, Coalesce
+
+    if mode == "unit":
+        rows = list(base.order_by("-fecha", "-movimiento_id")[:1500])
+    elif mode == "day":
+        rows = list(base.annotate(dia=TruncDate("fecha")).values("dia").annotate(
+            movimientos=Count("movimiento_id"),
+            unidades=Sum("cantidad"),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+        ).order_by("-dia"))
+    elif mode == "variant":
+        rows = list(base.values("barcode","sku","talle","color","producto__nombre","producto__marca").annotate(
+            movimientos=Count("movimiento_id"),
+            unidades=Sum("cantidad"),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+            last_fecha=Max("fecha"),
+        ).order_by("barcode","talle","color"))
+    else:  # doc
+        rows = list(base.values("tipo","venta_id","ingreso_id").annotate(
+            fecha=Max("fecha"),
+            items=Count("movimiento_id"),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+        ).order_by("-fecha"))
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="movimientos.pdf"'
+    c = canvas.Canvas(response, pagesize=A4)
+    w, h = A4
+
+    y = h - 40
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(40, y, f"Movimientos de Stock - Local: {local.nombre}")
+    y -= 16
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Modo: {mode} | Tipo: {tipo} | Q: {q} | Desde: {desde or '-'} | Hasta: {hasta or '-'}")
+    y -= 18
+    c.line(40, y, 560, y)
+    y -= 14
+
+    c.setFont("Helvetica", 8)
+
+    def newline():
+        nonlocal y
+        y -= 12
+        if y < 60:
+            c.showPage()
+            y = h - 40
+            c.setFont("Helvetica", 8)
+
+    if mode == "unit":
+        c.drawString(40, y, "Fecha")
+        c.drawString(120, y, "Tipo")
+        c.drawString(160, y, "Art")
+        c.drawString(210, y, "Barcode")
+        c.drawString(330, y, "Var")
+        c.drawRightString(560, y, "Profit")
+        newline()
+
+        for m in rows:
+            c.drawString(40, y, m.fecha.strftime("%Y-%m-%d %H:%M"))
+            c.drawString(120, y, m.tipo)
+            c.drawString(160, y, str(m.articulo_id))
+            c.drawString(210, y, str(m.barcode))
+            c.drawString(330, y, f"{m.talle}/{m.color}")
+            c.drawRightString(560, y, f"$ {m.profit_unitario}")
+            newline()
+
+    elif mode == "day":
+        c.drawString(40, y, "Día")
+        c.drawRightString(320, y, "Costo")
+        c.drawRightString(440, y, "Venta")
+        c.drawRightString(560, y, "Profit")
+        newline()
+
+        for r in rows:
+            c.drawString(40, y, str(r["dia"]))
+            c.drawRightString(320, y, f"$ {r['costo_total']}")
+            c.drawRightString(440, y, f"$ {r['venta_total']}")
+            c.drawRightString(560, y, f"$ {r['profit_total']}")
+            newline()
+
+    elif mode == "variant":
+        c.drawString(40, y, "Barcode")
+        c.drawString(170, y, "Var")
+        c.drawRightString(320, y, "Costo")
+        c.drawRightString(440, y, "Venta")
+        c.drawRightString(560, y, "Profit")
+        newline()
+
+        for r in rows:
+            c.drawString(40, y, str(r["barcode"]))
+            c.drawString(170, y, f"{r['talle']}/{r['color']}")
+            c.drawRightString(320, y, f"$ {r['costo_total']}")
+            c.drawRightString(440, y, f"$ {r['venta_total']}")
+            c.drawRightString(560, y, f"$ {r['profit_total']}")
+            newline()
+
+    else:  # doc
+        c.drawString(40, y, "Fecha")
+        c.drawString(140, y, "Doc")
+        c.drawRightString(320, y, "Costo")
+        c.drawRightString(440, y, "Venta")
+        c.drawRightString(560, y, "Profit")
+        newline()
+
+        for r in rows:
+            fecha = r["fecha"].strftime("%Y-%m-%d %H:%M") if r["fecha"] else "-"
+            doc = f"V#{r['venta_id']}" if r["tipo"] == "OUT" else f"I#{r['ingreso_id']}"
+            c.drawString(40, y, fecha)
+            c.drawString(140, y, doc)
+            c.drawRightString(320, y, f"$ {r['costo_total']}")
+            c.drawRightString(440, y, f"$ {r['venta_total']}")
+            c.drawRightString(560, y, f"$ {r['profit_total']}")
+            newline()
+
+    c.showPage()
+    c.save()
+    return response
+
+class VentaDetailView(LoginRequiredMixin, DetailView):
+    model = Venta
+    template_name = "inventory/movimientos/venta_detail.html"
+    context_object_name = "venta"
+    pk_url_kwarg = "venta_id"
+    
+    def get_object(self, queryset=None):
+        local = _get_local_activo(self.request)
+        qs = Venta.objects.select_related("usuario", "local")
+        obj = get_object_or_404(qs, venta_id=self.kwargs["venta_id"])
+        if local and obj.local_id != local.local_id:
+            raise get_object_or_404(Venta, venta_id=-1)
+        return obj
+    
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        venta = ctx["venta"]
+        
+        items = list(venta.items.all().order_by("item_id"))
+        ctx["items"] = items
+        
+        unidades = (MovimientoStock.objects
+                    .select_related("articulo")
+                    .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+                    .order_by("movimiento_id"))
+        ctx["unidades"] = unidades
+        
+        agg = (MovimientoStock.objects
+               .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+               .aggregate(
+                   unidades=Count("movimiento_id"),
+                   costo_total=Sum("costo_unitario"),
+                   venta_total=Sum("precio_unitario"),
+                   profit_total=Sum("profit_unitario"),
+               ))
+        ctx["ms_totals"] = {
+            "unidades": agg["unidades"] or 0,
+            "costo_total": agg["costo_total"] or Decimal("0.00"),
+            "venta_total": agg["venta_total"] or Decimal("0.00"),
+            "profit_total": agg["profit_total"] or Decimal("0.00"),
+        }
+        return ctx
+    
+class IngresoDetailView(LoginRequiredMixin, DetailView):
+    model = Ingreso
+    template_name = "inventory/movimientos/ingreso_detail.html"
+    context_object_name = "ingreso"
+    pk_url_kwarg = "ingreso_id"
+
+    def get_object(self, queryset=None):
+        local = _get_local_activo(self.request)
+        qs = Ingreso.objects.select_related("usuario", "local")
+        obj = get_object_or_404(qs, ingreso_id=self.kwargs["ingreso_id"])
+        if local and obj.local_id != local.local_id:
+            raise get_object_or_404(Ingreso, ingreso_id=-1)
+        return obj
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ingreso = ctx["ingreso"]
+
+        items = list(ingreso.items.all().order_by("item_id"))
+        ctx["items"] = items
+
+        unidades = (MovimientoStock.objects
+                    .select_related("articulo")
+                    .filter(ingreso=ingreso, tipo=MovimientoStock.Tipo.INGRESO)
+                    .order_by("movimiento_id"))
+        ctx["unidades"] = unidades
+
+        agg = (MovimientoStock.objects
+               .filter(ingreso=ingreso, tipo=MovimientoStock.Tipo.INGRESO)
+               .aggregate(
+                   unidades=Count("movimiento_id"),
+                   costo_total=Sum("costo_unitario"),
+               ))
+        ctx["ms_totals"] = {
+            "unidades": agg["unidades"] or 0,
+            "costo_total": agg["costo_total"] or Decimal("0.00"),
+        }
+        return ctx
+    
+def venta_pdf(request, venta_id: int):
+    local = _get_local_activo(request)
+    venta = get_object_or_404(Venta.objects.select_related("local","usuario"), venta_id=venta_id)
+    if local and venta.local_id != local.local_id:
+        return HttpResponse("No autorizado para este local.", status=403)
+
+    items = list(venta.items.all().order_by("item_id"))
+    agg = (MovimientoStock.objects
+           .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+           .aggregate(
+               unidades=Count("movimiento_id"),
+               costo_total=Sum("costo_unitario"),
+               venta_total=Sum("precio_unitario"),
+               profit_total=Sum("profit_unitario"),
+           ))
+
+    resp = HttpResponse(content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="venta_{venta_id}.pdf"'
+    c = canvas.Canvas(resp, pagesize=A4)
+    w, h = A4
+
+    y = h - 40
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(40, y, f"VENTA #{venta.venta_id}")
+    y -= 16
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Fecha: {venta.fecha.strftime('%Y-%m-%d %H:%M')}   Local: {venta.local}   Usuario: {venta.usuario.username}")
+    y -= 14
+    c.drawString(40, y, f"Método de pago: {venta.get_metodo_de_pago_display()}   Estado: {venta.get_estado_display()}")
+    y -= 14
+    c.line(40, y, 560, y)
+    y -= 16
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(40, y, "SKU")
+    c.drawString(140, y, "Barcode")
+    c.drawString(270, y, "Var")
+    c.drawRightString(360, y, "Qty")
+    c.drawRightString(430, y, "Precio")
+    c.drawRightString(500, y, "Costo")
+    c.drawRightString(560, y, "Total")
+    y -= 12
+    c.setFont("Helvetica", 9)
+
+    for it in items:
+        if y < 80:
+            c.showPage()
+            y = h - 40
+            c.setFont("Helvetica", 9)
+
+        c.drawString(40, y, str(it.sku)[:18])
+        c.drawString(140, y, str(it.barcode)[:18])
+        c.drawString(270, y, f"{it.talle}/{it.color}"[:10])
+        c.drawRightString(360, y, str(it.cantidad))
+        c.drawRightString(430, y, f"$ {it.precio_unitario}")
+        c.drawRightString(500, y, f"$ {it.costo_unitario}")
+        c.drawRightString(560, y, f"$ {it.total_linea}")
+        y -= 12
+
+    y -= 8
+    c.line(340, y, 560, y)
+    y -= 16
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(560, y, f"Total venta: $ {agg['venta_total'] or 0}")
+    y -= 14
+    c.drawRightString(560, y, f"Costo total: $ {agg['costo_total'] or 0}")
+    y -= 14
+    c.drawRightString(560, y, f"Profit: $ {agg['profit_total'] or 0}")
+
+    c.showPage()
+    c.save()
+    return resp
+
+def ingreso_pdf(request, ingreso_id: int):
+    local = _get_local_activo(request)
+    ingreso = get_object_or_404(Ingreso.objects.select_related("local","usuario"), ingreso_id=ingreso_id)
+    if local and ingreso.local_id != local.local_id:
+        return HttpResponse("No autorizado para este local.", status=403)
+
+    items = list(ingreso.items.all().order_by("item_id"))
+    agg = (MovimientoStock.objects
+           .filter(ingreso=ingreso, tipo=MovimientoStock.Tipo.INGRESO)
+           .aggregate(
+               unidades=Count("movimiento_id"),
+               costo_total=Sum("costo_unitario"),
+           ))
+
+    resp = HttpResponse(content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="ingreso_{ingreso_id}.pdf"'
+    c = canvas.Canvas(resp, pagesize=A4)
+    w, h = A4
+
+    y = h - 40
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(40, y, f"INGRESO #{ingreso.ingreso_id}")
+    y -= 16
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Fecha: {ingreso.fecha.strftime('%Y-%m-%d %H:%M')}   Local: {ingreso.local}   Usuario: {ingreso.usuario.username}")
+    y -= 14
+    if ingreso.referencia:
+        c.drawString(40, y, f"Referencia: {ingreso.referencia}")
+        y -= 14
+    if ingreso.nota:
+        c.drawString(40, y, f"Nota: {ingreso.nota[:90]}")
+        y -= 14
+
+    c.line(40, y, 560, y)
+    y -= 16
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(40, y, "SKU")
+    c.drawString(140, y, "Barcode")
+    c.drawString(270, y, "Var")
+    c.drawRightString(380, y, "Qty")
+    c.drawRightString(470, y, "Costo u.")
+    c.drawRightString(560, y, "Total")
+    y -= 12
+    c.setFont("Helvetica", 9)
+
+    for it in items:
+        if y < 80:
+            c.showPage()
+            y = h - 40
+            c.setFont("Helvetica", 9)
+
+        c.drawString(40, y, str(it.sku)[:18])
+        c.drawString(140, y, str(it.barcode)[:18])
+        c.drawString(270, y, f"{it.talle}/{it.color}"[:10])
+        c.drawRightString(380, y, str(it.cantidad))
+        c.drawRightString(470, y, f"$ {it.costo_unitario}")
+        c.drawRightString(560, y, f"$ {it.total_linea}")
+        y -= 12
+
+    y -= 8
+    c.line(360, y, 560, y)
+    y -= 16
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(560, y, f"Costo total: $ {agg['costo_total'] or 0}")
+    y -= 14
+    c.setFont("Helvetica", 9)
+    c.drawRightString(560, y, f"Unidades: {agg['unidades'] or 0}")
+
+    c.showPage()
+    c.save()
+    return resp
