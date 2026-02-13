@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 # Create your models here.
 class Producto(models.Model):
@@ -60,7 +61,7 @@ class Venta(models.Model):
         OTRO = "OTRO", "Otro"
         
     venta_id = models.AutoField(primary_key=True)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(default=timezone.now, db_index=True)
     usuario = models.ForeignKey("auth.User", on_delete=models.PROTECT)
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ABIERTA)
     

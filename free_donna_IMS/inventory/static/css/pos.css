@@ -1,0 +1,295 @@
+/* ===== POS Layout ===== */
+.pos-shell{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.pos-topbar{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:6px;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.pos-title{ margin:0; font-size:22px; font-weight:900; }
+.pos-subtitle{ margin:6px 0 0 0; color:#6b7280; font-weight:600; }
+
+.pos-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* 2 columnas: carrito / ventas */
+.pos-grid{
+  display:grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap:14px;
+}
+
+@media (max-width: 1100px){
+  .pos-grid{ grid-template-columns: 1fr; }
+}
+
+/* ===== Panels ===== */
+.panel{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.04);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-height: 420px;
+}
+
+.panel-head{
+  padding:14px 14px 10px 14px;
+  border-bottom:1px solid #eef2f7;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.panel-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.panel-title h3{
+  margin:0;
+  font-size:16px;
+  font-weight:900;
+}
+
+.panel-meta{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.chip{
+  border:1px solid #e5e7eb;
+  background:#f9fafb;
+  color:#111827;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.dot{
+  width:10px; height:10px; border-radius:999px;
+  display:inline-block;
+}
+.dot-green{ background:#10b981; }
+.dot-blue{ background:#3b82f6; }
+
+/* ===== Scanbar ===== */
+.scanbar{
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:10px;
+  align-items:center;
+}
+
+.scanbar-input{
+  width:100%;
+  padding:12px 14px;
+  border-radius:14px;
+  border:2px solid #cfd6e4;
+  outline:none;
+  font-size:16px;
+  font-weight:800;
+}
+
+.scanbar-input:focus{
+  border-color:#7ea6ff;
+  box-shadow: 0 0 0 3px rgba(126,166,255,0.25);
+}
+
+/* ===== Table ===== */
+.cart-table-wrap{
+  padding:0 14px 14px 14px;
+  overflow:auto;
+  flex:1;
+}
+
+.cart-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  min-width: 720px;
+}
+
+.cart-table thead th{
+  position:sticky;
+  top:0;
+  background:#fff;
+  z-index:1;
+  text-align:left;
+  font-size:12px;
+  letter-spacing:0.02em;
+  color:#6b7280;
+  font-weight:900;
+  padding:10px 10px;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.cart-table td{
+  padding:10px 10px;
+  border-bottom:1px solid #f1f5f9;
+  vertical-align:top;
+}
+
+.cell-main{ font-weight:900; color:#111827; }
+.cell-sub{ margin-top:4px; color:#6b7280; font-weight:650; font-size:12px; }
+
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.num{ text-align:right; }
+.strong{ font-weight:900; }
+
+.col-sku{ width:120px; }
+.col-bc{ width:170px; }
+.col-num{ width:110px; }
+.col-act{ width:90px; }
+.act{ text-align:right; }
+
+.inline{ display:inline; }
+
+/* ===== Cart footer ===== */
+.cart-footer{
+  padding:12px 14px;
+  border-top:1px solid #eef2f7;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.totals{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+}
+
+.totals-label{
+  font-weight:800;
+  color:#6b7280;
+}
+
+.totals-value{
+  font-size:20px;
+  font-weight:950;
+  color:#111827;
+}
+
+.cart-buttons{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* ===== Sales KPIs ===== */
+.kpis{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:10px;
+  padding:12px 14px;
+}
+
+@media (max-width: 1100px){
+  .kpis{ grid-template-columns: 1fr; }
+}
+
+.kpi{
+  border:1px solid #e5e7eb;
+  background:#f9fafb;
+  border-radius:14px;
+  padding:10px 12px;
+}
+
+.kpi-label{
+  font-size:12px;
+  color:#6b7280;
+  font-weight:900;
+}
+
+.kpi-value{
+  margin-top:6px;
+  font-size:18px;
+  font-weight:950;
+  color:#111827;
+}
+
+/* ===== Sales list ===== */
+.sales-list{
+  padding:0 14px 14px 14px;
+  overflow:auto;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.sale-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 12px;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  background:#fff;
+  text-decoration:none;
+  color:inherit;
+  transition: transform .05s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.sale-row:hover{
+  border-color:#cfd6e4;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  transform: translateY(-1px);
+}
+
+.sale-title{ font-weight:950; }
+.sale-sub{ margin-top:4px; color:#6b7280; font-weight:700; font-size:12px; }
+
+.sale-right{ text-align:right; }
+.sale-total{ font-weight:950; }
+.sale-profit{ margin-top:4px; color:#047857; font-weight:900; font-size:12px; }
+
+/* ===== Empty ===== */
+.empty-state{
+  margin:14px;
+  border:1px dashed #e5e7eb;
+  background:#fafafa;
+  border-radius:16px;
+  padding:16px;
+}
+
+.empty-title{ font-weight:950; margin-bottom:6px; }
+.empty-sub{ color:#6b7280; font-weight:650; }
+
+/* ===== Buttons (coherentes con tu base) ===== */
+.btn-ghost-danger{
+  border:1px solid #fecaca;
+  background:#fff;
+  color:#b91c1c;
+  padding:8px 10px;
+  border-radius:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn-ghost-danger:hover{
+  background:#fef2f2;
+}

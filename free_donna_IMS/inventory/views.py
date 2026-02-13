@@ -315,21 +315,47 @@ class POSView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos.html"
     def get(self, request):
         cart = _get_cart(request.session)
+        local=_get_local_activo(request)
         barcodes = [it["barcode"] for it in cart.values()]
         stock_map = {}
-        if barcodes:
+        if barcodes and local:
             rows = (Articulo.objects
-                    .filter(barcode__in=barcodes, estado=Articulo.Estado.DISPONIBLE)
+                    .filter(local=local, barcode__in=barcodes, estado=Articulo.Estado.DISPONIBLE)
                     .values("barcode")
                     .annotate(disponibles=Count("articulo_id"))
                     )
             stock_map = {r["barcode"]: r["disponibles"] for r in rows}
         subtotal, total = _cart_totals(cart)
+        hoy = timezone.localdate()  
+        ventas_qs = (
+            Venta.objects
+            .filter(
+                usuario=request.user,
+                local=local if local else None,
+                estado=Venta.Estado.CERRADA,
+                fecha__date=hoy,   
+            )
+            .order_by("-venta_id")
+        )
+        agg = ventas_qs.aggregate(
+            ventas_hoy_count=Count("venta_id"),
+            ventas_hoy_total=Coalesce(Sum("total"), Decimal("0.00")),
+            ventas_hoy_profit=Coalesce(Sum("profit_total"), Decimal("0.00")),
+        )
+        ventas_hoy = ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total", "profit_total")[:50]
+        
         return render(request, self.template_name, {
             "cart": cart,
             "stock_map": stock_map,
             "subtotal": subtotal,
             "total": total,
+            
+            "local_activo": local,
+            "hoy": hoy,
+            "ventas_hoy": list(ventas_hoy),
+            "ventas_hoy_count": agg["ventas_hoy_count"] or 0,
+            "ventas_hoy_total": agg["ventas_hoy_total"] or Decimal("0.00"),
+            "ventas_hoy_profit": agg["ventas_hoy_profit"] or Decimal("0.00"),
         })    
         
 class POSAddItemByBarcodeView(LoginRequiredMixin, View):
@@ -395,6 +421,10 @@ class POSRemoveItemView(LoginRequiredMixin, View):
         return redirect("inventory:pos")
     
 class POSClearView(LoginRequiredMixin, View):
+    def get(self, request):
+        _save_cart(request.session, {})
+        return redirect("inventory:pos")
+    
     def post(self, request):
         _save_cart(request.session, {})
         return redirect("inventory:pos")

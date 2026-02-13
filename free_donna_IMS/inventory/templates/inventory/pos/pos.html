@@ -1,92 +1,174 @@
+{# inventory/templates/inventory/pos/pos.html #}
 {% extends "inventory/base.html" %}
 {% load static %}
 
 {% block title %}POS{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'inventory/static/css/articulos.css' %}">
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
 
-<div class="page-header">
-  <div>
-    <h2>POS</h2>
-    <p class="subtle">Escaneá barcode para agregar al carrito. Enter del scanner agrega 1 unidad.</p>
-  </div>
-  <div class="header-actions">
-    <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Artículos</a>
+<div class="pos-shell">
+
+  <header class="pos-topbar">
+    <div>
+      <h2 class="pos-title">POS</h2>
+      <p class="pos-subtitle">Escaneá barcode para agregar al carrito. El scanner con Enter suma 1 unidad.</p>
+    </div>
+
+    <div class="pos-actions">
+      <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Artículos</a>
+      <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Kardex</a>
+    </div>
+  </header>
+
+  <div class="pos-grid">
+
+    {# ===================== LEFT: CARRITO ===================== #}
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="dot dot-green"></span>
+          <h3>Carrito</h3>
+        </div>
+
+        <div class="panel-meta">
+          {% if local_activo %}
+            <span class="chip">Local: <b>{{ local_activo.nombre }}</b></span>
+          {% endif %}
+          <span class="chip">Usuario: <b>{{ request.user.username }}</b></span>
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'inventory:pos_add' %}" class="scanbar" autocomplete="off">
+        {% csrf_token %}
+        <input
+          name="barcode"
+          class="scanbar-input"
+          type="text"
+          inputmode="numeric"
+          placeholder="Escanear código de barras…"
+          id="scanInput"
+          autofocus
+        />
+        <button class="btn-primary" type="submit">Agregar</button>
+      </form>
+
+      {% if cart %}
+        <div class="cart-table-wrap">
+          <table class="cart-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="col-sku">SKU</th>
+                <th class="col-bc">Barcode</th>
+                <th class="col-num">Cant.</th>
+                <th class="col-num">P.Unit</th>
+                <th class="col-num">Total</th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, it in cart.items %}
+                <tr>
+                  <td>
+                    <div class="cell-main">{{ it.producto_nombre }}</div>
+                    <div class="cell-sub">{{ it.marca }} · {{ it.color }} · Talle {{ it.talle }}</div>
+                  </td>
+                  <td class="mono">{{ it.sku }}</td>
+                  <td class="mono">{{ it.barcode }}</td>
+                  <td class="num strong">{{ it.qty }}</td>
+                  <td class="num mono">$ {{ it.precio }}</td>
+                  <td class="num strong mono">$ {{ it.line_total|floatformat:"2" }}</td>
+                  <td class="act">
+                    <form method="post" action="{% url 'inventory:pos_remove' %}" class="inline" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="key" value="{{ key }}">
+                      <button class="btn-ghost-danger" type="submit" title="Quitar">
+                        Quitar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="cart-footer">
+          <div class="totals">
+            <div class="totals-label">Total</div>
+            <div class="totals-value mono">$ {{ total|floatformat:"2" }}</div>
+          </div>
+
+          <div class="cart-buttons">
+            <a class="btn-secondary" href="{% url 'inventory:pos_clear' %}">Vaciar</a>
+            <a class="btn-primary" href="{% url 'inventory:pos_checkout' %}">Cerrar venta</a>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-title">Carrito vacío</div>
+          <div class="empty-sub">Escaneá un código para empezar.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ===================== RIGHT: VENTAS DEL DÍA ===================== #}
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="dot dot-blue"></span>
+          <h3>Mis ventas de hoy</h3>
+        </div>
+
+        <div class="panel-meta">
+          <span class="chip">Fecha: <b>{{ hoy|date:"Y-m-d" }}</b></span>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Ventas</div>
+          <div class="kpi-value mono">{{ ventas_hoy_count|default:0 }}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total vendido</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Ganancia</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_profit|default:"0.00" }}</div>
+        </div>
+      </div>
+
+      {% if ventas_hoy %}
+        <div class="sales-list">
+          {% for v in ventas_hoy %}
+            <a class="sale-row" href="{% url 'inventory:venta_detail' v.venta_id %}">
+              <div class="sale-left">
+                <div class="sale-title">Venta #{{ v.venta_id }}</div>
+                <div class="sale-sub mono">
+                  {{ v.fecha|date:"H:i" }}
+                  {% if v.metodo_de_pago %} · {{ v.metodo_de_pago }}{% endif %}
+                </div>
+              </div>
+              <div class="sale-right">
+                <div class="sale-total mono">$ {{ v.total|default:"0.00" }}</div>
+                <div class="sale-profit mono">+ $ {{ v.profit_total|default:"0.00" }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-title">Todavía no tenés ventas hoy</div>
+          <div class="empty-sub">Cuando cierres ventas, van a aparecer acá con totales y ganancia.</div>
+        </div>
+      {% endif %}
+    </section>
+
   </div>
 </div>
-
-<form method="post" action="{% url 'inventory:pos_add' %}" class="scan-row" autocomplete="off">
-  {% csrf_token %}
-  <input
-    name="barcode"
-    class="scan-input"
-    type="text"
-    inputmode="numeric"
-    placeholder="Escanear código de barras…"
-    id="scanInput"
-    autofocus
-  />
-  <button class="btn-primary" type="submit">Agregar</button>
-</form>
-
-{% if cart %}
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>SKU</th>
-          <th>Barcode</th>
-          <th class="col-talle">Cant.</th>
-          <th class="col-talle">P.Unit</th>
-          <th class="col-talle">Total</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for key, it in cart.items %}
-          <tr>
-            <td>
-              <div class="strong">{{ it.producto_nombre }}</div>
-              <div class="subtle" style="margin:4px 0 0 0;">{{ it.marca }} · {{ it.color }} · Talle {{ it.talle }}</div>
-            </td>
-            <td class="mono">{{ it.sku }}</td>
-            <td class="mono">{{ it.barcode }}</td>
-            <td class="num strong">{{ it.qty }}</td>
-            <td class="num">$ {{ it.precio }}</td>
-            <td class="num strong">$ {{ it.line_total|floatformat:"2" }}</td>
-            <td style="text-align:right;">
-              <form method="post" action="{% url 'inventory:pos_remove' %}" style="margin:0;">
-                {% csrf_token %}
-                <input type="hidden" name="key" value="{{ key }}">
-                <button class="btn-danger" type="submit">Quitar</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="pagination" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
-    <div class="strong">Total: $ {{ total|floatformat:"2" }}</div>
-    <div class="pagination-right">
-      
-        {% csrf_token %}
-        <a class="btn-secondary"href="{% url 'inventory:pos_clear' %}">Vaciar</a>
-      
-
-      <a class="btn-primary" href="{% url 'inventory:pos_checkout' %}">Cerrar venta</a>
-
-    </div>
-  </div>
-{% else %}
-  <div class="empty">
-    <p style="margin:0; font-weight:900;">Carrito vacío.</p>
-    <p class="subtle" style="margin-bottom:0;">Escaneá un código para empezar.</p>
-  </div>
-{% endif %}
 
 <script>
   // Mantener foco para scanner
