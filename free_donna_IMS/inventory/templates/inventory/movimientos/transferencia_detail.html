@@ -1,0 +1,128 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Transferencia #{{ trf.transferencia_id }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Transferencia #{{ trf.transferencia_id }}</h2>
+    <p class="subtle" style="margin:6px 0 0 0;">
+      {{ trf.local_origen.nombre }} → {{ trf.local_destino.nombre }}
+      · {{ trf.fecha|date:"Y-m-d H:i" }}
+      {% if trf.usuario %} · {{ trf.usuario.username }}{% endif %}
+    </p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=TRF">Volver al Kardex</a>
+  </div>
+</div>
+
+<div class="table-wrap" style="margin-bottom:14px;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Dato</th>
+        <th>Valor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="strong">Origen</td>
+        <td>{{ trf.local_origen.nombre }}</td>
+      </tr>
+      <tr>
+        <td class="strong">Destino</td>
+        <td>{{ trf.local_destino.nombre }}</td>
+      </tr>
+      <tr>
+        <td class="strong">Fecha</td>
+        <td class="mono">{{ trf.fecha|date:"Y-m-d H:i" }}</td>
+      </tr>
+      <tr>
+        <td class="strong">Usuario</td>
+        <td>{{ trf.usuario.username|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td class="strong">Nota</td>
+        <td>{{ trf.nota|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td class="strong">Ítems</td>
+        <td class="mono">{{ items|length }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+{% if items %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID Art</th>
+          <th>SKU</th>
+          <th>Barcode</th>
+          <th>Variante</th>
+          <th>Producto</th>
+          <th>Marca</th>
+          <th class="num">Estado</th>
+          <th class="num">Local actual</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for it in items %}
+          <tr>
+            <td class="mono">{{ it.articulo_id|default:it.articulo.articulo_id }}</td>
+            <td class="strong">{{ it.sku }}</td>
+            <td class="mono">{{ it.barcode }}</td>
+            <td class="mono">{{ it.talle }}/{{ it.color }}</td>
+
+            <td>
+              {% if it.articulo and it.articulo.product_id %}
+                {{ it.articulo.product_id.nombre|default:"—" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td>
+              {% if it.articulo and it.articulo.product_id %}
+                {{ it.articulo.product_id.marca|default:"—" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td class="num">
+              {% if it.articulo %}
+                <span class="pill pill-{{ it.articulo.estado|lower }}">{{ it.articulo.get_estado_display }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td class="num">
+              {% if it.articulo and it.articulo.local %}
+                {{ it.articulo.local.nombre }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">Esta transferencia no tiene ítems.</p>
+    <p class="subtle" style="margin-bottom:0;">Si esto no es esperado, revisá la creación de TransferenciaItem.</p>
+  </div>
+{% endif %}
+
+{% endblock %}

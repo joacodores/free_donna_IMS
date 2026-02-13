@@ -124,6 +124,24 @@ class IngresoItem(models.Model):
     
 
     
+class Transferencia(models.Model):
+    transferencia_id = models.BigAutoField(primary_key=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    local_origen = models.ForeignKey(Local, on_delete=models.PROTECT, related_name="transferencias_salientes", db_index=True)
+    local_destino = models.ForeignKey(Local, on_delete=models.PROTECT, related_name="transferencias_entrantes", db_index=True)
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    nota = models.TextField(blank=True)
+
+class TransferenciaItem(models.Model):
+    item_id = models.BigAutoField(primary_key=True)
+    transferencia = models.ForeignKey(Transferencia, on_delete=models.CASCADE, related_name="items")
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT)
+    sku = models.CharField(max_length=100)
+    barcode = models.CharField(max_length=100, db_index=True)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=50)
     
 class MovimientoStock(models.Model):
     class Tipo(models.TextChoices):
@@ -156,7 +174,9 @@ class MovimientoStock(models.Model):
 
     ingreso = models.ForeignKey(Ingreso, null=True, blank=True, on_delete=models.PROTECT)
     venta = models.ForeignKey(Venta, null=True, blank=True, on_delete=models.PROTECT)
-     
+    transferencia = models.ForeignKey(Transferencia, null=True, blank=True, on_delete=models.PROTECT, db_index=True)
+    local_origen = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, related_name="movs_origen")
+    local_destino = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, related_name="movs_destino")
     nota = models.TextField(blank=True)
     
     class Meta:
@@ -171,3 +191,6 @@ class MovimientoStock(models.Model):
         ]
     def __str__(self):
         return f"{self.get_tipo_display()} {self.movimiento_id}"
+    
+
+

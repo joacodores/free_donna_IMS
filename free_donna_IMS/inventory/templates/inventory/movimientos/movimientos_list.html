@@ -70,66 +70,80 @@
 
         <tbody>
           {% for r in rows %}
-            {# URLs destino por tipo #}
-            {% if r.tipo == "OUT" and r.venta_id %}
-              {% url 'inventory:venta_detail' r.venta_id as doc_url %}
-              {% url 'inventory:venta_pdf' r.venta_id as doc_pdf_url %}
-              {% with doc_label="Venta #"|add:r.venta_id|stringformat:"s" %}
-              {% endwith %}
-            {% elif r.tipo == "IN" and r.ingreso_id %}
-              {% url 'inventory:ingreso_detail' r.ingreso_id as doc_url %}
-              {% url 'inventory:ingreso_pdf' r.ingreso_id as doc_pdf_url %}
-            {% else %}
-              {% with doc_url="" doc_pdf_url="" %}
-              {% endwith %}
-            {% endif %}
-
-            <tr
-              class="row-click {% if doc_url %}row-link{% endif %}"
-              role="button"
-              tabindex="0"
-              {% if doc_url %}
-                data-href="{{ doc_url }}"
-                onclick="rowGo(this, event)"
-                onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); rowGo(this, event); }"
+            {# reset por fila para que no "herede" doc_url de otra iteración #}
+            {% with doc_url="" doc_pdf_url="" %}
+              {# URLs destino por tipo #}
+              {% if r.tipo == "OUT" and r.venta_id %}
+                {% url 'inventory:venta_detail' r.venta_id as doc_url %}
+                {% url 'inventory:venta_pdf' r.venta_id as doc_pdf_url %}
+              {% elif r.tipo == "IN" and r.ingreso_id %}
+                {% url 'inventory:ingreso_detail' r.ingreso_id as doc_url %}
+                {% url 'inventory:ingreso_pdf' r.ingreso_id as doc_pdf_url %}
+              {% elif r.tipo == "TRF" and r.transferencia_id %}
+                {% url 'inventory:transferencia_detail' r.transferencia_id as doc_url %}
               {% endif %}
-            >
-              <td class="mono">{{ r.fecha|date:"Y-m-d H:i" }}</td>
-              <td class="strong">{{ r.tipo }}</td>
-              <td>
-                {% if r.tipo == "OUT" %}
-                  Venta #{{ r.venta_id }}
-                {% else %}
-                  Ingreso #{{ r.ingreso_id }}
+
+              <tr
+                class="row-click {% if doc_url %}row-link{% endif %}"
+                role="button"
+                tabindex="0"
+                {% if doc_url %}
+                  data-href="{{ doc_url }}"
+                  onclick="rowGo(this, event)"
+                  onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); rowGo(this, event); }"
                 {% endif %}
-              </td>
-              <td class="num">{{ r.items }}</td>
-              <td class="num mono">$ {{ r.costo_total }}</td>
-              <td class="num mono">$ {{ r.venta_total }}</td>
-              <td class="num mono">$ {{ r.profit_total }}</td>
+              >
+                <td class="mono">{{ r.fecha|date:"Y-m-d H:i" }}</td>
+                <td class="strong">{{ r.tipo }}</td>
 
-              <td class="cell-menu" onclick="event.stopPropagation();">
-                <div class="kebab-wrap">
-                  <details class="kebab">
-                    <summary class="kebab-btn" aria-label="Abrir menú">
-                      <span aria-hidden="true">⋮</span>
-                    </summary>
-                
-                  <div class="kebab-menu">
-                    {% if r.tipo == "OUT" %}
-                      <a class="kebab-item" href="{% url 'inventory:venta_detail' r.venta_id %}">Ver</a>
-                      <a class="kebab-item" href="{% url 'inventory:venta_pdf' r.venta_id %}">Exportar PDF</a>
-                    {% else %}
-                      <a class="kebab-item" href="{% url 'inventory:ingreso_detail' r.ingreso_id %}">Ver</a>
-                      <a class="kebab-item" href="{% url 'inventory:ingreso_pdf' r.ingreso_id %}">Exportar PDF</a>
+                <td>
+                  {% if r.tipo == "OUT" %}
+                    Venta #{{ r.venta_id }}
+                  {% elif r.tipo == "IN" %}
+                    Ingreso #{{ r.ingreso_id }}
+                  {% elif r.tipo == "TRF" %}
+                    Transferencia #{{ r.transferencia_id }}
+                    {% if r.transfer_label %}
+                      <div class="subtle" style="margin-top:4px;">{{ r.transfer_label }}</div>
                     {% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              
+                <td class="num">{{ r.items }}</td>
+                <td class="num mono">$ {{ r.costo_total }}</td>
+                <td class="num mono">$ {{ r.venta_total }}</td>
+                <td class="num mono">$ {{ r.profit_total }}</td>
+              
+                <td class="cell-menu" onclick="event.stopPropagation();">
+                  <div class="kebab-wrap">
+                    <details class="kebab">
+                      <summary class="kebab-btn" aria-label="Abrir menú">
+                        <span aria-hidden="true">⋮</span>
+                      </summary>
+                    
+                      <div class="kebab-menu">
+                        {% if r.tipo == "OUT" and r.venta_id %}
+                          <a class="kebab-item" href="{% url 'inventory:venta_detail' r.venta_id %}">Ver</a>
+                          <a class="kebab-item" href="{% url 'inventory:venta_pdf' r.venta_id %}">Exportar PDF</a>
+                        {% elif r.tipo == "IN" and r.ingreso_id %}
+                          <a class="kebab-item" href="{% url 'inventory:ingreso_detail' r.ingreso_id %}">Ver</a>
+                          <a class="kebab-item" href="{% url 'inventory:ingreso_pdf' r.ingreso_id %}">Exportar PDF</a>
+                        {% elif r.tipo == "TRF" and r.transferencia_id %}
+                          <a class="kebab-item" href="{% url 'inventory:transferencia_detail' r.transferencia_id %}">Ver</a>
+                        {% else %}
+                          <span class="kebab-item" style="opacity:.6; cursor:default;">No Doc</span>
+                        {% endif %}
+                      </div>
+                    </details>  {# <-- ESTO ES LO QUE TE FALTABA #}
                   </div>
-                </div>
-              </td>
-
-            </tr>
+                </td>
+              </tr>
+            {% endwith %}
           {% endfor %}
         </tbody>
+
       {% endif %}
 
       {% if mode == "day" %}
@@ -288,6 +302,12 @@
       k.classList.remove("active");
     });
   });
+  function rowGo(tr, evt){
+    console.log("rowGo", tr.dataset.href, evt.target);
+    if (evt && evt.target && evt.target.closest && evt.target.closest(".kebab")) return;
+    var href = tr.dataset.href;
+    if (href) window.location.href = href;
+  }
 </script>
 
 

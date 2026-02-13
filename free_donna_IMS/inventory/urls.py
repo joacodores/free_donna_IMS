@@ -29,4 +29,7 @@ urlpatterns = [
     path("ventas/<int:venta_id>/pdf/", views.venta_pdf, name="venta_pdf"),
     path("ingresos/<int:ingreso_id>/", views.IngresoDetailView.as_view(), name="ingreso_detail"),
     path("ingresos/<int:ingreso_id>/pdf/", views.ingreso_pdf, name="ingreso_pdf"),
+    path("transferencias/<int:transferencia_id>/",views.TransferenciaDetailView.as_view(),name="transferencia_detail"),
+    path("articulos/transferir/", views.ArticulosTransferirView.as_view(), name="articulos_transferir"),
+
 ]

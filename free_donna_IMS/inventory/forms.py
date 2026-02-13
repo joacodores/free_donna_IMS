@@ -2,7 +2,7 @@ from decimal import Decimal
 from django import forms 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Producto, Venta
+from .models import Local, Producto, Venta
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
@@ -64,3 +64,7 @@ class CheckoutForm(forms.Form):
         label="Método de pago",
         widget=forms.Select(attrs={"class": "select"})
     )
+
+class TransferirArticuloForm(forms.Form):
+    destino = forms.ModelChoiceField(queryset=Local.objects.all(), empty_label="Seleccionar local")
+    nota = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
