@@ -2,110 +2,87 @@
 <html lang="es">
   <head>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-    <link rel="stylesheet" href="{% static 'css/productos.css' %}">
-    <link rel="stylesheet" href="{% static 'css/index.css' %}">
-    <link rel="icon" type="image/x-icon" href="{% static 'img/header.jpg' %}">
     <meta charset="UTF-8" />
     <title>{% block title %}Free Donna IMS{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="icon" type="image/x-icon" href="{% static 'img/header.jpg' %}">
+
+    {# ✅ SOLO CSS GLOBAL ACÁ #}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/header.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    {# ❌ NO cargues productos.css ni index.css acá #}
+
+    {% block extra_css %}{% endblock %}
   </head>
 
-  <body style="margin: 0; font-family: Arial, sans-serif; background: #f5f6fa">
+  <body>
     <!-- HEADER -->
-    <header style="
-      background:#2c3e50;
-      color:white;
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      padding:12px 20px;
-      gap:12px;
-    ">
-  <div style="display:flex; align-items:center; gap:12px;">
-    <!-- Imagen -->
-    <img 
-      src="{% static 'img/header.jpg' %}"
-      alt="Free Donna"
-      style="
-        height:48px;
-        width:auto;
-        max-width:120px;
-        object-fit:contain;
-      "
-    />
+    <header class="app-header">
+      <div class="logo-container">
+        <img src="{% static 'img/header.jpg' %}" alt="Free Donna Logo" />
+        <a class="brand" href="{% url 'inventory:index' %}">Free Donna</a>
+      </div>
 
-    <!-- Título -->
-    <div style="font-size:20px; font-weight:bold;">
-      <a href="{% url 'inventory:index' %}" 
-      style="color:white; text-decoration:none;font-size:30px; font-weight:bold;"">Free Donna</a>
-    </div>
-  </div>
+      {% if request.user.is_authenticated %}
+      <div class="right-section">
+        <form method="post" action="{% url 'inventory:set_local' %}" class="local-form">
+          {% csrf_token %}
+          <select name="local_id" class="select select-dark" onchange="this.form.submit()">
+            {% for l in locales %}
+              <option value="{{ l.local_id }}" {% if l.local_id == local_activo_id %}selected{% endif %}>
+                {{ l.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
 
-  <!-- Menú -->
-<nav style="display:flex; gap:18px; flex-wrap:wrap; align-items:center;">
-  
-  {% if request.user.is_authenticated %}
-    <form method="post" action="{% url 'inventory:set_local' %}" style="margin:0; display:flex; gap:8px; align-items:center;">
-      {% csrf_token %}
-     <select name="local_id" onchange="this.form.submit()" style="padding:6px 10px; border-radius:10px; border:0;">
-       {% for l in locales %}
-          <option value="{{ l.local_id }}" {% if l.local_id == local_activo_id %}selected{% endif %}>
-           {{ l.nombre }}
-          </option>
-        {% endfor %}
-      </select>
-    </form>
-  {% endif %}
+        <a class="icon-btn" href="{% url 'inventory:pos' %}" aria-label="POS / Carrito">🛒</a>
 
-  <!-- POS / Carrito -->
-  <a 
-    href="{% url 'inventory:pos' %}"
-    style="
-      color:white;
-      text-decoration:none;
-      font-size:18px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 10px;
-      border-radius:10px;
-      background: rgba(255,255,255,0.12);
-    "
-  >
-    🛒 <span style="font-weight:700;"></span>
-  </a>
-  <a href="{% url 'inventory:producto_list' %}" style="color:white; text-decoration:none;">Productos</a>
-  <a href="{% url 'inventory:articulo_list' %}" style="color:white; text-decoration:none;">Artículos</a>
-  {% if request.user.is_authenticated %}
-    <a style="color: beige;" href="{% url 'inventory:logout' %}">Salir</a>
-  {% else %}
-    <a style="color: beige;" href="{% url 'inventory:login' %}">Ingresar</a>
-  {% endif %}
-</nav>
-</header>
+        <div class="hamburger-menu">
+          <button id="hamburger-button" class="icon-btn" type="button" aria-label="Menú">☰</button>
+          <div id="hamburger-dropdown" class="menu-dropdown">
+            <a href="{% url 'inventory:producto_list' %}">Productos</a>
+            <a href="{% url 'inventory:articulo_list' %}">Artículos</a>
+            <a href="{% url 'inventory:movimientos' %}">Movimientos</a>
+            <div class="sep"></div>
+            <a href="{% url 'inventory:logout' %}">Salir</a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </header>
 
+    <main class="app-main">
+      <div class="app-container">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
 
-    <!-- CONTENIDO -->
-    <main style="padding: 30px; background-color: #d7e2f9;;">{% block content %}{% endblock %}</main>
-
-    <!-- FOOTER -->
-    <footer
-      style="
-        background: #634a2f;
-        color: #bdc3c7;
-        text-align: center;
-        padding: 12px;
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        font-size: 14px;
-      "
-    >
-      Free Donna IMS · Sistema de Gestión de Inventario
-      <br />
-      © {{ now|default:"2026" }}
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <span>Free Donna IMS · Sistema de Gestión de Inventario</span>
+        <span class="subtle">© {{ now|default:"2026" }} · v1.0</span>
+      </div>
     </footer>
+
+    <script>
+      const hamburgerButton = document.getElementById('hamburger-button');
+      const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+
+      if (hamburgerButton && hamburgerDropdown){
+        hamburgerButton.addEventListener('click', (e) => {
+          e.stopPropagation();
+          hamburgerDropdown.classList.toggle('open');
+        });
+
+        document.addEventListener('click', () => {
+          hamburgerDropdown.classList.remove('open');
+        });
+      }
+    </script>
+
+    {% block extra_js %}{% endblock %}
   </body>
 </html>

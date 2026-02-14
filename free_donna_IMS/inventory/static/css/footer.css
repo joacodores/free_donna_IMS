@@ -1,0 +1,17 @@
+.app-footer{
+  border-top: 1px solid rgba(255,255,255,0.10);
+  background: rgba(15,27,51,0.72);
+  backdrop-filter: blur(10px);
+  padding: 12px 18px;
+}
+
+.footer-inner{
+  max-width: 1160px;
+  margin: 0 auto;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  color: rgba(234,240,255,0.80);
+  font-weight: 800;
+}

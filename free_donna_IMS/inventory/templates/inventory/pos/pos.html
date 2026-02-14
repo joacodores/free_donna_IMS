@@ -24,7 +24,7 @@
   <div class="pos-grid">
 
     {# ===================== LEFT: CARRITO ===================== #}
-    <section class="panel">
+    <section class="panel--cart">
       <div class="panel-head">
         <div class="panel-title">
           <span class="dot dot-green"></span>
@@ -50,7 +50,7 @@
           id="scanInput"
           autofocus
         />
-        <button class="btn-primary" type="submit">Agregar</button>
+        <button class="btn-primary btn-pill" type="submit">Agregar</button>
       </form>
 
       {% if cart %}
@@ -83,9 +83,7 @@
                     <form method="post" action="{% url 'inventory:pos_remove' %}" class="inline" style="margin:0;">
                       {% csrf_token %}
                       <input type="hidden" name="key" value="{{ key }}">
-                      <button class="btn-ghost-danger" type="submit" title="Quitar">
-                        Quitar
-                      </button>
+                      <button class="btn-ghost-danger btn-icon" type="submit" title="Quitar">✕</button>
                     </form>
                   </td>
                 </tr>
@@ -114,7 +112,7 @@
     </section>
 
     {# ===================== RIGHT: VENTAS DEL DÍA ===================== #}
-    <section class="panel">
+    <section class="panel panel--sales">
       <div class="panel-head">
         <div class="panel-title">
           <span class="dot dot-blue"></span>

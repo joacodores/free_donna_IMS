@@ -1,0 +1,176 @@
+:root{
+  --bg0:#0b1220;
+  --bg1:#0f1b33;
+  --card: rgba(255,255,255,0.06);
+  --card2: rgba(255,255,255,0.10);
+  --stroke: rgba(255,255,255,0.12);
+  --stroke2: rgba(126,166,255,0.35);
+
+  --text:#eaf0ff;
+  --muted: rgba(234,240,255,0.72);
+
+  --accent1:#7ea6ff;
+  --accent2:#ffb86b;
+  --danger:#ff5a67;
+
+  --radius: 18px;
+  --shadow: 0 18px 60px rgba(0,0,0,0.35);
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: radial-gradient(1200px 600px at 25% 0%, rgba(126,166,255,0.30), transparent 55%),
+              radial-gradient(900px 500px at 80% 10%, rgba(255,184,107,0.22), transparent 55%),
+              linear-gradient(180deg, var(--bg0), var(--bg1));
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+.app-main{
+  flex:1;
+  padding: 26px 18px 34px 18px;
+}
+
+.app-container{
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+/* Texto utilitario */
+.subtle{ color: var(--muted); }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+/* Botones unificados */
+.btn-primary,
+.btn-secondary,
+.btn-danger{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  border-radius: 14px;
+  padding: 10px 14px;
+  text-decoration:none;
+  font-weight: 900;
+  cursor:pointer;
+  border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease, background .15s ease;
+}
+
+.btn-primary{
+  color:#0b1220;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  box-shadow: 0 10px 26px rgba(126,166,255,0.18);
+}
+.btn-primary:hover{ transform: translateY(-1px); }
+
+.btn-secondary{
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  border-color: var(--stroke);
+}
+.btn-secondary:hover{ background: rgba(255,255,255,0.10); }
+
+.btn-danger{
+  color: #fff;
+  background: rgba(255,90,103,0.18);
+  border-color: rgba(255,90,103,0.35);
+}
+.btn-danger:hover{ background: rgba(255,90,103,0.26); }
+
+/* Inputs */
+.search-input, .scan-input, .date-input, .select{
+  width:100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  outline: none;
+}
+
+.search-input::placeholder,
+.scan-input::placeholder{ color: rgba(234,240,255,0.55); }
+
+.search-input:focus, .scan-input:focus, .date-input:focus, .select:focus{
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 3px rgba(126,166,255,0.18);
+}
+
+.select option{ color:#111; } /* para que el dropdown se lea bien */
+
+/* Page header */
+.page-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom: 16px;
+}
+
+.page-header h2{
+  margin:0;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.header-actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+/* Cards / tablas contenedor */
+.table-wrap{
+  margin-top: 14px;
+  border-radius: var(--radius);
+  overflow:hidden;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+.table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:14px;
+}
+
+.table thead th{
+  background: rgba(255,255,255,0.08);
+  color: rgba(234,240,255,0.85);
+  font-weight: 900;
+  text-align:left;
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.table tbody td{
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: rgba(234,240,255,0.90);
+}
+
+.row-click{ cursor:pointer; outline:none; }
+.row-click:hover{ background: rgba(255,255,255,0.06); }
+.row-click:focus{ box-shadow: inset 0 0 0 2px rgba(126,166,255,0.35); }
+
+.tag{
+  display:inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.empty{
+  margin-top: 14px;
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+}

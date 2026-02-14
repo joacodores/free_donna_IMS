@@ -3,9 +3,11 @@
 
 {% block title %} Artículos {% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/articulos.css' %}" />
+{% endblock %}
 
+{% block content %}
 <div class="page-header">
   <div>
     <h2>Artículos</h2>
@@ -268,45 +270,69 @@
 <script>
   const ARTICULO_EDIT_URL = "{% url 'inventory:articulo_edit' 0 %}".replace("/0/", "/{id}/");
   const ARTICULO_DELETE_URL = "{% url 'inventory:articulo_delete' 0 %}".replace("/0/", "/{id}/");
-  const ARTICULOS_TRANSFER_URL = "{% url 'inventory:articulos_transferir' %}"; // si usas el endpoint sin id
+  const ARTICULOS_TRANSFER_URL = "{% url 'inventory:articulos_transferir' %}";
 
-  function openArticuloModal(rowEl) {
-    var overlay = document.getElementById("articuloModalOverlay");
+  function showOverlay(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = "flex";
+    // opcional: bloquear scroll fondo
+    document.body.style.overflow = "hidden";
+  }
 
-    var id = rowEl.dataset.id || "";
-    var sku = rowEl.dataset.sku || "";
-    var barcode = rowEl.dataset.barcode || "";
-    var estado = rowEl.dataset.estado || "";
-    var created = rowEl.dataset.created || "";
-    var talle = rowEl.dataset.talle || "";
-    var color = rowEl.dataset.color || "";
-    var producto = rowEl.dataset.producto || "";
-    var marca = rowEl.dataset.marca || "";
-    var productId = rowEl.dataset.productId || "";
+  function hideOverlay(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = "none";
+    // si ninguno quedó abierto, restaurar scroll
+    const anyOpen =
+      (document.getElementById("articuloModalOverlay")?.style.display === "flex") ||
+      (document.getElementById("transferModalOverlay")?.style.display === "flex");
+    if (!anyOpen) document.body.style.overflow = "";
+  }
 
-    // ✅ definilo ANTES
-    var editable = (estado === "DISP");
+  function openArticuloModal(rowEl, evt) {
+    // si el click vino de un link/boton/form dentro de la fila, no abrir
+    if (evt && evt.target && evt.target.closest && evt.target.closest("a,button,form,input,select,textarea,label")) return;
 
-    document.getElementById("articuloModalTitle").textContent = sku ? ("Artículo " + sku) : "Detalle de artículo";
-    document.getElementById("articuloModalSubtitle").textContent =
+    const overlay = document.getElementById("articuloModalOverlay");
+    if (!overlay) return;
+
+    const id = rowEl.dataset.id || "";
+    const sku = rowEl.dataset.sku || "";
+    const barcode = rowEl.dataset.barcode || "";
+    const estado = rowEl.dataset.estado || "";
+    const created = rowEl.dataset.created || "";
+    const talle = rowEl.dataset.talle || "";
+    const color = rowEl.dataset.color || "";
+    const producto = rowEl.dataset.producto || "";
+    const marca = rowEl.dataset.marca || "";
+    const productId = rowEl.dataset.productId || "";
+
+    const editable = (estado === "DISP");
+
+    const $ = (x) => document.getElementById(x);
+
+    if ($("articuloModalTitle")) $("articuloModalTitle").textContent = sku ? ("Artículo " + sku) : "Detalle de artículo";
+    if ($("articuloModalSubtitle")) $("articuloModalSubtitle").textContent =
       producto ? ("Producto: " + producto + (marca ? " — " + marca : "")) : (marca ? ("Marca: " + marca) : "");
 
-    document.getElementById("m_id").textContent = id || "—";
-    document.getElementById("m_sku").textContent = sku || "—";
-    document.getElementById("m_barcode").textContent = barcode || "—";
-    document.getElementById("m_estado").textContent = estado || "—";
-    document.getElementById("m_created").textContent = created || "—";
-    document.getElementById("m_producto").textContent = producto || "—";
-    document.getElementById("m_marca").textContent = marca || "—";
-    document.getElementById("m_talle").textContent = talle || "—";
-    document.getElementById("m_color").textContent = color || "—";
+    if ($("m_id")) $("m_id").textContent = id || "—";
+    if ($("m_sku")) $("m_sku").textContent = sku || "—";
+    if ($("m_barcode")) $("m_barcode").textContent = barcode || "—";
+    if ($("m_estado")) $("m_estado").textContent = estado || "—";
+    if ($("m_created")) $("m_created").textContent = created || "—";
+    if ($("m_producto")) $("m_producto").textContent = producto || "—";
+    if ($("m_marca")) $("m_marca").textContent = marca || "—";
+    if ($("m_talle")) $("m_talle").textContent = talle || "—";
+    if ($("m_color")) $("m_color").textContent = color || "—";
 
-    document.getElementById("m_ver_producto").href = productId ? ("/productos/" + productId + "/") : "#";
-    document.getElementById("m_editar").href = ARTICULO_EDIT_URL.replace("{id}", id);
-    document.getElementById("m_borrar_form").action = ARTICULO_DELETE_URL.replace("{id}", id);
+    if ($("m_ver_producto")) $("m_ver_producto").href = productId ? ("/productos/" + productId + "/") : "#";
+    if ($("m_editar")) $("m_editar").href = ARTICULO_EDIT_URL.replace("{id}", id);
+    if ($("m_borrar_form")) $("m_borrar_form").action = ARTICULO_DELETE_URL.replace("{id}", id);
 
-    // ✅ Transferir: habilitar + abrir modal
-    var transferOpen = document.getElementById("m_transfer_open");
+    // Transferir
+    const transferOpen = $("m_transfer_open");
     if (transferOpen){
       transferOpen.disabled = !editable;
       transferOpen.style.opacity = editable ? "1" : "0.55";
@@ -320,9 +346,9 @@
       };
     }
 
-    // Bloqueo editar/borrar si no está disponible
-    var editBtn = document.getElementById("m_editar");
-    var delBtn = document.getElementById("m_borrar_btn");
+    // Editar / borrar
+    const editBtn = $("m_editar");
+    const delBtn = $("m_borrar_btn");
 
     if (editBtn) {
       editBtn.style.pointerEvents = editable ? "auto" : "none";
@@ -336,7 +362,7 @@
       delBtn.title = editable ? "" : "No se puede borrar un artículo no disponible.";
     }
 
-    overlay.style.display = "flex";
+    showOverlay("articuloModalOverlay");
   }
 
   function openTransferModal(barcode, sku, estado){
@@ -344,37 +370,61 @@
 
     const overlay = document.getElementById("transferModalOverlay");
     const form = document.getElementById("m_transfer_form");
+    if (!overlay || !form) return;
 
-    document.getElementById("transferModalSubtitle").textContent =
-      sku ? ("SKU: " + sku) : ("Barcode: " + barcode);
+    const sub = document.getElementById("transferModalSubtitle");
+    if (sub) sub.textContent = sku ? ("SKU: " + sku) : ("Barcode: " + barcode);
 
-    document.getElementById("m_transfer_barcode").value = barcode;
-    document.getElementById("m_transfer_qty").value = 1;
-    document.getElementById("m_transfer_destino").value = "";
-    document.getElementById("m_transfer_nota").value = "";
+    const b = document.getElementById("m_transfer_barcode");
+    const qty = document.getElementById("m_transfer_qty");
+    const dest = document.getElementById("m_transfer_destino");
+    const nota = document.getElementById("m_transfer_nota");
+
+    if (b) b.value = barcode;
+    if (qty) qty.value = 1;
+    if (dest) dest.value = "";
+    if (nota) nota.value = "";
 
     form.action = ARTICULOS_TRANSFER_URL;
 
-    overlay.style.display = "flex";
+    showOverlay("transferModalOverlay");
   }
 
-
-
+  function closeArticuloModal(evt){
+    if (evt && evt.target && evt.target.id !== "articuloModalOverlay") return;
+    hideOverlay("articuloModalOverlay");
+  }
 
   function closeTransferModal(evt){
     if (evt && evt.target && evt.target.id !== "transferModalOverlay") return;
-    document.getElementById("transferModalOverlay").style.display = "none";
+    hideOverlay("transferModalOverlay");
   }
 
-
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      var overlay = document.getElementById("articuloModalOverlay");
-      if (overlay && overlay.style.display === "flex") {
-        overlay.style.display = "none";
-      }
+  // Esc para cerrar
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){
+      hideOverlay("transferModalOverlay");
+      hideOverlay("articuloModalOverlay");
     }
   });
+
+  // Si querés que el click en fila siempre funcione aunque cambies el HTML:
+  // (opcional) enganchar por delegación
+  document.addEventListener("click", function(e){
+    const row = e.target.closest && e.target.closest("tr.row-click");
+    if (!row) return;
+    openArticuloModal(row, e);
+  });
+
+  // Enter/Space en la fila (accesibilidad)
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest && e.target.closest("tr.row-click");
+    if (!row) return;
+    e.preventDefault();
+    openArticuloModal(row, e);
+  });
 </script>
+
 
 {% endblock %}

@@ -3,30 +3,195 @@
 
 {% block title %}Inicio · Free Donna IMS{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/index.css' %}">
+{% endblock %}
 
-<div class="home-wrapper">
-  <h1 class="home-title">Bienvenido a Free Donna IMS</h1>
-  <p class="home-subtitle">Seleccione una opción para comenzar</p>
-<link rel="stylesheet">
-  <div class="panel-grid">
+{% block content %}
 
-    <a href="{% url 'inventory:producto_list' %}" class="panel-card">
-      <h2>Gestionar Productos</h2>
-      <p>Alta, edición y control de productos.</p>
-    </a>
 
-    <a href="{% url 'inventory:articulo_list' %}" class="panel-card">
-      <h2>Gestionar Artículos</h2>
-      <p>Administrar unidades físicas y estados.</p>
-    </a>
+<div class="dash">
 
-    <a href="{% url 'inventory:movimientos' %}" class="panel-card">
-      <h2>Ver Movimientos de Stock</h2>
-      <p>Entradas, salidas e historial.</p>
-    </a>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Panel operativo</span>
+        {% if local_activo_id %}
+          <span class="sep">·</span>
+          <span class="mono">Local activo: {{ local_activo_id }}</span>
+        {% endif %}
+      </div>
 
-  </div>
+      <h1 class="hero-title">
+        Bienvenido/a <span class="hero-name">{{ request.user.first_name|default:request.user.username }}</span>
+      </h1>
+
+      <p class="hero-sub">
+        Resumen del día, accesos rápidos y actividad reciente. Listo para operar.
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn-pos" href="{% url 'inventory:pos' %}">
+          <span class="btn-icon">🛒</span>
+          Abrir POS
+        </a>
+
+        <a class="btn-ghost" href="{% url 'inventory:movimientos' %}">
+          Ver movimientos
+        </a>
+      </div>
+
+      <div class="hero-hint">
+        Tip: desde el POS vas a poder ver ventas del día y ganancia en el split screen.
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="mini-card">
+        <div class="mini-title">Hoy</div>
+        <div class="mini-big mono">{{ now|date:"Y-m-d" }}</div>
+        <div class="mini-sub">Operando en tu zona horaria</div>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-title">Atajos</div>
+        <div class="mini-links">
+          <a href="{% url 'inventory:producto_list' %}">Productos</a>
+          <a href="{% url 'inventory:articulo_list' %}">Artículos</a>
+          <a href="{% url 'inventory:movimientos' %}">Kardex</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRID -->
+  <section class="grid">
+
+    <!-- KPIs -->
+    <div class="card kpis">
+      <div class="card-head">
+        <h2>Resumen del día</h2>
+        <span class="chip">
+          <span class="chip-dot"></span>
+          <b>{{ now|date:"d/m" }}</b>
+        </span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Ventas</div>
+          <div class="kpi-value mono">{{ ventas_hoy_count|default:"0" }}</div>
+          <div class="kpi-foot subtle">Cantidad de ventas cerradas</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Total vendido</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
+          <div class="kpi-foot subtle">Sumatoria del día</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Ganancia</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_profit|default:"0.00" }}</div>
+          <div class="kpi-foot subtle">Profit estimado</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Movimientos</div>
+          <div class="kpi-value mono">{{ movs_hoy|default:"0" }}</div>
+          <div class="kpi-foot subtle">Entradas / salidas / transferencias</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVIDAD -->
+    <div class="card activity">
+      <div class="card-head">
+        <h2>Actividad reciente</h2>
+        <a class="link" href="{% url 'inventory:movimientos' %}">Ver todo →</a>
+      </div>
+
+      {% if activity %}
+        <div class="activity-list">
+          {% for a in activity %}
+            <a class="act-row" href="{{ a.url }}">
+              <div class="act-left">
+                <div class="act-title">{{ a.title }}</div>
+                <div class="act-sub mono">{{ a.when }}</div>
+              </div>
+              <div class="act-right mono">{{ a.amount }}</div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-box">
+          <div class="empty-title">Sin actividad reciente</div>
+          <div class="empty-sub">Cuando registres ventas, ingresos o transferencias, aparecen acá.</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ACCESOS -->
+    <div class="card quick">
+      <div class="card-head">
+        <h2>Accesos rápidos</h2>
+        <span class="subtle">Operación</span>
+      </div>
+
+      <div class="quick-grid">
+        <a class="quick-card" href="{% url 'inventory:producto_list' %}">
+          <div class="q-icon">🏷️</div>
+          <div class="q-title">Productos</div>
+          <div class="q-sub">Altas, precios, marcas</div>
+        </a>
+
+        <a class="quick-card" href="{% url 'inventory:articulo_list' %}">
+          <div class="q-icon">📦</div>
+          <div class="q-title">Artículos</div>
+          <div class="q-sub">Unidades, estados, barcode</div>
+        </a>
+
+        <a class="quick-card" href="{% url 'inventory:movimientos' %}">
+          <div class="q-icon">📈</div>
+          <div class="q-title">Kardex</div>
+          <div class="q-sub">Entradas, salidas, historial</div>
+        </a>
+
+        <a class="quick-card" href="{% url 'inventory:pos' %}">
+          <div class="q-icon">🧾</div>
+          <div class="q-title">POS</div>
+          <div class="q-sub">Carrito + checkout</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- AYUDA / ESTADO -->
+    <div class="card status">
+      <div class="card-head">
+        <h2>Estado del sistema</h2>
+        <span class="subtle">Checklist rápido</span>
+      </div>
+
+      <ul class="status-list">
+        <li>
+          <span class="bullet ok"></span>
+          Local activo seleccionado
+          <span class="mono subtle">{% if local_activo_id %}#{{ local_activo_id }}{% else %}—{% endif %}</span>
+        </li>
+        <li>
+          <span class="bullet ok"></span>
+          Usuario autenticado
+          <span class="mono subtle">{{ request.user.username }}</span>
+        </li>
+        <li>
+          <span class="bullet warn"></span>
+          Recomendación: revisá Kardex para detectar rotación / transferencias
+        </li>
+      </ul>
+    </div>
+
+  </section>
 </div>
 {% endblock %}
