@@ -102,14 +102,15 @@
     </div>
 
     <div class="modal-actions">
-      <a id="m_editar" class="btn-secondary" href="#">Editar</a>
-
-      <!-- Borrar por POST (correcto) -->
-      <form id="m_borrar_form" method="post" action="#" style="margin:0;">
-        {% csrf_token %}
-        <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
-      </form>
-
+      {% if request.user.is_staff %}
+        <a id="m_editar" class="btn-secondary" href="javascript:void(0)">Editar</a>
+    
+        <form id="m_borrar_form" method="post" action="" style="margin:0;">
+          {% csrf_token %}
+          <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
+        </form>
+      {% endif %}
+      
       <button class="btn-primary" type="button" onclick="closeProductoModal()">Cerrar</button>
     </div>
   </div>
@@ -135,17 +136,18 @@
     document.getElementById("m_material").textContent = material || "—";
     document.getElementById("m_precio").textContent = precio ? ("$ " + precio) : "—";
 
-    // Editar (usa tu ruta namespaced si aplica)
-    document.getElementById("m_editar").href = "/productos/" + id + "/editar/";
+    // Solo staff: setear links/acciones si existen
+    var editar = document.getElementById("m_editar");
+    if (editar) {
+      editar.href = "/productos/" + id + "/editar/";
+    }
 
-    // Borrar (POST) - usa la ruta que ya definiste
-    // Ajustá ESTE PATH si tu delete real difiere:
-    var deleteUrl = "/productos/" + id + "/borrar/";
     var form = document.getElementById("m_borrar_form");
-    form.action = deleteUrl;
+    if (form) {
+      form.action = "/productos/" + id + "/borrar/";
+    }
 
     overlay.style.display = "flex";
-
     setTimeout(function(){
       var closeBtn = document.querySelector(".modal-close");
       if (closeBtn) closeBtn.focus();
@@ -157,13 +159,15 @@
     document.getElementById("productoModalOverlay").style.display = "none";
   }
 
-  // Confirmación antes de borrar
-  document.getElementById("m_borrar_form").addEventListener("submit", function(e){
-    var nombre = document.getElementById("m_nombre").textContent || "este producto";
-    if (!confirm("¿Seguro que querés borrar " + nombre + "? Esta acción no se puede deshacer.")) {
-      e.preventDefault();
-    }
-  });
+  var borrarForm = document.getElementById("m_borrar_form");
+  if (borrarForm) {
+    borrarForm.addEventListener("submit", function(e){
+      var nombre = document.getElementById("m_nombre").textContent || "este producto";
+      if (!confirm("¿Seguro que querés borrar " + nombre + "? Esta acción no se puede deshacer.")) {
+        e.preventDefault();
+      }
+    });
+  }
 
   document.addEventListener("keydown", function(e){
     if (e.key === "Escape"){
@@ -174,4 +178,5 @@
     }
   });
 </script>
+
 {% endblock %}

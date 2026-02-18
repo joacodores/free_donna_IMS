@@ -165,14 +165,22 @@
     </div>
   {% endif %}
 
-{% else %}
-  <div class="empty">
-    <p style="margin: 0; font-weight: 900">No hay artículos cargados.</p>
-    <p class="subtle" style="margin-bottom: 0">
-      Usá el botón “Cargar artículos” para ingresar unidades (podés hacerlo por cantidad).
-    </p>
-  </div>
-{% endif %}
+  {% else %}
+    <div class="empty">
+      {% if not request.user.is_staff and not q and not scan %}
+        <p style="margin: 0; font-weight: 900">Para ver artículos tenés que buscar o escanear.</p>
+        <p class="subtle" style="margin-bottom: 0">
+          Usá el escáner o la búsqueda por SKU / producto / marca.
+        </p>
+      {% else %}
+        <p style="margin: 0; font-weight: 900">No hay artículos cargados.</p>
+        <p class="subtle" style="margin-bottom: 0">
+          Usá el botón “Cargar artículos” para ingresar unidades (podés hacerlo por cantidad).
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
 
 {% if auto_open_first %}
 <script>

@@ -28,24 +28,20 @@
         Bienvenido/a <span class="hero-name">{{ request.user.first_name|default:request.user.username }}</span>
       </h1>
 
-      <p class="hero-sub">
-        Resumen del día, accesos rápidos y actividad reciente. Listo para operar.
-      </p>
+      
 
       <div class="hero-actions">
         <a class="btn-pos" href="{% url 'inventory:pos' %}">
           <span class="btn-icon">🛒</span>
-          Abrir POS
+          Abrir carrito
         </a>
 
         <a class="btn-ghost" href="{% url 'inventory:movimientos' %}">
-          Ver movimientos
+          Ver historial de movimientos
         </a>
       </div>
 
-      <div class="hero-hint">
-        Tip: desde el POS vas a poder ver ventas del día y ganancia en el split screen.
-      </div>
+      
     </div>
 
     <div class="hero-right">
@@ -144,25 +140,25 @@
         <a class="quick-card" href="{% url 'inventory:producto_list' %}">
           <div class="q-icon">🏷️</div>
           <div class="q-title">Productos</div>
-          <div class="q-sub">Altas, precios, marcas</div>
+          
         </a>
 
         <a class="quick-card" href="{% url 'inventory:articulo_list' %}">
           <div class="q-icon">📦</div>
           <div class="q-title">Artículos</div>
-          <div class="q-sub">Unidades, estados, barcode</div>
+          
         </a>
 
         <a class="quick-card" href="{% url 'inventory:movimientos' %}">
           <div class="q-icon">📈</div>
-          <div class="q-title">Kardex</div>
-          <div class="q-sub">Entradas, salidas, historial</div>
+          <div class="q-title">Historial</div>
+          
         </a>
 
         <a class="quick-card" href="{% url 'inventory:pos' %}">
-          <div class="q-icon">🧾</div>
-          <div class="q-title">POS</div>
-          <div class="q-sub">Carrito + checkout</div>
+          <div class="q-icon">🛒</div>
+          <div class="q-title">Carrito</div>
+          
         </a>
       </div>
     </div>
@@ -171,7 +167,7 @@
     <div class="card status">
       <div class="card-head">
         <h2>Estado del sistema</h2>
-        <span class="subtle">Checklist rápido</span>
+        
       </div>
 
       <ul class="status-list">
@@ -185,10 +181,7 @@
           Usuario autenticado
           <span class="mono subtle">{{ request.user.username }}</span>
         </li>
-        <li>
-          <span class="bullet warn"></span>
-          Recomendación: revisá Kardex para detectar rotación / transferencias
-        </li>
+
       </ul>
     </div>
 
