@@ -34,23 +34,17 @@ class ArticuloCreateForm(forms.Form):
         queryset=Producto.objects.all(),
         label="Producto"
     )
-    sku = forms.CharField(
-        label="SKU",
-        max_length=100
+    sku_preview = forms.CharField(
+        required=False,
+        max_length=80,
+        widget=forms.TextInput(attrs={"readonly": "readonly"})
     )
     barcode = forms.CharField(max_length=64, label="Barcode")
     talle = forms.IntegerField(min_value=1, label="Talle")
     color = forms.CharField(max_length=50, label="Color")
     cantidad = forms.IntegerField(min_value=1, max_value=500, initial=1, label="Cantidad")
     referencia = forms.CharField(max_length=80, required=False, label="Referencia")
-    costo_unitario = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal(0), label="Costo Unitario")
-    
-    def clean_sku(self):
-        sku = (self.cleaned_data['sku'] or "").strip()
-        if not sku:
-            raise forms.ValidationError("El SKU es obligatorio")
-        return sku
-    
+
     def clean_barcode(self):
         barcode = (self.cleaned_data["barcode"] or "").strip()
         if not barcode:

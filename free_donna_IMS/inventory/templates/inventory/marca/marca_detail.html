@@ -1,0 +1,56 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Marca {{ marca.nombre }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>{{ marca.nombre }}</h2>
+    <p class="subtle">
+      Productos: <b>{{ stats.productos_count }}</b> ·
+      Unidades vendidas: <b>{{ stats.unidades_vendidas }}</b> ·
+      Total vendido: <b>$ {{ stats.vendido_total }}</b> ·
+      Profit: <b>$ {{ stats.profit_total }}</b>
+    </p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:marca_list' %}">Volver</a>
+    <a class="btn-secondary" href="{% url 'inventory:marca_edit' marca.pk %}">Editar</a>
+    <a class="btn-danger" href="{% url 'inventory:marca_delete' marca.pk %}">Borrar</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Producto</th>
+        <th>Tipo</th>
+        <th>Material</th>
+        <th class="num">Precio</th>
+        <th class="num">Costo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+        <tr>
+          <td class="mono">{{ p.product_id }}</td>
+          <td class="strong">{{ p.nombre }}</td>
+          <td><span class="tag">{{ p.tipo_producto }}</span></td>
+          <td><span class="tag">{{ p.material }}</span></td>
+          <td class="num mono">$ {{ p.precio }}</td>
+          <td class="num mono">$ {{ p.costo }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="subtle">No hay productos asociados a esta marca.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Marcas{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Marcas</h2>
+    <p class="subtle">Gestión de marcas, productos asociados y desempeño de ventas.</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn-primary" href="{% url 'inventory:marca_create' %}">+ Nueva marca</a>
+  </div>
+</div>
+
+<form method="get" class="filters-row">
+  <input class="search-input" type="text" name="q" value="{{ q }}" placeholder="Buscar marca...">
+
+  <select name="sort" class="select">
+    <option value="nombre" {% if sort == "nombre" %}selected{% endif %}>Orden: A–Z</option>
+    <option value="ventas" {% if sort == "ventas" %}selected{% endif %}>Orden: más vendidas</option>
+    <option value="productos" {% if sort == "productos" %}selected{% endif %}>Orden: más productos</option>
+  </select>
+
+  <button class="btn-secondary" type="submit">Aplicar</button>
+  <a class="btn-secondary" href="{% url 'inventory:marca_list' %}">Limpiar</a>
+</form>
+
+{% if marcas %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Marca</th>
+          <th class="num">Productos</th>
+          <th class="num">Unidades vendidas</th>
+          <th class="num">Total vendido</th>
+          <th class="num">Ganancia</th>
+          <th class="col-menu"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in marcas %}
+          <tr class="row-click row-link"
+              role="button"
+              tabindex="0"
+              data-href="{% url 'inventory:marca_detail' m.pk %}"
+              onclick="rowGo(this, event)"
+              onkeydown="if(event.key==='Enter'||event.key===' '){ event.preventDefault(); rowGo(this, event); }"
+          >
+            <td class="strong">{{ m.nombre }}</td>
+            <td class="num">{{ m.productos_count }}</td>
+            <td class="num">{{ m.unidades_vendidas|default:0 }}</td>
+            <td class="num mono">$ {{ m.vendido_total|default:"0.00" }}</td>
+            <td class="num mono">$ {{ m.profit_total|default:"0.00" }}</td>
+
+            <td class="cell-menu" onclick="event.stopPropagation();">
+              <a class="btn-secondary" href="{% url 'inventory:marca_detail' m.pk %}">Abrir</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <div class="pagination">
+      <div class="subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</div>
+      <div class="pager">
+        {% if page_obj.has_previous %}
+          <a class="btn-secondary" href="?q={{ q }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}">←</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn-secondary" href="?q={{ q }}&sort={{ sort }}&page={{ page_obj.next_page_number }}">→</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">No hay marcas.</p>
+    <p class="subtle" style="margin-bottom:0;">Creá una marca para empezar.</p>
+  </div>
+{% endif %}
+
+<script>
+  function rowGo(tr, evt){
+    var href = tr.dataset.href;
+    if (href) window.location.href = href;
+  }
+</script>
+
+{% endblock %}

@@ -14,7 +14,9 @@
   </div>
   <div class="header-actions">
     <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Volver</a>
-    <a class="btn-secondary" href="{% url 'inventory:venta_pdf' venta.venta_id %}">Exportar PDF</a>
+    {% if request.user.is_staff %}
+      <a class="btn-secondary" href="{% url 'inventory:venta_pdf' venta.venta_id %}">Exportar PDF</a>
+    {% endif %}
   </div>
 </div>
 
@@ -27,9 +29,11 @@
         <th>Variante</th>
         <th class="num">Cantidad</th>
         <th class="num">Precio u.</th>
-        <th class="num">Costo u. (prom)</th>
-        <th class="num">Total</th>
-        <th class="num">Profit</th>
+        {% if request.user.is_staff %}
+          <th class="num">Costo u.</th>
+          <th class="num">Total</th>
+          <th class="num">Ganancia</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -40,9 +44,11 @@
           <td class="mono">{{ it.talle }}/{{ it.color }}</td>
           <td class="num">{{ it.cantidad }}</td>
           <td class="num mono">$ {{ it.precio_unitario }}</td>
-          <td class="num mono">$ {{ it.costo_unitario }}</td>
-          <td class="num mono">$ {{ it.total_linea }}</td>
-          <td class="num mono">$ {{ it.profit_linea }}</td>
+          {% if request.user.is_staff %}
+            <td class="num mono">$ {{ it.costo_unitario }}</td>
+            <td class="num mono">$ {{ it.total_linea }}</td>
+            <td class="num mono">$ {{ it.profit_linea }}</td>
+          {% endif %}
         </tr>
       {% endfor %}
     </tbody>
@@ -56,12 +62,12 @@
   <div style="display:flex; gap:10px; flex-wrap:wrap;">
     <div class="subtle">Costo total: <b>$ {{ ms_totals.costo_total }}</b></div>
     <div class="subtle">Venta total: <b>$ {{ ms_totals.venta_total }}</b></div>
-    <div class="subtle">Profit: <b>$ {{ ms_totals.profit_total }}</b></div>
+    <div class="subtle">Ganancia total: <b>$ {{ ms_totals.profit_total }}</b></div>
   </div>
 </div>
 
 <details style="margin-top:14px;">
-  <summary style="cursor:pointer; font-weight:900;">Detalle por unidad (auditoría)</summary>
+  <summary style="cursor:pointer; font-weight:900;">Detalle por unidad </summary>
   <div class="table-wrap" style="margin-top:10px;">
     <table class="table">
       <thead>
@@ -70,9 +76,11 @@
           <th>Barcode</th>
           <th>SKU</th>
           <th>Var</th>
-          <th class="num">Costo u.</th>
-          <th class="num">Precio u.</th>
-          <th class="num">Profit u.</th>
+          {% if request.user.is_staff %}
+            <th class="num">Costo u.</th>
+            <th class="num">Precio u.</th>
+            <th class="num">Ganancia u.</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
@@ -82,10 +90,12 @@
             <td class="mono">{{ m.barcode }}</td>
             <td class="mono">{{ m.sku }}</td>
             <td class="mono">{{ m.talle }}/{{ m.color }}</td>
-            <td class="num mono">$ {{ m.costo_unitario }}</td>
-            <td class="num mono">$ {{ m.precio_unitario }}</td>
-            <td class="num mono">$ {{ m.profit_unitario }}</td>
-          </tr>
+            {% if request.user.is_staff %}
+              <td class="num mono">$ {{ m.costo_unitario }}</td>
+              <td class="num mono">$ {{ m.precio_unitario }}</td>
+              <td class="num mono">$ {{ m.profit_unitario }}</td>
+            {% endif %}
+            </tr>
         {% endfor %}
       </tbody>
     </table>

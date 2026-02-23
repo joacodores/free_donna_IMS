@@ -12,7 +12,7 @@
   <div>
     <h2>Artículos</h2>
     <p class="subtle">
-      Un artículo representa una unidad singular. Click en una fila para ver detalle.
+      Vista por defecto por cantidad (agrupado). Podés cambiar a vista por unidad.
     </p>
   </div>
 
@@ -73,9 +73,15 @@
     <option value="BAJA" {% if estado == "BAJA" %}selected{% endif %}>Bajas</option>
   </select>
 
+  {# Vista #}
+  <select name="mode" class="select">
+    <option value="qty" {% if mode == "qty" %}selected{% endif %}>Por cantidad</option>
+    <option value="unit" {% if mode == "unit" %}selected{% endif %}>Por unidad</option>
+  </select>
+
   <button class="btn-secondary" type="submit">Buscar</button>
 
-  {% if q or field != "all" or estado != "DISP" %}
+  {% if q or field != "all" or estado != "DISP" or mode != "qty" %}
     <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Limpiar</a>
   {% endif %}
 </form>
@@ -83,55 +89,114 @@
 {% if articulos %}
   <div class="table-wrap">
     <table class="table">
-      <thead>
-        <tr>
-          <th class="col-id">ID</th>
-          <th>SKU</th>
-          <th>Código de barras</th>
-          <th>Producto</th>
-          <th>Marca</th>
-          <th class="col-talle">Talle</th>
-          <th>Color</th>
-          <th>Estado</th>
-          <th class="col-fecha">Ingreso</th>
-        </tr>
-      </thead>
 
-      <tbody>
-        {% for a in articulos %}
-          <tr
-            class="row-click"
-            role="button"
-            tabindex="0"
-            onclick="openArticuloModal(this)"
-            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArticuloModal(this); }"
-            data-id="{{ a.articulo_id }}"
-            data-sku="{{ a.sku|escapejs }}"
-            data-barcode="{{ a.barcode|escapejs }}"
-            data-talle="{{ a.talle }}"
-            data-color="{{ a.color|escapejs }}"
-            data-estado="{{ a.estado|escapejs }}"
-            data-created="{{ a.created_at|date:'Y-m-d H:i'}}"
-            data-producto="{{ a.product_id.nombre|default_if_none:''|escapejs }}"
-            data-marca="{{ a.product_id.marca|default_if_none:''|escapejs }}"
-            data-product-id="{{ a.product_id.product_id }}"
-          >
-            <td class="mono">{{ a.articulo_id }}</td>
-            <td class="strong">{{ a.sku }}</td>
-            <td class="mono">{{ a.barcode }}</td>
-            <td>{{ a.product_id.nombre|default:"—" }}</td>
-            <td>{{ a.product_id.marca|default:"—" }}</td>
-            <td class="num">{{ a.talle }}</td>
-            <td><span class="tag">{{ a.color }}</span></td>
-            <td>
-              <span class="pill pill-{{ a.estado|lower }}">
-                {{ a.get_estado_display }}
-              </span>
-            </td>
-            <td class="mono">{{ a.created_at|date:"Y-m-d H:i" }}</td>
+      {% if mode == "unit" %}
+        <thead>
+          <tr>
+            <th class="col-id">ID</th>
+            <th>SKU</th>
+            <th>Código de barras</th>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th class="col-talle">Talle</th>
+            <th>Color</th>
+            <th>Estado</th>
+            <th class="col-fecha">Ingreso</th>
           </tr>
-        {% endfor %}
-      </tbody>
+        </thead>
+
+        <tbody>
+          {% for a in articulos %}
+            <tr
+              class="row-click"
+              role="button"
+              tabindex="0"
+              onclick="openArticuloModal(this, event)"
+              onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArticuloModal(this, event); }"
+              data-mode="unit"
+              data-id="{{ a.articulo_id }}"
+              data-sku="{{ a.sku|escapejs }}"
+              data-barcode="{{ a.barcode|escapejs }}"
+              data-talle="{{ a.talle }}"
+              data-color="{{ a.color|escapejs }}"
+              data-estado="{{ a.estado|escapejs }}"
+              data-created="{{ a.created_at|date:'Y-m-d H:i' }}"
+              data-producto="{{ a.product_id.nombre|default_if_none:''|escapejs }}"
+              data-marca="{{ a.product_id.marca.nombre|default_if_none:''|escapejs }}"
+              data-product-id="{{ a.product_id.product_id }}"
+              data-qty="1"
+            >
+              <td class="mono">{{ a.articulo_id }}</td>
+              <td class="strong">{{ a.sku }}</td>
+              <td class="mono">{{ a.barcode }}</td>
+              <td>{{ a.product_id.nombre|default:"—" }}</td>
+              <td>{{ a.product_id.marca.nombre|default:"—" }}</td>
+              <td class="num">{{ a.talle }}</td>
+              <td><span class="tag">{{ a.color }}</span></td>
+              <td>
+                <span class="pill pill-{{ a.estado|lower }}">
+                  {{ a.get_estado_display }}
+                </span>
+              </td>
+              <td class="mono">{{ a.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+
+      {% else %}
+        <thead>
+          <tr>
+            <th class="num">Cant</th>
+            <th>SKU</th>
+            <th>Código de barras</th>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th class="col-talle">Talle</th>
+            <th>Color</th>
+            <th>Estado</th>
+            <th class="col-fecha">Último ingreso</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for a in articulos %}
+            <tr
+              class="row-click"
+              role="button"
+              tabindex="0"
+              onclick="openArticuloModal(this, event)"
+              onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArticuloModal(this, event); }"
+              data-mode="qty"
+              data-id=""
+              data-sku="{{ a.sku|default_if_none:''|escapejs }}"
+              data-barcode="{{ a.barcode|default_if_none:''|escapejs }}"
+              data-talle="{{ a.talle }}"
+              data-color="{{ a.color|default_if_none:''|escapejs }}"
+              data-estado="{{ a.estado|default_if_none:''|escapejs }}"
+              data-created="{{ a.last_created|date:'Y-m-d H:i' }}"
+              data-producto="{{ a.product_id__nombre|default_if_none:''|escapejs }}"
+              data-marca="{{ a.product_id__marca__nombre|default_if_none:''|escapejs }}"
+              data-product-id="{{ a.product_id }}"
+              data-qty="{{ a.qty }}"
+            >
+              <td class="num strong">{{ a.qty }}</td>
+              <td class="strong">{{ a.sku }}</td>
+              <td class="mono">{{ a.barcode }}</td>
+              <td>{{ a.product_id__nombre|default:"—" }}</td>
+              <td>{{ a.product_id__marca__nombre|default:"—" }}</td>
+              <td class="num">{{ a.talle }}</td>
+              <td><span class="tag">{{ a.color }}</span></td>
+              <td>
+                <span class="pill pill-{{ a.estado|lower }}">
+                  {{ a.estado }}
+                </span>
+              </td>
+              <td class="mono">{{ a.last_created|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+
     </table>
   </div>
 
@@ -147,7 +212,8 @@
              href="?page={{ page_obj.previous_page_number }}
              {% if q %}&q={{ q|urlencode }}{% endif %}
              &field={{ field|urlencode }}
-             &estado={{ estado|urlencode }}">
+             &estado={{ estado|urlencode }}
+             &mode={{ mode|urlencode }}">
             ← Anterior
           </a>
         {% endif %}
@@ -157,7 +223,8 @@
              href="?page={{ page_obj.next_page_number }}
              {% if q %}&q={{ q|urlencode }}{% endif %}
              &field={{ field|urlencode }}
-             &estado={{ estado|urlencode }}">
+             &estado={{ estado|urlencode }}
+             &mode={{ mode|urlencode }}">
             Siguiente →
           </a>
         {% endif %}
@@ -165,22 +232,21 @@
     </div>
   {% endif %}
 
-  {% else %}
-    <div class="empty">
-      {% if not request.user.is_staff and not q and not scan %}
-        <p style="margin: 0; font-weight: 900">Para ver artículos tenés que buscar o escanear.</p>
-        <p class="subtle" style="margin-bottom: 0">
-          Usá el escáner o la búsqueda por SKU / producto / marca.
-        </p>
-      {% else %}
-        <p style="margin: 0; font-weight: 900">No hay artículos cargados.</p>
-        <p class="subtle" style="margin-bottom: 0">
-          Usá el botón “Cargar artículos” para ingresar unidades (podés hacerlo por cantidad).
-        </p>
-      {% endif %}
-    </div>
-  {% endif %}
-
+{% else %}
+  <div class="empty">
+    {% if not request.user.is_staff and not q and not scan %}
+      <p style="margin: 0; font-weight: 900">Para ver artículos tenés que buscar o escanear.</p>
+      <p class="subtle" style="margin-bottom: 0">
+        Usá el escáner o la búsqueda por SKU / producto / marca.
+      </p>
+    {% else %}
+      <p style="margin: 0; font-weight: 900">No hay artículos cargados.</p>
+      <p class="subtle" style="margin-bottom: 0">
+        Usá el botón “Cargar artículos” para ingresar unidades (podés hacerlo por cantidad).
+      </p>
+    {% endif %}
+  </div>
+{% endif %}
 
 {% if auto_open_first %}
 <script>
@@ -191,7 +257,7 @@
 </script>
 {% endif %}
 
-<!-- Modal -->
+<!-- Modal Artículo -->
 <div id="articuloModalOverlay" class="modal-overlay" onclick="closeArticuloModal(event)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articuloModalTitle">
     <div class="modal-header">
@@ -204,6 +270,7 @@
 
     <div class="modal-body">
       <dl class="kv">
+        <dt>Cantidad</dt><dd id="m_qty">—</dd>
         <dt>ID</dt><dd id="m_id">—</dd>
         <dt>SKU</dt><dd id="m_sku">—</dd>
         <dt>Barcode</dt><dd id="m_barcode">—</dd>
@@ -217,19 +284,22 @@
     </div>
 
     <div class="modal-actions">
-      <a id="m_ver_producto" class="btn-secondary" href="#">Ver producto</a>
-      <a id="m_editar" class="btn-secondary" href="#">Editar</a>
+      <a id="m_ver_producto" class="btn-secondary" href="javascript:void(0)">Ver producto</a>
       <button id="m_transfer_open" class="btn-secondary" type="button">Transferir</button>
 
-      <form id="m_borrar_form" method="post" action="#" style="margin: 0">
-        {% csrf_token %}
-        <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
-      </form>
+      {% if request.user.is_staff %}
+        <a id="m_editar" class="btn-secondary" href="javascript:void(0)">Editar</a>
+        <form id="m_borrar_form" method="post" action="" style="margin:0;">
+          {% csrf_token %}
+          <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
+        </form>
+      {% endif %}
 
       <button class="btn-primary" type="button" onclick="closeArticuloModal()">Cerrar</button>
     </div>
   </div>
 </div>
+
 <!-- Modal Transferencia -->
 <div id="transferModalOverlay" class="modal-overlay" style="display:none;" onclick="closeTransferModal(event)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
@@ -284,7 +354,6 @@
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "flex";
-    // opcional: bloquear scroll fondo
     document.body.style.overflow = "hidden";
   }
 
@@ -292,7 +361,6 @@
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "none";
-    // si ninguno quedó abierto, restaurar scroll
     const anyOpen =
       (document.getElementById("articuloModalOverlay")?.style.display === "flex") ||
       (document.getElementById("transferModalOverlay")?.style.display === "flex");
@@ -300,11 +368,7 @@
   }
 
   function openArticuloModal(rowEl, evt) {
-    // si el click vino de un link/boton/form dentro de la fila, no abrir
     if (evt && evt.target && evt.target.closest && evt.target.closest("a,button,form,input,select,textarea,label")) return;
-
-    const overlay = document.getElementById("articuloModalOverlay");
-    if (!overlay) return;
 
     const id = rowEl.dataset.id || "";
     const sku = rowEl.dataset.sku || "";
@@ -316,8 +380,10 @@
     const producto = rowEl.dataset.producto || "";
     const marca = rowEl.dataset.marca || "";
     const productId = rowEl.dataset.productId || "";
+    const qty = rowEl.dataset.qty || "";
+    const mode = rowEl.dataset.mode || "unit";
 
-    const editable = (estado === "DISP");
+    const editable = (estado === "DISP" && mode === "unit" && !!id);
 
     const $ = (x) => document.getElementById(x);
 
@@ -325,6 +391,7 @@
     if ($("articuloModalSubtitle")) $("articuloModalSubtitle").textContent =
       producto ? ("Producto: " + producto + (marca ? " — " + marca : "")) : (marca ? ("Marca: " + marca) : "");
 
+    if ($("m_qty")) $("m_qty").textContent = qty || "—";
     if ($("m_id")) $("m_id").textContent = id || "—";
     if ($("m_sku")) $("m_sku").textContent = sku || "—";
     if ($("m_barcode")) $("m_barcode").textContent = barcode || "—";
@@ -335,39 +402,33 @@
     if ($("m_talle")) $("m_talle").textContent = talle || "—";
     if ($("m_color")) $("m_color").textContent = color || "—";
 
-    if ($("m_ver_producto")) $("m_ver_producto").href = productId ? ("/productos/" + productId + "/") : "#";
-    if ($("m_editar")) $("m_editar").href = ARTICULO_EDIT_URL.replace("{id}", id);
-    if ($("m_borrar_form")) $("m_borrar_form").action = ARTICULO_DELETE_URL.replace("{id}", id);
+    // ver producto -> abre modal en productos
+    var verProd = document.getElementById("m_ver_producto");
+    if (verProd) verProd.href = productId ? ("/productos/?open=" + encodeURIComponent(productId)) : "#";
 
-    // Transferir
+    // staff actions: solo si unit + tiene id
+    const editBtn = $("m_editar");
+    const delForm = $("m_borrar_form");
+    if (editBtn) editBtn.style.display = (mode === "unit" && !!id) ? "" : "none";
+    if (delForm) delForm.style.display = (mode === "unit" && !!id) ? "" : "none";
+
+    if (editBtn && mode === "unit" && id) editBtn.href = ARTICULO_EDIT_URL.replace("{id}", id);
+    if (delForm && mode === "unit" && id) delForm.action = ARTICULO_DELETE_URL.replace("{id}", id);
+
+    // Transferir: permitido desde qty y unit, pero solo si DISP
     const transferOpen = $("m_transfer_open");
     if (transferOpen){
-      transferOpen.disabled = !editable;
-      transferOpen.style.opacity = editable ? "1" : "0.55";
-      transferOpen.title = editable ? "" : "Solo podés transferir artículos DISPONIBLES.";
+      const canTransfer = (estado === "DISP");
+      transferOpen.disabled = !canTransfer;
+      transferOpen.style.opacity = canTransfer ? "1" : "0.55";
+      transferOpen.title = canTransfer ? "" : "Solo podés transferir artículos DISPONIBLES.";
 
       transferOpen.onclick = function(e){
         e.preventDefault();
         e.stopPropagation();
-        if (!editable) return;
+        if (!canTransfer) return;
         openTransferModal(barcode, sku, estado);
       };
-    }
-
-    // Editar / borrar
-    const editBtn = $("m_editar");
-    const delBtn = $("m_borrar_btn");
-
-    if (editBtn) {
-      editBtn.style.pointerEvents = editable ? "auto" : "none";
-      editBtn.style.opacity = editable ? "1" : "0.45";
-      editBtn.title = editable ? "" : "No se puede editar un artículo no disponible.";
-    }
-
-    if (delBtn) {
-      delBtn.disabled = !editable;
-      delBtn.style.opacity = editable ? "1" : "0.55";
-      delBtn.title = editable ? "" : "No se puede borrar un artículo no disponible.";
     }
 
     showOverlay("articuloModalOverlay");
@@ -408,31 +469,12 @@
     hideOverlay("transferModalOverlay");
   }
 
-  // Esc para cerrar
   document.addEventListener("keydown", function(e){
     if (e.key === "Escape"){
       hideOverlay("transferModalOverlay");
       hideOverlay("articuloModalOverlay");
     }
   });
-
-  // Si querés que el click en fila siempre funcione aunque cambies el HTML:
-  // (opcional) enganchar por delegación
-  document.addEventListener("click", function(e){
-    const row = e.target.closest && e.target.closest("tr.row-click");
-    if (!row) return;
-    openArticuloModal(row, e);
-  });
-
-  // Enter/Space en la fila (accesibilidad)
-  document.addEventListener("keydown", function(e){
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const row = e.target.closest && e.target.closest("tr.row-click");
-    if (!row) return;
-    e.preventDefault();
-    openArticuloModal(row, e);
-  });
 </script>
-
 
 {% endblock %}

@@ -3,13 +3,24 @@ from django.db import models
 from django.utils import timezone
 
 # Create your models here.
+class Marca(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    def save(self, *args, **kwargs):
+        self.nombre = (self.nombre or "").strip()
+        super().save(*args, **kwargs)
+    class Meta:
+        ordering = ["nombre"]
+    def __str__(self):
+        return self.nombre
+
 class Producto(models.Model):
     product_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
     tipo_producto = models.CharField(max_length=100, blank=False)
     material = models.CharField(max_length=100)
-    marca = models.CharField(max_length=100)
+    marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name="productos")
     precio = models.DecimalField(max_digits=10, decimal_places=2)  
+    costo = models.DecimalField(max_digits=10, decimal_places=2)
     
     def __str__(self):
         return f"[{self.product_id}] {self.nombre} ({self.marca})"
@@ -118,8 +129,8 @@ class IngresoItem(models.Model):
     talle = models.IntegerField()
     color = models.CharField(max_length=50)
     
-    cantidad = models.IntegerField()
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    cantidad = models.IntegerField()
     total_linea = models.DecimalField(max_digits=12, decimal_places=2)
     
 

@@ -14,7 +14,11 @@
     <p class="subtle">Click en un producto para ver el detalle.</p>
   </div>
 
-  <a class="btn-primary" href="{% url 'inventory:producto_create' %}">+ Nuevo producto</a>
+  {% if request.user.is_staff %}
+    <a class="btn-primary" href="{% url 'inventory:producto_create' %}">
+      + Nuevo producto
+    </a>
+  {% endif %}
 </div>
 <form method="get" class="search-row">
   <input
@@ -43,6 +47,9 @@
           <th>Tipo</th>
           <th>Material</th>
           <th class="col-precio">Precio</th>
+          {% if request.user.is_staff %}
+            <th class="col-precio">Costo</th>
+          {% endif %}
         </tr>
       </thead>
 
@@ -56,17 +63,21 @@
             onkeydown="if(event.key==='Enter'||event.key===' '){ event.preventDefault(); openProductoModal(this); }"
             data-id="{{ producto.product_id }}"
             data-nombre="{{ producto.nombre|escapejs }}"
-            data-marca="{{ producto.marca|escapejs }}"
+            data-marca="{{ producto.marca.nombre|escapejs }}"
             data-tipo="{{ producto.tipo_producto|escapejs }}"
             data-material="{{ producto.material|escapejs }}"
             data-precio="{{ producto.precio }}"
+            data-costo="{{ producto.costo }}"
           >
             <td class="mono">{{ producto.product_id }}</td>
             <td class="strong">{{ producto.nombre }}</td>
-            <td>{{ producto.marca }}</td>
+            <td>{{ producto.marca.nombre }}</td>
             <td><span class="tag">{{ producto.tipo_producto }}</span></td>
             <td><span class="tag">{{ producto.material }}</span></td>
             <td class="price-cell">$ {{ producto.precio }}</td>
+            {% if request.user.is_staff %}
+              <td class="price-cell">$ {{ producto.costo }}</td>
+            {% endif %}
           </tr>
         {% endfor %}
       </tbody>
@@ -98,6 +109,9 @@
         <dt>Tipo</dt><dd id="m_tipo">—</dd>
         <dt>Material</dt><dd id="m_material">—</dd>
         <dt>Precio</dt><dd id="m_precio">—</dd>
+        {% if request.user.is_staff %}
+          <dt>Costo</dt><dd id="m_costo">—</dd>
+        {% endif %}
       </dl>
     </div>
 
@@ -125,6 +139,7 @@
     var tipo = cardEl.dataset.tipo || "";
     var material = cardEl.dataset.material || "";
     var precio = cardEl.dataset.precio || "";
+    var costo = cardEl.dataset.costo || "";
 
     document.getElementById("productoModalTitle").textContent = nombre || "Detalle de producto";
     document.getElementById("productoModalSubtitle").textContent = marca ? ("Marca: " + marca) : "";
@@ -135,6 +150,11 @@
     document.getElementById("m_tipo").textContent = tipo || "—";
     document.getElementById("m_material").textContent = material || "—";
     document.getElementById("m_precio").textContent = precio ? ("$ " + precio) : "—";
+    var costoEl = document.getElementById("m_costo");
+    if (costoEl) {
+      costoEl.textContent = costo ? ("$ " + costo) : "—";
+    }
+    
 
     // Solo staff: setear links/acciones si existen
     var editar = document.getElementById("m_editar");
@@ -177,6 +197,23 @@
       }
     }
   });
+
+  (function autoOpenFromQuery(){
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (!openId) return;
+
+    
+    const row = document.querySelector(`tr.row-click[data-id="${CSS.escape(openId)}"]`);
+    if (row) {
+      openProductoModal(row);
+
+      
+      params.delete("open");
+      const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+      window.history.replaceState({}, "", newUrl);
+    }
+  })();
 </script>
 
 {% endblock %}
