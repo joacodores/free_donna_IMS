@@ -1,0 +1,29 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Importar artículos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Importar artículos (Excel)</h2>
+    <p class="subtle">Subí un .xlsx con columnas: barcode, producto_id, talle, color, cantidad, referencia(opcional)</p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:articulo_create' %}">Volver</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-card">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="field">
+    {{ form.file.label_tag }}
+    {{ form.file }}
+    {{ form.file.errors }}
+  </div>
+
+  <button class="btn-primary" type="submit">Importar</button>
+</form>
+{% endblock %}

@@ -50,7 +50,42 @@ class ArticuloCreateForm(forms.Form):
         if not barcode:
             raise forms.ValidationError("El código de barras es obligatorio.")
         return barcode
-    
+
+# inventory/forms.py
+from django import forms
+from .models import Articulo
+
+class ArticuloEditForm(forms.ModelForm):
+    bulk = False
+
+    class Meta:
+        model = Articulo
+        fields = ["barcode", "product_id", "sku", "talle", "color"]
+        widgets = {
+            "barcode": forms.TextInput(attrs={"class": "search-input"}),
+            "product_id": forms.Select(attrs={"class": "select"}),
+            "sku": forms.TextInput(attrs={"class": "search-input"}),
+            "talle": forms.TextInput(attrs={"class": "search-input"}),
+            "color": forms.TextInput(attrs={"class": "search-input"}),
+        }
+
+    def __init__(self, *args, bulk=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bulk = bulk
+        if bulk:
+            for f in self.fields.values():
+                f.required = False
+            self.fields["product_id"].empty_label = "— No cambiar —"
+            for name, f in self.fields.items():
+                f.help_text = None
+
+    def clean(self):
+        cd = super().clean()
+        if self.bulk:
+            if not any(cd.get(k) not in (None, "", []) for k in self.fields.keys()):
+                raise forms.ValidationError("Ingresá al menos un cambio.")
+        return cd
+
 class CheckoutForm(forms.Form):
     metodo_pago = forms.ChoiceField(
         choices=Venta.MetodoPago.choices,
@@ -62,3 +97,13 @@ class CheckoutForm(forms.Form):
 class TransferirArticuloForm(forms.Form):
     destino = forms.ModelChoiceField(queryset=Local.objects.all(), empty_label="Seleccionar local")
     nota = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+class ArticuloImportXlsxForm(forms.Form):
+    file = forms.FileField(label="Excel (.xlsx)")
+
+    def clean_file(self):
+        f = self.cleaned_data["file"]
+        name = (f.name or "").lower()
+        if not name.endswith(".xlsx"):
+            raise forms.ValidationError("Subí un archivo .xlsx")
+        return f

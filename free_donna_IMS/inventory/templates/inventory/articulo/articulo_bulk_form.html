@@ -1,0 +1,100 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Editar por lote{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/articulos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Editar por lote</h2>
+    <p class="subtle">
+      {{ group.sku }} · {{ group.barcode }} · {{ group.talle }} · {{ group.color }} · DISP
+    </p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
+</div>
+
+<form method="post" class="form-card" autocomplete="off">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:12px; align-items:end;">
+    <div class="field">
+      <label>Cantidad</label>
+      <input id="qty" name="qty" type="number" min="1" max="{{ max_qty }}" value="1" class="search-input" required>
+      <div class="subtle" style="margin-top:6px;">Máximo disponible: {{ max_qty }}</div>
+    </div>
+
+    <div class="field" style="display:flex; gap:10px; align-items:center;">
+      <label style="display:flex; gap:8px; align-items:center; margin:0;">
+        <input id="all" type="checkbox">
+        <span>Aplicar a todas</span>
+      </label>
+      <input type="hidden" id="all_hidden" name="all" value="0">
+    </div>
+  </div>
+
+  <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
+    <div class="field">
+      <label for="{{ form.barcode.id_for_label }}">Barcode</label>
+      {{ form.barcode }}
+      {{ form.barcode.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.product_id.id_for_label }}">Producto</label>
+      {{ form.product_id }}
+      {{ form.product_id.errors }}
+    </div>
+
+    <div class="field" style="grid-column: 1 / -1;">
+      <label for="{{ form.sku.id_for_label }}">SKU</label>
+      {{ form.sku }}
+      {{ form.sku.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.talle.id_for_label }}">Talle</label>
+      {{ form.talle }}
+      {{ form.talle.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.color.id_for_label }}">Color</label>
+      {{ form.color }}
+      {{ form.color.errors }}
+    </div>
+  </div>
+
+  <input type="hidden" name="g_product_id" value="{{ group.product_id }}">
+  <input type="hidden" name="g_barcode" value="{{ group.barcode }}">
+  <input type="hidden" name="g_talle" value="{{ group.talle }}">
+  <input type="hidden" name="g_color" value="{{ group.color }}">
+  <input type="hidden" name="g_sku" value="{{ group.sku }}">
+  <input type="hidden" name="g_estado" value="{{ group.estado }}">
+
+  <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+    <button class="btn-primary" type="submit">Aplicar cambios</button>
+  </div>
+</form>
+
+<script>
+  const all = document.getElementById("all");
+  const allHidden = document.getElementById("all_hidden");
+  const qty = document.getElementById("qty");
+
+  function sync(){
+    const v = !!all.checked;
+    allHidden.value = v ? "1" : "0";
+    qty.disabled = v;
+    qty.style.opacity = v ? "0.6" : "1";
+  }
+  all.addEventListener("change", sync);
+  sync();
+</script>
+{% endblock %}

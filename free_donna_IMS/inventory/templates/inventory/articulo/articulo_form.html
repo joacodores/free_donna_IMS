@@ -14,9 +14,44 @@
   <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
 </div>
 
-<form method="post" class="form-card">
+<form method="post" class="form-card" autocomplete="off">
   {% csrf_token %}
-  {{ form.as_p }}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:12px;">
+    <div class="field">
+      <label for="{{ form.barcode.id_for_label }}">Barcode</label>
+      {{ form.barcode }}
+      {{ form.barcode.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.product_id.id_for_label }}">Producto</label>
+      {{ form.product_id }}
+      {{ form.product_id.errors }}
+    </div>
+
+    <div class="field" style="grid-column: 1 / -1;">
+      <label for="{{ form.sku.id_for_label }}">SKU</label>
+      {{ form.sku }}
+      {{ form.sku.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.talle.id_for_label }}">Talle</label>
+      {{ form.talle }}
+      {{ form.talle.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.color.id_for_label }}">Color</label>
+      {{ form.color }}
+      {{ form.color.errors }}
+    </div>
+  </div>
 
   <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
     <button class="btn-primary" type="submit">Guardar cambios</button>

@@ -23,7 +23,7 @@ urlpatterns = [
     path("articulos/nuevo/", views.ArticuloCreateView.as_view(), name="articulo_create"),
     path("articulos/lookup/", views.ArticuloLookupByBarcodeView.as_view(), name="articulo_lookup"),
     path("articulos/<int:articulo_id>/editar/", views.ArticuloUpdateView.as_view(), name="articulo_edit"),
-    path("articulos/<int:articulo_id>/borrar/", views.ArticuloDeleteView.as_view(), name="articulo_delete"),
+    path("articulos/<int:articulo_id>/baja/", views.ArticuloBajaView.as_view(), name="articulo_baja"),
     path("pos/", views.POSView.as_view(), name="pos"),
     path("pos/add/", views.POSAddItemByBarcodeView.as_view(), name="pos_add"),
     path("pos/remove/", views.POSRemoveItemView.as_view(), name="pos_remove"),
@@ -37,5 +37,8 @@ urlpatterns = [
     path("ingresos/<int:ingreso_id>/pdf/", views.ingreso_pdf, name="ingreso_pdf"),
     path("transferencias/<int:transferencia_id>/",views.TransferenciaDetailView.as_view(),name="transferencia_detail"),
     path("articulos/transferir/", views.ArticulosTransferirView.as_view(), name="articulos_transferir"),
-
+    path("articulos/import-excel/", views.ArticuloImportXlsxView.as_view(), name="articulo_import_excel"),
+    path("articulos/bulk-edit-form/", views.ArticulosBulkEditView.as_view(), name="articulo_bulk_edit_form"),
+    path("articulos/bulk-baja/", views.ArticulosBulkBajaView.as_view(), name="articulos_bulk_baja"),
+    path("bajas/<int:baja_id>/", views.BajaDetailView.as_view(), name="baja_detail"),
 ]

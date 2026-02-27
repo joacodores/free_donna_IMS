@@ -1,15 +1,15 @@
 from decimal import Decimal
 from email.mime import base
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, HttpResponse
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView, TemplateView, FormView
-from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F
+from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F, Case, When
 from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
 from sqlalchemy import Cast
-from .models import Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
-from .forms import CheckoutForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm
+from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
+from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -21,12 +21,18 @@ from django.db.models.functions import TruncDate, Coalesce, TruncMinute, Concat
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from django.utils import timezone
+from openpyxl import load_workbook
 
 
 
 @login_required
 def index(request):
     return render(request, "inventory/index.html")
+
+
+def _is_admin(user):
+    return user.is_staff or user.is_superuser
+
 
 class SignUpView(View):
     def get(self, request):
@@ -242,23 +248,224 @@ class SetLocalView(LoginRequiredMixin, View):
         if Local.objects.filter(local_id=local_id).exists():
             request.session["local_id"] = int(local_id)
         return redirect(request.META.get("HTTP_REFERER", "/"))
+    
+def _should_show_all_locals(request):
+    return _is_admin(request.user) and (request.GET.get("all_locals") == "1")
 
 class ArticuloUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     model = Articulo
-    fields = ["product_id", "sku", "talle", "color"]
+    form_class = ArticuloEditForm
     context_object_name = "articulo"
     pk_url_kwarg = "articulo_id"
     template_name = "inventory/articulo/articulo_form.html"
-    
+
     def get_success_url(self):
         return reverse_lazy("inventory:articulo_list")
-    
-class ArticuloDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
-    model = Articulo
-    pk_url_kwarg = "articulo_id"
-    template_name = "inventory/articulo_confirm_delete.html"
-    success_url = reverse_lazy("inventory:articulo_list")
 
+class ArticulosBulkEditView(LoginRequiredMixin, StaffRequiredMixin, FormView):
+    template_name = "inventory/articulo/articulo_bulk_form.html"
+    form_class = ArticuloEditForm
+
+    def dispatch(self, request, *args, **kwargs):
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:articulo_list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["bulk"] = True
+        return kw
+
+    def _group(self):
+        local = _get_local_activo(self.request)
+
+        g = {
+            "product_id": (self.request.GET.get("product_id") or self.request.POST.get("g_product_id") or "").strip(),
+            "barcode": (self.request.GET.get("barcode") or self.request.POST.get("g_barcode") or "").strip(),
+            "talle": (self.request.GET.get("talle") or self.request.POST.get("g_talle") or "").strip(),
+            "color": (self.request.GET.get("color") or self.request.POST.get("g_color") or "").strip(),
+            "sku": (self.request.GET.get("sku") or self.request.POST.get("g_sku") or "").strip(),
+            "estado": (self.request.GET.get("estado") or self.request.POST.get("g_estado") or "DISP").strip().upper(),
+        }
+
+        if not all([g["product_id"], g["barcode"], g["talle"], g["color"], g["sku"], g["estado"]]):
+            return None, None
+
+        qs = Articulo.objects.filter(
+            local=local,
+            estado=g["estado"],
+            product_id_id=g["product_id"],
+            barcode=g["barcode"],
+            talle=g["talle"],
+            color=g["color"],
+            sku=g["sku"],
+        ).order_by("-articulo_id")
+
+        return g, qs
+
+    def get(self, request, *args, **kwargs):
+        g, qs = self._group()
+        if g is None:
+            messages.error(request, "Faltan datos para editar por lote.")
+            return redirect("inventory:articulo_list")
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        g, qs = self._group()
+        ctx["group"] = g
+        ctx["max_qty"] = qs.count() if qs is not None else 0
+        return ctx
+
+    @transaction.atomic
+    def form_valid(self, form):
+        g, qs = self._group()
+        if g is None or qs is None:
+            messages.error(self.request, "No se pudo resolver el grupo.")
+            return redirect("inventory:articulo_list")
+
+        if g["estado"] != "DISP":
+            messages.error(self.request, "Solo podés editar por lote artículos DISP.")
+            return redirect("inventory:articulo_list")
+
+        all_flag = (self.request.POST.get("all") == "1")
+        qty = int(self.request.POST.get("qty") or 0)
+        total = qs.count()
+
+        if total == 0:
+            messages.warning(self.request, "No hay artículos para editar en ese grupo.")
+            return redirect("inventory:articulo_list")
+
+        if not all_flag:
+            if qty <= 0:
+                messages.error(self.request, "Cantidad inválida.")
+                return redirect("inventory:articulo_list")
+            qs = qs[:min(qty, total)]
+
+        updates = {}
+        for k in ["barcode", "product_id", "sku", "talle", "color"]:
+            v = form.cleaned_data.get(k)
+            if v not in (None, "", []):
+                updates[k] = v
+
+        ids = list(qs.values_list("articulo_id", flat=True))
+        Articulo.objects.filter(articulo_id__in=ids).update(**updates)
+
+        messages.success(self.request, f"Editados {len(ids)} artículo(s).")
+        return redirect("inventory:articulo_list")
+    
+class ArticuloBajaView(LoginRequiredMixin, StaffRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request, articulo_id):
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:articulo_list")
+
+        a = get_object_or_404(Articulo, articulo_id=articulo_id, local=local)
+
+        if a.estado != Articulo.Estado.DISPONIBLE:
+            messages.error(request, "Solo podés dar de baja artículos DISP.")
+            return redirect("inventory:articulo_list")
+
+        a.estado = Articulo.Estado.BAJA
+        a.save(update_fields=["estado"])
+        baja = BajaStock.objects.create(usuario=request.user, local=local or "")
+        MovimientoStock.objects.create(
+            tipo=MovimientoStock.Tipo.BAJA,
+            local=local,
+            usuario=request.user,
+            articulo=a,
+            producto=a.product_id,
+            sku=a.sku,
+            barcode=a.barcode,
+            talle=a.talle,
+            color=a.color,
+            cantidad=1,
+            costo_unitario=Decimal(getattr(a.product_id, "costo", 0) or 0),
+            precio_unitario=None,
+            profit_unitario=Decimal("0.00"),
+            baja=baja,
+            nota="Baja manual",
+        )
+
+        messages.success(request, "Artículo dado de baja.")
+        return redirect("inventory:articulo_list") 
+
+class ArticulosBulkBajaView(LoginRequiredMixin, StaffRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request):
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:articulo_list")
+
+        g = {
+            "product_id": (request.POST.get("g_product_id") or request.POST.get("product_id") or "").strip(),
+            "barcode": (request.POST.get("g_barcode") or request.POST.get("barcode") or "").strip(),
+            "talle": (request.POST.get("g_talle") or request.POST.get("talle") or "").strip(),
+            "color": (request.POST.get("g_color") or request.POST.get("color") or "").strip(),
+            "sku": (request.POST.get("g_sku") or request.POST.get("sku") or "").strip(),
+            "estado": (request.POST.get("g_estado") or request.POST.get("estado") or "DISP").strip().upper(),
+        }
+
+        qs = Articulo.objects.filter(
+            local=local,
+            estado=Articulo.Estado.DISPONIBLE,
+            product_id_id=g["product_id"],
+            barcode=g["barcode"],
+            talle=g["talle"],
+            color=g["color"],
+            sku=g["sku"],
+        ).order_by("-articulo_id")
+
+        total = qs.count()
+        if total == 0:
+            messages.warning(request, "No hay artículos para dar de baja.")
+            return redirect("inventory:articulo_list")
+
+        all_flag = (request.POST.get("all") == "1")
+        qty = int(request.POST.get("qty") or 0)
+
+        if not all_flag:
+            if qty <= 0:
+                messages.error(request, "Cantidad inválida.")
+                return redirect("inventory:articulo_list")
+            qs = qs[:min(qty, total)]
+
+        ids = list(qs.values_list("articulo_id", flat=True))
+        Articulo.objects.filter(articulo_id__in=ids).update(estado=Articulo.Estado.BAJA)
+
+        costo = Decimal(getattr(Producto.objects.only("costo").get(pk=g["product_id"]), "costo", 0) or 0)
+        articulos = list(Articulo.objects.select_related("product_id").filter(articulo_id__in=ids))
+        baja = BajaStock.objects.create(usuario=request.user, local=local or "")
+        movs = [
+            MovimientoStock(
+                tipo=MovimientoStock.Tipo.BAJA,
+                local=local,
+                usuario=request.user,
+                articulo=a,
+                producto=a.product_id,
+                sku=a.sku,
+                barcode=a.barcode,
+                talle=a.talle,
+                color=a.color,
+                cantidad=1,
+                costo_unitario=costo,
+                baja=baja,
+                precio_unitario=None,
+                profit_unitario=Decimal("0.00"),
+                nota="Baja por lote",
+            )
+            for a in articulos
+        ]
+        MovimientoStock.objects.bulk_create(movs)
+
+        messages.success(request, f"Baja aplicada a {len(ids)} artículo(s).")
+        return redirect("inventory:articulo_list")
+    
 class ArticuloListView(LoginRequiredMixin, ListView):
     model = Articulo
     template_name = "inventory/articulo/articulo_list.html"
@@ -269,18 +476,16 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         qs = super().get_queryset().select_related("product_id", "product_id__marca")
 
         estado = (self.request.GET.get("estado") or "DISP").strip().upper()
-        local_id = self.request.session.get("local_id")
-
-        if local_id:
-            qs = qs.filter(local_id=local_id)
+        if not _should_show_all_locals(self.request):
+            local_id = self.request.session.get("local_id")
+            if local_id:
+                qs = qs.filter(local_id=local_id)
 
         if estado in ["DISP", "VEND", "BAJA"]:
             qs = qs.filter(estado=estado)
 
-        # scan
         scan = (self.request.GET.get("scan") or "").strip()
         if scan:
-            # escaneo = siempre unit para poder abrir modal y ver unidades reales
             return qs.filter(barcode=scan, estado="DISP").order_by("created_at", "articulo_id")
 
         q = (self.request.GET.get("q") or "").strip()
@@ -290,11 +495,9 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         if field not in allowed_fields:
             field = "all"
 
-        # no-staff: sin q ni scan no ve nada
         if (not self.request.user.is_staff) and (not q):
             return qs.none()
 
-        # filtro de búsqueda (igual que tenías)
         if q:
             if field == "all":
                 filt = (
@@ -324,7 +527,6 @@ class ArticuloListView(LoginRequiredMixin, ListView):
             elif field == "id":
                 qs = qs.filter(articulo_id=int(q)) if q.isdigit() else qs.none()
 
-        # modo
         mode = (self.request.GET.get("mode") or "qty").strip().lower()
         if mode not in ["qty", "unit"]:
             mode = "qty"
@@ -332,7 +534,6 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         if mode == "unit":
             return qs.order_by("created_at", "articulo_id")
 
-        # mode == "qty" (agrupado por variante + estado)
         return (
             qs.values(
                 "sku",
@@ -355,6 +556,7 @@ class ArticuloListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["locales"] = Local.objects.all().order_by("nombre")
+        ctx["all_locals_active"] = _should_show_all_locals(self.request)
         ctx["scan"] = (self.request.GET.get("scan") or "").strip()
         ctx["q"] = (self.request.GET.get("q") or "").strip()
 
@@ -365,15 +567,13 @@ class ArticuloListView(LoginRequiredMixin, ListView):
 
         ctx["estado"] = (self.request.GET.get("estado") or "DISP").upper()
 
-        # modo actual
         mode = (self.request.GET.get("mode") or "qty").strip().lower()
         if ctx["scan"]:
-            mode = "unit"  # forzamos unit si escaneó
+            mode = "unit"  
         if mode not in ["qty", "unit"]:
             mode = "qty"
         ctx["mode"] = mode
 
-        # auto open solo si scan y estás en unit y hay resultados
         ctx["auto_open_first"] = bool(ctx["scan"] and ctx["mode"] == "unit" and ctx["articulos"])
         return ctx
 
@@ -497,14 +697,10 @@ class ArticuloLookupByBarcodeView(LoginRequiredMixin, View):
         if not barcode:
             return JsonResponse({"found": False}, status=400)
 
-        local = _get_local_activo(request)
-        if not local:
-            return JsonResponse({"found": False}, status=400)
-
         art = (
             Articulo.objects
             .select_related("product_id")
-            .filter(local=local, barcode=barcode)
+            .filter(barcode=barcode)
             .order_by("-articulo_id")
             .first()
         )
@@ -518,6 +714,164 @@ class ArticuloLookupByBarcodeView(LoginRequiredMixin, View):
             "talle": art.talle,
             "color": art.color,
         })
+
+def _norm(s):
+    return (str(s).strip() if s is not None else "")
+
+def _to_int(v, default=0):
+    try:
+        return int(v)
+    except Exception:
+        return default
+
+class ArticuloImportXlsxView(FormView):
+    template_name = "inventory/articulo/articulo_import_xlsx.html"
+    form_class = ArticuloImportXlsxForm
+    success_url = reverse_lazy("inventory:articulo_list")
+
+    @transaction.atomic
+    def form_valid(self, form):
+        local = _get_local_activo(self.request)
+        if not local:
+            messages.error(self.request, "No hay un local seleccionado.")
+            return redirect("inventory:articulo_list")
+
+        f = form.cleaned_data["file"]
+
+        try:
+            wb = load_workbook(filename=f, data_only=True)
+            ws = wb.active
+        except Exception:
+            messages.error(self.request, "Error al leer documento Excel. Asegurate que sea .xlsx válido.")
+            return self.form_invalid(form)
+
+        # Leer encabezados
+        header = []
+        for cell in ws[1]:
+            header.append(_norm(cell.value).lower())
+
+        required = ["barcode", "producto_nombre", "talle", "color", "cantidad"]
+        missing = [c for c in required if c not in header]
+        if missing:
+            messages.error(self.request, f"Faltan columnas: {', '.join(missing)}")
+            return self.form_invalid(form)
+
+        idx = {name: header.index(name) for name in header if name}
+
+        creados_total = 0
+        filas_ok = 0
+        errores = []
+
+        # Procesar filas
+        for row_num in range(2, ws.max_row + 1):
+            row = [ws.cell(row=row_num, column=col).value for col in range(1, ws.max_column + 1)]
+
+            barcode = _norm(row[idx["barcode"]])
+            producto_nombre = _norm(row[idx["producto_nombre"]])
+            talle = _to_int(row[idx["talle"]])
+            color = _norm(row[idx["color"]])
+            cantidad = _to_int(row[idx["cantidad"]], 0)
+            referencia = _norm(row[idx["referencia"]]) if "referencia" in idx else ""
+
+            if not barcode and not producto_nombre and not talle and not color and not cantidad:
+                continue
+
+            if not barcode:
+                errores.append(f"Fila {row_num}: barcode vacío")
+                continue
+            if not producto_nombre:
+                errores.append(f"Fila {row_num}: producto vacío")
+                continue
+            producto = Producto.objects.filter(nombre=producto_nombre).first()
+            if not producto:
+                errores.append(f"Fila {row_num}: no existe producto con nombre '{producto_nombre}'")
+                continue
+            if cantidad <= 0:
+                errores.append(f"Fila {row_num}: cantidad inválida")
+                continue
+            
+            # ---- MISMA LÓGICA QUE TU form_valid ----
+            costo_unitario = Decimal(getattr(producto, "costo", 0) or 0)
+            sku = build_sku(producto, color, talle)
+
+            ingreso = Ingreso.objects.create( 
+                usuario=self.request.user,
+                local=local,
+                referencia=referencia,
+                nota="Ingreso por importación Excel"
+            )
+
+            total_linea = costo_unitario * Decimal(cantidad)
+            item = IngresoItem.objects.create(
+                ingreso=ingreso,
+                producto=producto,
+                sku=sku,
+                barcode=barcode,
+                talle=talle,
+                color=color,
+                cantidad=cantidad,
+                costo_unitario=costo_unitario,
+                total_linea=total_linea
+            )
+
+            articulos = [
+                Articulo(
+                    product_id=producto,
+                    sku=sku,
+                    barcode=barcode,
+                    estado=Articulo.Estado.DISPONIBLE,
+                    talle=talle,
+                    color=color,
+                    local=local,
+                    ingreso_item=item
+                )
+                for _ in range(cantidad)
+            ]
+            Articulo.objects.bulk_create(articulos)
+
+            creados = list(
+                Articulo.objects
+                .filter(ingreso_item=item, local=local)
+                .order_by("articulo_id")[:cantidad]
+            )
+
+            movs = [
+                MovimientoStock(
+                    tipo=MovimientoStock.Tipo.INGRESO,
+                    local=local,
+                    usuario=self.request.user,
+                    articulo=a,
+                    producto=producto,
+                    sku=sku,
+                    barcode=barcode,
+                    talle=talle,
+                    color=color,
+                    cantidad=1,
+                    costo_unitario=costo_unitario,
+                    precio_unitario=None,
+                    profit_unitario=Decimal("0.00"),
+                    ingreso=ingreso,
+                    venta=None,
+                    nota=f"Ingreso #{ingreso.ingreso_id}",
+                )
+                for a in creados
+            ]
+            MovimientoStock.objects.bulk_create(movs)
+
+            filas_ok += 1
+            creados_total += cantidad
+
+        # Feedback
+        if filas_ok:
+            messages.success(self.request, f"Importación OK: {filas_ok} fila(s), {creados_total} artículo(s).")
+        if errores:
+            # no lo hagas eterno; mostramos las primeras 10
+            preview = "\n".join(errores[:10])
+            messages.warning(self.request, f"Hubo errores en algunas filas:\n{preview}")
+
+        return super().form_valid(form)
+
+
 
 CART_KEY = "pos_cart"
 
@@ -808,8 +1162,9 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
     template_name = "inventory/movimientos/movimientos_list.html"
     
     def get(self, request):
+        show_all = request.user.is_staff and (request.GET.get("all_locals") == "1")
         local = _get_local_activo(request)
-        if not local:
+        if not show_all and not local:
             return render(request, self.template_name, {
                 "error_local": True,
                 "mode": "doc",
@@ -820,11 +1175,15 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
         q = (request.GET.get("q") or "").strip()
         desde = (request.GET.get("from") or "").strip()
         hasta = (request.GET.get("to") or "").strip()
-        base = MovimientoStock.objects.filter(local=local).select_related("local", "usuario", "producto","venta","ingreso", "articulo")
-        
+        base = MovimientoStock.objects.select_related(
+            "local", "usuario", "producto", "venta", "ingreso", "articulo"
+        )
+        if not show_all:
+            base = base.filter(local=local)
+            
         if not request.user.is_staff:
             base = base.filter(usuario=request.user)
-        
+            
         if tipo in ["IN", "OUT", "ADJ", "TRF", "BAJ", "RET"]:
             base = base.filter(tipo=tipo)
         
@@ -842,6 +1201,7 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
         if hasta:
             h = Datetime.strptime(hasta, "%Y-%m-%d").date()
             base = base.filter(fecha__lt=timezone.make_aware(Datetime.combine(h, time.max)))
+            
         if mode=="unit":
             rows = base.order_by("-fecha", "-movimiento_id")[:500]
             ctx = {
@@ -851,11 +1211,16 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
                 "q": q,
                 "from": desde,
                 "to": hasta,
+                "all_locals_active": show_all,
             }
             return render(request, self.template_name, ctx)
+        
         if mode == "doc":
+            vals = ["tipo", "venta_id", "ingreso_id", "transferencia_id", "baja_id"]
+            if show_all:
+                vals += ["local_id", "local__nombre"]
             rows = (base
-                    .values("tipo", "venta_id", "ingreso_id", "transferencia_id")
+                    .values(*vals)
                     .annotate(
                         fecha=Max("fecha"),
                         items=Count("movimiento_id"),
@@ -870,29 +1235,37 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
                 "mode": mode,
                 "rows": list(rows),
                 "tipo": tipo, "q": q, "from": desde, "to": hasta,
+                "all_locals_active": show_all,
             })
 
         if mode == "day":
-                rows = (base
-                        .annotate(dia=TruncDate("fecha"))
-                        .values("dia")
-                        .annotate(
-                            movimientos=Count("movimiento_id"),
-                            unidades=Sum("cantidad"),
-                            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-                            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-                            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-                        )
-                        .order_by("-dia"))
-                ctx = {
-                    "mode": mode,
-                    "rows": list(rows),
-                    "tipo": tipo, "q": q, "from": desde, "to": hasta,
-                }
-                return render(request, self.template_name, ctx)
+            qs = base.annotate(dia=TruncDate("fecha"))
+            vals = ["dia"]
+            if show_all:
+                vals += ["local_id", "local__nombre"]
+            rows = (qs
+                .values(*vals)
+                .annotate(
+                        movimientos=Count("movimiento_id"),
+                        unidades=Sum("cantidad"),
+                        costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                        venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                        profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                    )
+                    .order_by("-dia"))
+            ctx = {
+                "mode": mode,
+                "rows": list(rows),
+                "tipo": tipo, "q": q, "from": desde, "to": hasta,
+                "all_locals_active": show_all,
+            }
+            return render(request, self.template_name, ctx)
         if mode == "variant":
+            vals = ["barcode", "sku", "talle", "color", "producto_id", "producto__nombre", "producto__marca__nombre"]
+            if show_all:
+                vals += ["local_id", "local__nombre"]
             rows = (base
-                    .values("barcode", "sku", "talle", "color", "producto_id", "producto__nombre", "producto__marca__nombre")
+                    .values(*vals)
                     .annotate(
                         movimientos=Count("movimiento_id"),
                         unidades=Sum("cantidad"),
@@ -906,11 +1279,12 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
                 "mode": mode,
                 "rows": list(rows),
                 "tipo": tipo, "q": q, "from": desde, "to": hasta,
+                "all_locals_active": show_all,
             }
             return render(request, self.template_name, ctx)
 
         # fallback
-        return render(request, self.template_name, {"mode": "doc", "rows": []})
+        return render(request, self.template_name, {"mode": "doc", "rows": [], "all_locals_active": show_all})
 
 def money(x):
     if x is None:
@@ -1307,6 +1681,67 @@ class IngresoDetailView(LoginRequiredMixin, DetailView):
             "unidades": agg["unidades"] or 0,
             "costo_total": agg["costo_total"] or Decimal("0.00"),
         }
+        return ctx
+
+class BajaDetailView(LoginRequiredMixin, DetailView):
+    model = BajaStock
+    template_name = "inventory/movimientos/baja_detail.html"
+    context_object_name = "baja"
+    pk_url_kwarg = "baja_id"
+
+    def get_object(self, queryset=None):
+        local = _get_local_activo(self.request)
+        qs = BajaStock.objects.select_related("usuario", "local")
+        obj = get_object_or_404(qs, baja_id=self.kwargs["baja_id"])
+        if local and obj.local_id != local.local_id:
+            raise get_object_or_404(BajaStock, baja_id=-1)
+        return obj
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        baja = ctx["baja"]
+
+        unidades = (MovimientoStock.objects
+                    .select_related("articulo")
+                    .filter(baja=baja, tipo=MovimientoStock.Tipo.BAJA)
+                    .order_by("movimiento_id"))
+        ctx["unidades"] = unidades
+
+        items_map = {}
+        total_unidades = 0
+        total_costo = Decimal("0.00")
+
+        for m in unidades:
+            key = (m.sku, m.barcode, m.talle, m.color)
+            qty = int(m.cantidad or 0)
+            cu = Decimal(m.costo_unitario or 0)
+            line = cu * qty
+
+            total_unidades += qty
+            total_costo += line
+
+            if key not in items_map:
+                items_map[key] = {
+                    "sku": m.sku,
+                    "barcode": m.barcode,
+                    "talle": m.talle,
+                    "color": m.color,
+                    "cantidad": 0,
+                    "total_linea": Decimal("0.00"),
+                }
+
+            items_map[key]["cantidad"] += qty
+            items_map[key]["total_linea"] += line
+
+        items = list(items_map.values())
+        for it in items:
+            if it["cantidad"] > 0:
+                it["costo_unitario"] = (it["total_linea"] / it["cantidad"]).quantize(Decimal("0.01"))
+            else:
+                it["costo_unitario"] = Decimal("0.00")
+
+        ctx["items"] = items
+        ctx["ms_totals"] = {"unidades": total_unidades, "costo_total": total_costo}
         return ctx
     
 def venta_pdf(request, venta_id: int):

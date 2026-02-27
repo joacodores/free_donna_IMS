@@ -154,6 +154,15 @@ class TransferenciaItem(models.Model):
     talle = models.IntegerField()
     color = models.CharField(max_length=50)
     
+class BajaStock(models.Model):
+    baja_id = models.BigAutoField(primary_key=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    local = models.ForeignKey(Local, on_delete=models.PROTECT, db_index=True)
+    nota = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Baja #{self.baja_id}"
 class MovimientoStock(models.Model):
     class Tipo(models.TextChoices):
         INGRESO = "IN", "Ingreso"
@@ -186,6 +195,7 @@ class MovimientoStock(models.Model):
     ingreso = models.ForeignKey(Ingreso, null=True, blank=True, on_delete=models.PROTECT)
     venta = models.ForeignKey(Venta, null=True, blank=True, on_delete=models.PROTECT)
     transferencia = models.ForeignKey(Transferencia, null=True, blank=True, on_delete=models.PROTECT, db_index=True)
+    baja = models.ForeignKey(BajaStock, null=True, blank=True, on_delete=models.PROTECT, db_index=True)
     local_origen = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, related_name="movs_origen")
     local_destino = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT, related_name="movs_destino")
     nota = models.TextField(blank=True)

@@ -28,7 +28,7 @@
 {% else %}
 
 <form method="get" class="filters-row">
-  <select name="mode" class="select">
+  <select name="mode" class="select">   
     <option value="doc" {% if mode == "doc" %}selected{% endif %}>Agrupar por documento</option>
     <option value="day" {% if mode == "day" %}selected{% endif %}>Resumen por día</option>
     <option value="variant" {% if mode == "variant" %}selected{% endif %}>Agrupar por variante</option>
@@ -87,6 +87,8 @@
                 {% url 'inventory:ingreso_pdf' r.ingreso_id as doc_pdf_url %}
               {% elif r.tipo == "TRF" and r.transferencia_id %}
                 {% url 'inventory:transferencia_detail' r.transferencia_id as doc_url %}
+              {% elif r.tipo == "BAJ" and r.baja_id %}
+                {% url 'inventory:baja_detail' r.baja_id as doc_url %}
               {% endif %}
 
               <tr
@@ -112,6 +114,8 @@
                     {% if r.transfer_label %}
                       <div class="subtle" style="margin-top:4px;">{{ r.transfer_label }}</div>
                     {% endif %}
+                  {% elif r.tipo == "BAJ" %}
+                    Baja #{{ r.baja_id }}
                   {% else %}
                     —
                   {% endif %}
@@ -145,7 +149,9 @@
                           {% endif %}
                         {% elif r.tipo == "TRF" and r.transferencia_id %}
                           <a class="kebab-item" href="{% url 'inventory:transferencia_detail' r.transferencia_id %}">Ver</a>
-                        {% else %}
+                        {% elif r.tipo == "BAJ" and r.baja_id %}
+                            <a class="kebab-item" href="{% url 'inventory:baja_detail' r.baja_id %}">Ver #{{ r.baja_id }}</a>
+                          {% else %}
                           <span class="kebab-item" style="opacity:.6; cursor:default;">No Doc</span>
                         {% endif %}
                       </div>
