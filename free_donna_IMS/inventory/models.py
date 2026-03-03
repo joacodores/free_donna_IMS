@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 # Create your models here.
 class Marca(models.Model):
@@ -167,7 +168,6 @@ class MovimientoStock(models.Model):
     class Tipo(models.TextChoices):
         INGRESO = "IN", "Ingreso"
         VENTA = "OUT", "Venta"
-        AJUSTE = "ADJ", "Ajuste"
         TRANSFERENCIA = "TRF", "Transferencia"
         BAJA = "BAJ", "Baja"
         DEVOLUCION = "RET", "Devolución"
@@ -214,4 +214,32 @@ class MovimientoStock(models.Model):
         return f"{self.get_tipo_display()} {self.movimiento_id}"
     
 
+class RetiroCaja(models.Model):
+    class Motivo(models.TextChoices):
+        GUARDAR = "GUARDAR", "Guardar (dueño)"
+        GASTO = "GASTO", "Gasto del día"
+        OTRO = "OTRO", "Otro"
 
+    retiro_id = models.BigAutoField(primary_key=True)
+
+    local = models.ForeignKey("inventory.Local", on_delete=models.PROTECT, related_name="retiros_caja")
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="retiros_caja")
+
+    fecha = models.DateField(default=timezone.localdate, db_index=True)
+
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    motivo = models.CharField(max_length=16, choices=Motivo.choices, default=Motivo.GUARDAR)
+    nota = models.CharField(max_length=140, blank=True)
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["local", "fecha"]),
+        ]
+        ordering = ["-creado_en"]
+
+    def clean(self):
+        super().clean()
+        if self.monto is not None and self.monto <= Decimal("0.00"):
+            raise ValueError("El monto debe ser mayor a 0.")

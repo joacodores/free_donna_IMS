@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from email.mime import base
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, HttpResponse
@@ -8,7 +8,7 @@ from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharF
 from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
 from sqlalchemy import Cast
-from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
+from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
 from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -925,24 +925,142 @@ class POSView(LoginRequiredMixin, View):
         agg = ventas_qs.aggregate(
             ventas_hoy_count=Count("venta_id"),
             ventas_hoy_total=Coalesce(Sum("total"), Decimal("0.00")),
-            ventas_hoy_profit=Coalesce(Sum("profit_total"), Decimal("0.00")),
         )
-        ventas_hoy = ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total", "profit_total")[:50]
+        ventas_hoy = ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total")[:50]
+        total_ventas_efectivo = (
+            ventas_qs.filter(metodo_de_pago=Venta.MetodoPago.EFECTIVO)
+            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
+        retiros = (
+            RetiroCaja.objects
+            .filter(local=local, usuario=request.user, fecha=hoy)
+            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
         
+
+        total_en_efectivo = total_ventas_efectivo - retiros
+        if total_en_efectivo < 0:
+            total_en_efectivo = Decimal("0.00")
+            
         return render(request, self.template_name, {
             "cart": cart,
             "stock_map": stock_map,
             "subtotal": subtotal,
             "total": total,
-            
+            "total_en_efectivo": total_en_efectivo,
             "local_activo": local,
             "hoy": hoy,
             "ventas_hoy": list(ventas_hoy),
             "ventas_hoy_count": agg["ventas_hoy_count"] or 0,
             "ventas_hoy_total": agg["ventas_hoy_total"] or Decimal("0.00"),
-            "ventas_hoy_profit": agg["ventas_hoy_profit"] or Decimal("0.00"),
+            
         })    
+
+class POSCajaView(LoginRequiredMixin, View):
+    template_name = "inventory/pos/pos_caja.html"
+    def get(self, request):
+        local=_get_local_activo(request)
+        hoy=timezone.localdate()
         
+        ventas_qs = (
+            Venta.objects
+            .filter(
+                usuario=request.user,
+                local=local if local else None,
+                estado=Venta.Estado.CERRADA,
+                fecha__date=hoy,   
+            )
+            .order_by("-venta_id")
+        )
+        
+        total_ventas_efectivo = (
+            ventas_qs.filter(metodo_de_pago=Venta.MetodoPago.EFECTIVO)
+            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+        
+        retiros_hoy = (
+            RetiroCaja.objects
+            .filter(local=local, usuario=request.user, fecha=hoy).order_by("creado_en")[:30]
+        )
+        retiros_total = (
+            RetiroCaja.objects
+            .filter(local=local, usuario=request.user, fecha=hoy)
+            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+        
+        total_en_efectivo = total_ventas_efectivo - retiros_total
+        if total_en_efectivo < 0:
+            total_en_efectivo = Decimal("0.00")
+        
+        return render(request, self.template_name, {
+            "local_activo": local,
+            "hoy": hoy,
+            "retiros_hoy": retiros_hoy,
+            "retiros_total": retiros_total,
+            "total_en_efectivo": total_en_efectivo,
+        })
+        
+    def post(self, request):
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:pos")
+
+        hoy = timezone.localdate()
+
+        monto_raw = (request.POST.get("monto") or "").strip()
+        nota = (request.POST.get("nota") or "").strip()
+        motivo = (request.POST.get("motivo") or RetiroCaja.Motivo.GUARDAR).strip().upper()
+
+        try:
+            monto = Decimal(monto_raw)
+        except (InvalidOperation, TypeError):
+            messages.error(request, "Monto inválido.")
+            return redirect("inventory:pos")
+
+        if monto <= 0:
+            messages.error(request, "El monto debe ser mayor a 0.")
+            return redirect("inventory:pos")
+
+        # Ventas efectivo del día (tu criterio actual: por usuario + local + hoy)
+        ventas_efectivo = (Venta.objects
+            .filter(
+                usuario=request.user,
+                local=local,
+                estado=Venta.Estado.CERRADA,
+                fecha__date=hoy,
+                metodo_de_pago=Venta.MetodoPago.EFECTIVO,
+            )
+            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
+        # Retiros del día (también por usuario + local + hoy, para “desligarse” entre empleados)
+        retiros_hoy = (RetiroCaja.objects
+            .filter(local=local, usuario=request.user, fecha=hoy)
+            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
+        disponible = ventas_efectivo - retiros_hoy
+        if monto > disponible:
+            messages.error(request, f"No alcanza el efectivo disponible. Disponible: $ {disponible:.2f}")
+            return redirect("inventory:pos")
+
+        if motivo not in {c for c, _ in RetiroCaja.Motivo.choices}:
+            motivo = RetiroCaja.Motivo.OTRO
+
+        RetiroCaja.objects.create(
+            local=local,
+            usuario=request.user,
+            fecha=hoy,
+            monto=monto,
+            motivo=motivo,
+            nota=nota,
+        )
+
+        messages.success(request, f"Retiro registrado: $ {monto:.2f}")
+        return redirect("inventory:pos")
+
 class POSAddItemByBarcodeView(LoginRequiredMixin, View):
     def post(self, request):
         barcode = (request.POST.get("barcode") or "").strip()

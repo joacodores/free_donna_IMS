@@ -1,0 +1,117 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Caja{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
+
+<div class="pos-shell">
+
+  <header class="pos-topbar">
+    <div>
+      <h2 class="pos-title">Administración de Caja</h2>
+      <p class="pos-subtitle">
+        Administrar efectivo de caja y ver historial de retiros del día.
+      </p>
+    </div>
+
+    <div class="pos-actions">
+      <a class="btn-secondary" href="{% url 'inventory:pos' %}">Volver </a>
+    </div>
+  </header>
+
+  <section class="panel panel--sales">
+
+    <div class="panel-head">
+      <div class="panel-title">
+        <span class="dot dot-blue"></span>
+        <h3>Caja del día</h3>
+      </div>
+
+      <div class="panel-meta">
+        <span class="chip">Fecha: <b>{{ hoy|date:"Y-m-d" }}</b></span>
+        {% if local_activo %}
+          <span class="chip">Local: <b>{{ local_activo.nombre }}</b></span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-label">Retiros</div>
+        <div class="kpi-value mono">- $ {{ retiros_total|floatformat:"2" }}</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">Efectivo en caja</div>
+        <div class="kpi-value mono">$ {{ total_en_efectivo|floatformat:"2" }}</div>
+      </div>
+    </div>
+
+    <div class="empty-state" style="margin-top:0;">
+      <div class="empty-title">Retirar efectivo</div>
+
+      <form method="post" action="{% url 'inventory:pos_caja' %}" class="form-stack">
+        {% csrf_token %}
+
+        <div class="form-row">
+          <label>Monto</label>
+          <input name="monto" type="number" step="0.01" min="0" required class="input" placeholder="0.00">
+        </div>
+
+        <div class="form-row">
+          <label>Motivo</label>
+          <select name="motivo" class="input" required>
+            <option value="GUARDAR">Guardar (dueño)</option>
+            <option value="GASTO">Gasto del día</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Nota (opcional)</label>
+          <input name="nota" type="text" maxlength="140" class="input" placeholder="Ej: retiro para merienda">
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Registrar retiro</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="sales-list" style="padding-top:0;">
+      <div class="kpi-label" style="margin-bottom:8px;">
+        Historial de Caja (Hoy)
+      </div>
+
+      {% if retiros_hoy %}
+        {% for r in retiros_hoy %}
+          <div class="sale-row" style="cursor:default;">
+            <div class="sale-left">
+              <div class="sale-title">{{ r.get_motivo_display }}</div>
+              <div class="sale-sub mono">
+                {{ r.creado_en|date:"H:i" }}
+                {% if r.nota %} · {{ r.nota }}{% endif %}
+              </div>
+            </div>
+            <div class="sale-right">
+              <div class="sale-total mono">
+                - $ {{ r.monto|floatformat:"2" }}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="margin:0;">
+          <div class="empty-sub">
+            Todavía no hay retiros registrados hoy.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+  </section>
+
+</div>
+{% endblock %}

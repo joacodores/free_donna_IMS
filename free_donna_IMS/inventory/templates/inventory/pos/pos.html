@@ -133,11 +133,18 @@
           <div class="kpi-label">Total vendido</div>
           <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
         </div>
-        <div class="kpi">
-          <div class="kpi-label">Ganancia</div>
-          <div class="kpi-value mono">$ {{ ventas_hoy_profit|default:"0.00" }}</div>
-        </div>
+        <a class="kpi kpi-action"
+          href="{% url 'inventory:pos_caja' %}"
+          tabindex="0"
+          >
+          <div class="kpi-label">Caja</div>
+          <div class="kpi-value mono" data-cash="{{ total_en_efectivo|default:'0.00' }}">
+            $ {{ total_en_efectivo|default:"0.00" }}
+          </div>
+            <span class="kpi-tip" role="tooltip">Administrar caja</span>
+        </a>
       </div>
+       
 
       {% if ventas_hoy %}
         <div class="sales-list">
@@ -152,7 +159,6 @@
               </div>
               <div class="sale-right">
                 <div class="sale-total mono">$ {{ v.total|default:"0.00" }}</div>
-                <div class="sale-profit mono">+ $ {{ v.profit_total|default:"0.00" }}</div>
               </div>
             </a>
           {% endfor %}
@@ -160,7 +166,7 @@
       {% else %}
         <div class="empty-state">
           <div class="empty-title">Todavía no tenés ventas hoy</div>
-          <div class="empty-sub">Cuando cierres ventas, van a aparecer acá con totales y ganancia.</div>
+          <div class="empty-sub">Cuando cierres ventas, van a aparecer acá con totales y método de pago.</div>
         </div>
       {% endif %}
     </section>
@@ -169,10 +175,46 @@
 </div>
 
 <script>
-  // Mantener foco para scanner
-  document.addEventListener("DOMContentLoaded", function(){
-    var scan = document.getElementById("scanInput");
-    if (scan) scan.focus();
-  });
+    document.addEventListener("DOMContentLoaded", function(){
+      var scan = document.getElementById("scanInput");
+      if (scan) scan.focus();
+    });
+
+    (() => {
+    const kpi = document.getElementById("cashKpi");
+    const overlay = document.getElementById("cashModalOverlay");
+    const closeBtn = document.getElementById("cashModalClose");
+    const cancelBtn = document.getElementById("cashModalCancel");
+    const monto = document.getElementById("monto_retiro");
+
+    if (!kpi || !overlay) return;
+
+    function openModal(){
+      overlay.hidden = false;
+      document.body.style.overflow = "hidden";
+      setTimeout(() => monto && monto.focus(), 0);
+    }
+
+    function closeModal(){
+      overlay.hidden = true;
+      document.body.style.overflow = "";
+    }
+
+    kpi.addEventListener("click", openModal);
+    kpi.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal(); }
+    });
+
+    closeBtn && closeBtn.addEventListener("click", closeModal);
+    cancelBtn && cancelBtn.addEventListener("click", closeModal);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (!overlay.hidden && e.key === "Escape") closeModal();
+    });
+  })();
 </script>
 {% endblock %}
