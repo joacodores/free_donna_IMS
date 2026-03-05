@@ -1,5 +1,6 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from email.mime import base
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, HttpResponse
 from django.urls import reverse_lazy
@@ -7,8 +8,9 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, V
 from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F, Case, When
 from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
+from httpcore import request
 from sqlalchemy import Cast
-from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
+from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
 from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -210,6 +212,7 @@ class ProductoListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["q"] = (self.request.GET.get("q") or "").strip()
+        ctx["marcas"] = Marca.objects.all().order_by("nombre")
         return ctx  
 
 class ProductoDetailView(DetailView):
@@ -2172,3 +2175,184 @@ class TransferenciaDetailView(LoginRequiredMixin, DetailView):
         trf = ctx["trf"]
         ctx["items"] = list(trf.items.select_related("articulo").order_by("item_id"))
         return ctx
+
+
+def _parse_pct(val: str):
+    val = (val or "").strip()
+    if val == "":
+        return None
+    try:
+        return Decimal(val.replace(",", "."))
+    except Exception:
+        return "ERR"
+
+
+def _apply_pct(value: Decimal, pct: Decimal) -> Decimal:
+    factor = Decimal("1") + (pct / Decimal("100"))
+    newv = (value * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if newv < 0:
+        newv = Decimal("0.00")
+    return newv
+
+def _add_query_param(url, key, value):
+    u = urlparse(url)
+    q = dict(parse_qsl(u.query))
+    q[key] = str(value)
+    new_query = urlencode(q)
+    return urlunparse((u.scheme, u.netloc, u.path, u.params, new_query, u.fragment))
+
+class ProductoBulkAdjustPreviewView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request):
+        marca_id = (request.GET.get("marca_id") or "").strip()
+        pct_precio = _parse_pct(request.GET.get("pct_precio"))
+        pct_costo  = _parse_pct(request.GET.get("pct_costo"))
+
+        if not marca_id:
+            return JsonResponse({"ok": False, "error": "Seleccioná una marca."}, status=400)
+
+        if pct_precio == "ERR" or pct_costo == "ERR":
+            return JsonResponse({"ok": False, "error": "Porcentaje inválido."}, status=400)
+
+        if pct_precio is None and pct_costo is None:
+            return JsonResponse({"ok": False, "error": "Ingresá % en precio y/o costo."}, status=400)
+
+        marca = get_object_or_404(Marca, pk=marca_id)
+        qs = Producto.objects.filter(marca=marca).order_by("product_id")
+
+        total = qs.count()
+        sample = list(qs[:5])
+
+        items = []
+        for p in sample:
+            old_precio = Decimal(p.precio or 0)
+            old_costo  = Decimal(p.costo or 0)
+
+            new_precio = _apply_pct(old_precio, pct_precio) if pct_precio is not None else old_precio
+            new_costo  = _apply_pct(old_costo,  pct_costo)  if pct_costo  is not None else old_costo
+
+            items.append({
+                "id": p.pk,
+                "nombre": getattr(p, "nombre", "") or str(p),
+                "old_precio": f"{old_precio:.2f}",
+                "new_precio": f"{new_precio:.2f}",
+                "old_costo": f"{old_costo:.2f}",
+                "new_costo": f"{new_costo:.2f}",
+            })
+
+        return JsonResponse({
+            "ok": True,
+            "marca": {"id": marca.pk, "nombre": marca.nombre},
+            "total": total,
+            "pct_precio": str(pct_precio) if pct_precio is not None else None,
+            "pct_costo": str(pct_costo) if pct_costo is not None else None,
+            "sample": items,
+        })
+
+
+class ProductoBulkAdjustApplyView(LoginRequiredMixin, StaffRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request):
+        marca_id = (request.POST.get("marca_id") or "").strip()
+        pct_precio = _parse_pct(request.POST.get("pct_precio"))
+        pct_costo  = _parse_pct(request.POST.get("pct_costo"))
+
+        if not marca_id:
+            messages.error(request, "Seleccioná una marca.")
+            return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+        if pct_precio == "ERR" or pct_costo == "ERR":
+            messages.error(request, "Porcentaje inválido.")
+            return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+        if pct_precio is None and pct_costo is None:
+            messages.error(request, "Ingresá % en precio y/o costo.")
+            return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+        marca = get_object_or_404(Marca, pk=marca_id)
+        qs = Producto.objects.filter(marca=marca).select_for_update()
+
+        total = qs.count()
+        if total == 0:
+            messages.warning(request, f"No hay productos para {marca.nombre}.")
+            return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+        adjust = ProductoBulkAdjust.objects.create(
+            user=request.user,
+            marca=marca,
+            pct_precio=pct_precio,
+            pct_costo=pct_costo,
+            afectados=total,
+            note="Ajuste masivo por marca desde pantalla de productos",
+        )
+
+        items_to_create = []
+        # aplicamos y guardamos snapshot exacto
+        for p in qs:
+            old_precio = Decimal(p.precio or 0)
+            old_costo  = Decimal(p.costo or 0)
+
+            new_precio = _apply_pct(old_precio, pct_precio) if pct_precio is not None else old_precio
+            new_costo  = _apply_pct(old_costo,  pct_costo)  if pct_costo  is not None else old_costo
+
+            # Update producto
+            p.precio = new_precio
+            p.costo = new_costo
+            p.save(update_fields=["precio", "costo"])
+
+            items_to_create.append(ProductoBulkAdjustItem(
+                adjust=adjust,
+                producto=p,
+                old_precio=old_precio,
+                old_costo=old_costo,
+                new_precio=new_precio,
+                new_costo=new_costo,
+            ))
+
+        ProductoBulkAdjustItem.objects.bulk_create(items_to_create, batch_size=1000)
+
+        # mensaje con link para deshacer
+        undo_url = f"/inventario/productos/ajuste-marca/undo/{adjust.pk}/"  # o reverse() si preferís
+        messages.success(
+            request,
+            f"Ajuste aplicado a {marca.nombre} ({total} productos). "
+            f"Si necesitás revertirlo, abrí “Ajuste por marca” y tocá “Deshacer último ajuste”."
+        )
+        referer = request.META.get("HTTP_REFERER")
+        fallback = redirect("inventory:producto_list").url  # o reverse(...)
+        target = referer or fallback
+
+        target = _add_query_param(target, "last_adjust", adjust.pk)
+        target = _add_query_param(target, "last_brand", marca.nombre)
+        return redirect(target)
+
+
+class ProductoBulkAdjustUndoView(LoginRequiredMixin, StaffRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request, adjust_id: int):
+        adjust = get_object_or_404(ProductoBulkAdjust, pk=adjust_id)
+
+        if adjust.estado == ProductoBulkAdjust.Estado.DESHECHO:
+            messages.warning(request, "Este ajuste ya fue deshecho.")
+            return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+        # bloqueamos items/productos
+        items = list(adjust.items.select_related("producto").select_for_update())
+
+        for it in items:
+            p = it.producto
+            # revertimos EXACTO a snapshot
+            if it.old_precio is not None:
+                p.precio = it.old_precio
+            if it.old_costo is not None:
+                p.costo = it.old_costo
+            p.save(update_fields=["precio", "costo"])
+
+        adjust.estado = ProductoBulkAdjust.Estado.DESHECHO
+        adjust.save(update_fields=["estado"])
+
+        messages.success(request, f"Ajuste deshecho. Los precios y costos volvieron al estado anterior.")
+        return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
+
+    # opcional: permitir GET con confirmación simple (yo prefiero POST)
+    def get(self, request, adjust_id: int):
+        return HttpResponseForbidden("Usá POST para deshacer.")

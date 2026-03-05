@@ -243,3 +243,38 @@ class RetiroCaja(models.Model):
         super().clean()
         if self.monto is not None and self.monto <= Decimal("0.00"):
             raise ValueError("El monto debe ser mayor a 0.")
+        
+class ProductoBulkAdjust(models.Model):
+    class Estado(models.TextChoices):
+        APLICADO = "APLICADO"
+        DESHECHO = "DESHECHO"
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    marca = models.ForeignKey("Marca", on_delete=models.PROTECT)
+
+    pct_precio = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    pct_costo  = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+
+    afectados = models.PositiveIntegerField(default=0)
+    estado = models.CharField(max_length=16, choices=Estado.choices, default=Estado.APLICADO)
+
+    # para mostrar en UI / auditoría
+    note = models.CharField(max_length=160, blank=True, default="")
+
+    def __str__(self):
+        return f"BulkAdjust #{self.pk} - {self.marca} - {self.estado}"
+
+
+class ProductoBulkAdjustItem(models.Model):
+    adjust = models.ForeignKey(ProductoBulkAdjust, on_delete=models.CASCADE, related_name="items")
+    producto = models.ForeignKey("Producto", on_delete=models.PROTECT)
+
+    old_precio = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    old_costo  = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    new_precio = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    new_costo  = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = [("adjust", "producto")]

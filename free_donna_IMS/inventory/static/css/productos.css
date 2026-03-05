@@ -214,3 +214,98 @@
   justify-content:flex-end;
   flex-wrap:wrap;
 }
+/* ajuste por marca modal */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.55);
+  z-index:9999;
+  padding:18px;
+}
+.modal{
+  width:min(720px, 100%);
+  border-radius:16px;
+  padding:16px;
+  background:#0f141b; /* ajustá a tu dark theme */
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 20px 70px rgba(0,0,0,.55);
+}
+.modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.icon-btn{
+  background:transparent;
+  border:0;
+  color:inherit;
+  font-size:18px;
+  cursor:pointer;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:12px;
+}
+.field label{ display:block; margin-bottom:6px; font-weight:700; }
+.field input, .field select{
+  width:100%;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.03);
+  color:inherit;
+}
+@media (max-width: 780px){
+  .form-grid{ grid-template-columns: 1fr; }
+}
+/* ===== Bulk footer layout (invertido) ===== */
+.bulk-footer{
+  padding: 12px 0 0 0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* TOP LINE: error a la izquierda, último ajuste a la derecha */
+.bulk-footer-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+/* Error a la izquierda */
+.bulk-error{
+  text-align:left;
+  color: rgba(255,199,140,.95);
+  font-weight:900;
+  display:none; /* lo maneja JS */
+  margin:0;
+}
+
+/* Último ajuste a la derecha */
+.bulk-undo-label{
+  margin-left:auto;
+  text-align:right;
+  font-weight:900;
+  color: rgba(234,240,255,.85);
+}
+
+/* Botones alineados a la derecha */
+.bulk-footer-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  width:100%;
+}
+
+/* por si quedaba hidden */
+#bulkUndoBtn{ display:none; }

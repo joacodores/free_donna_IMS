@@ -8,11 +8,9 @@
 
     <link rel="icon" type="image/x-icon" href="{% static 'img/header.jpg' %}">
 
-    {# ✅ SOLO CSS GLOBAL ACÁ #}
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <link rel="stylesheet" href="{% static 'css/header.css' %}">
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-    {# ❌ NO cargues productos.css ni index.css acá #}
 
     {% block extra_css %}{% endblock %}
   </head>
@@ -56,6 +54,20 @@
       </div>
       {% endif %}
     </header>
+    {% if messages %}
+      <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true">
+        {% for message in messages %}
+          {# message.tags suele ser: success, error, warning, info #}
+          <div class="toast toast-{{ message.tags|default:'info' }}">
+            <div class="toast-icon" aria-hidden="true"></div>
+            <div class="toast-content">
+              <div class="toast-text">{{ message }}</div>
+            </div>
+            <button class="toast-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <main class="app-main">
       <div class="app-container">
@@ -84,8 +96,35 @@
           hamburgerDropdown.classList.remove('open');
         });
       }
+      
+      (function(){
+        const wrap = document.getElementById("toastWrap");
+        if (!wrap) return;
+      
+        function closeToast(toast){
+          if (!toast) return;
+          toast.classList.add("hide");
+          setTimeout(() => toast.remove(), 180);
+        }
+      
+        wrap.addEventListener("click", (e) => {
+          const btn = e.target.closest(".toast-close");
+          if (btn) closeToast(btn.closest(".toast"));
+        });
+      
+        // auto-hide: success/info 4s, warning 6s, error 8s
+        wrap.querySelectorAll(".toast").forEach((t) => {
+          let ms = 10500;
+          if (t.classList.contains("toast-warning")) ms = 10500;
+          if (t.classList.contains("toast-error")) ms = 10500;
+        
+          setTimeout(() => closeToast(t), ms);
+        });
+      })();
+
     </script>
 
     {% block extra_js %}{% endblock %}
+
   </body>
 </html>

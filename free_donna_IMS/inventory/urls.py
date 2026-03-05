@@ -42,4 +42,7 @@ urlpatterns = [
     path("articulos/bulk-edit-form/", views.ArticulosBulkEditView.as_view(), name="articulo_bulk_edit_form"),
     path("articulos/bulk-baja/", views.ArticulosBulkBajaView.as_view(), name="articulos_bulk_baja"),
     path("bajas/<int:baja_id>/", views.BajaDetailView.as_view(), name="baja_detail"),
+    path("productos/ajuste-marca/preview/", views.ProductoBulkAdjustPreviewView.as_view(), name="producto_bulk_marca_preview"),
+    path("productos/ajuste-marca/apply/", views.ProductoBulkAdjustApplyView.as_view(), name="producto_bulk_marca_apply"),
+    path("productos/ajuste-marca/undo/<int:adjust_id>/", views.ProductoBulkAdjustUndoView.as_view(), name="producto_bulk_marca_undo"),
 ]
