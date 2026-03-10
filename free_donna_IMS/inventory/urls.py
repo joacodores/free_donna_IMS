@@ -45,4 +45,9 @@ urlpatterns = [
     path("productos/ajuste-marca/preview/", views.ProductoBulkAdjustPreviewView.as_view(), name="producto_bulk_marca_preview"),
     path("productos/ajuste-marca/apply/", views.ProductoBulkAdjustApplyView.as_view(), name="producto_bulk_marca_apply"),
     path("productos/ajuste-marca/undo/<int:adjust_id>/", views.ProductoBulkAdjustUndoView.as_view(), name="producto_bulk_marca_undo"),
+    path("promociones/", views.PromocionListView.as_view(), name="promocion_list"),
+    path("promociones/nueva/", views.PromocionCreateView.as_view(), name="promocion_create"),
+    path("promociones/<int:promocion_id>/", views.PromocionDetailView.as_view(), name="promocion_detail"),
+    path("promociones/<int:promocion_id>/editar/", views.PromocionUpdateView.as_view(), name="promocion_edit"),
+    path("promociones/<int:promocion_id>/toggle/", views.PromocionToggleEstadoView.as_view(), name="promocion_toggle"),
 ]

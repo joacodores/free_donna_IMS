@@ -2,7 +2,7 @@ from decimal import Decimal
 from django import forms 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Local, Producto, Venta
+from .models import Local, Producto, Promocion, Venta
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
@@ -107,3 +107,87 @@ class ArticuloImportXlsxForm(forms.Form):
         if not name.endswith(".xlsx"):
             raise forms.ValidationError("Subí un archivo .xlsx")
         return f
+    
+class PromocionForm(forms.ModelForm):
+    class Meta:
+        model = Promocion
+        fields = [
+            "nombre",
+            "descripcion",
+            "estado",
+            "tipo_descuento",
+            "valor",
+            "fecha_inicio",
+            "fecha_fin",
+            "prioridad",
+            "aplica_a_todos",
+            "marcas",
+            "productos",
+        ]
+        widgets = {
+            "nombre": forms.TextInput(attrs={
+                "class": "search-input",
+                "placeholder": "Ej: 10% en Adidas",
+            }),
+            "descripcion": forms.TextInput(attrs={
+                "class": "search-input",
+                "placeholder": "Descripción breve",
+            }),
+            "estado": forms.Select(attrs={"class": "select"}),
+            "tipo_descuento": forms.Select(attrs={"class": "select"}),
+            "valor": forms.NumberInput(attrs={
+                "class": "search-input",
+                "step": "0.01",
+                "min": "0.01",
+            }),
+            "fecha_inicio": forms.DateTimeInput(attrs={
+                "class": "search-input",
+                "type": "datetime-local",
+            }),
+            "fecha_fin": forms.DateTimeInput(attrs={
+                "class": "search-input",
+                "type": "datetime-local",
+            }),
+            "prioridad": forms.NumberInput(attrs={
+                "class": "search-input",
+                "min": "0",
+            }),
+            "aplica_a_todos": forms.CheckboxInput(attrs={
+                "class": "checkbox",
+            }),
+            "marcas": forms.SelectMultiple(attrs={
+                "class": "select",
+                "size": "8",
+            }),
+            "productos": forms.SelectMultiple(attrs={
+                "class": "select",
+                "size": "10",
+            }),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+
+        aplica_a_todos = cleaned.get("aplica_a_todos")
+        marcas = cleaned.get("marcas")
+        productos = cleaned.get("productos")
+        tipo = cleaned.get("tipo_descuento")
+        valor = cleaned.get("valor")
+        inicio = cleaned.get("fecha_inicio")
+        fin = cleaned.get("fecha_fin")
+
+        if not aplica_a_todos and not marcas and not productos:
+            raise forms.ValidationError(
+                "Seleccioná al menos una marca o un producto, o marcá 'Aplica a todo el catálogo'."
+            )
+
+        if valor is not None and valor <= 0:
+            raise forms.ValidationError("El valor del descuento debe ser mayor a 0.")
+
+        if tipo == Promocion.TipoDescuento.PORCENTAJE and valor and valor > 100:
+            raise forms.ValidationError("El porcentaje no puede ser mayor a 100.")
+
+        if inicio and fin and fin < inicio:
+            raise forms.ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
+
+        return cleaned

@@ -80,6 +80,7 @@ class Venta(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     nota = models.TextField(blank=True)
+    total_descuento = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT)
     metodo_de_pago = models.CharField(max_length=15, choices=MetodoPago.choices, default=MetodoPago.EFECTIVO, db_index=True)
     profit_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
@@ -96,10 +97,14 @@ class VentaItem(models.Model):
     barcode = models.CharField(max_length=64)
     talle = models.IntegerField()
     color = models.CharField(max_length=50)
+    promocion = models.ForeignKey("Promocion", null=True, blank=True, on_delete=models.SET_NULL)
+    promocion_nombre = models.CharField(max_length=120, blank=True, default="") 
     
     cantidad = models.IntegerField()
+    precio_base_unitario = models.DecimalField(max_digits=12, decimal_places=2)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    descuento_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     profit_linea = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_linea = models.DecimalField(max_digits=12, decimal_places=2)
     
@@ -278,3 +283,47 @@ class ProductoBulkAdjustItem(models.Model):
 
     class Meta:
         unique_together = [("adjust", "producto")]
+        
+class Promocion(models.Model):
+    class TipoDescuento(models.TextChoices):
+        PORCENTAJE = "PCT", "Porcentaje"
+        MONTO_FIJO = "FIX", "Monto fijo"
+    
+    class Estado(models.TextChoices):
+        ACTIVA = "ACT", "Activa"
+        PAUSADA = "PAU", "Pausada"
+        
+    promocion_id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(max_length=255, blank=True)
+    
+    estado = models.CharField(max_length=3, choices=Estado.choices, default=Estado.ACTIVA)
+    tipo_descuento = models.CharField(max_length=3, choices=TipoDescuento.choices)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)  
+    
+    fecha_inicio = models.DateTimeField(null=True, blank=True)
+    fecha_fin = models.DateTimeField(null=True, blank=True) 
+    
+    prioridad = models.IntegerField(default=0)  
+    
+    aplica_a_todos = models.BooleanField(default=False)
+    
+    marcas = models.ManyToManyField("Marca", blank=True, related_name="promociones")
+    productos = models.ManyToManyField("Producto", blank=True, related_name="promociones")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.nombre
+
+    def esta_vigente(self):
+        ahora = timezone.now()
+
+        if self.estado != self.Estado.ACTIVA:
+            return False
+        if self.fecha_inicio and ahora < self.fecha_inicio:
+            return False
+        if self.fecha_fin and ahora > self.fecha_fin:
+            return False
+        return True

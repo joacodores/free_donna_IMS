@@ -1,0 +1,121 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Promociones{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Promociones</h2>
+    <p class="subtle">Administrá descuentos por marca, producto o catálogo completo.</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-primary" href="{% url 'inventory:promocion_create' %}">+ Nueva promoción</a>
+  </div>
+</div>
+
+<form method="get" class="search-row" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+  <input
+    name="q"
+    value="{{ q }}"
+    class="search-input"
+    type="text"
+    placeholder="Buscar por nombre o descripción..."
+    autocomplete="off"
+    style="max-width:320px;"
+  />
+
+  <select name="estado" class="select" style="max-width:220px;">
+    <option value="">Todos los estados</option>
+    <option value="ACT" {% if estado == "ACT" %}selected{% endif %}>Activas</option>
+    <option value="PAU" {% if estado == "PAU" %}selected{% endif %}>Pausadas</option>
+  </select>
+
+  <button class="btn-secondary" type="submit">Filtrar</button>
+
+  {% if q or estado %}
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if promociones %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Descuento</th>
+          <th>Alcance</th>
+          <th>Estado</th>
+          <th>Prioridad</th>
+          <th>Vigencia</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for promocion in promociones %}
+          <tr>
+            <td class="mono">{{ promocion.promocion_id }}</td>
+            <td>
+              <a href="{% url 'inventory:promocion_detail' promocion.promocion_id %}" class="strong" style="color:inherit; text-decoration:none;">
+                {{ promocion.nombre }}
+              </a>
+              {% if promocion.descripcion %}
+                <div class="subtle" style="margin-top:4px;">{{ promocion.descripcion }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if promocion.tipo_descuento == "PCT" %}
+                <span class="tag">{{ promocion.valor }}%</span>
+              {% else %}
+                <span class="tag">$ {{ promocion.valor }}</span>
+              {% endif %}
+            </td>
+            <td>{{ promocion.alcance_resumen }}</td>
+            <td>
+              {% if promocion.estado == "ACT" %}
+                <span class="tag">Activa</span>
+              {% else %}
+                <span class="tag">Pausada</span>
+              {% endif %}
+            </td>
+            <td>{{ promocion.prioridad }}</td>
+            <td>
+              {% if promocion.fecha_inicio or promocion.fecha_fin %}
+                <div class="subtle" style="margin:0;">
+                  {{ promocion.fecha_inicio|date:"d/m/Y H:i"|default:"—" }}
+                  →
+                  {{ promocion.fecha_fin|date:"d/m/Y H:i"|default:"—" }}
+                </div>
+              {% else %}
+                <span class="subtle">Sin límite</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+                <a class="btn-secondary" href="{% url 'inventory:promocion_edit' promocion.promocion_id %}">Editar</a>
+
+                <form method="post" action="{% url 'inventory:promocion_toggle' promocion.promocion_id %}" style="margin:0;">
+                  {% csrf_token %}
+                  {% if promocion.estado == "ACT" %}
+                    <button type="submit" class="btn-secondary">Pausar</button>
+                  {% else %}
+                    <button type="submit" class="btn-secondary">Activar</button>
+                  {% endif %}
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">No hay promociones cargadas.</p>
+    <p class="subtle" style="margin-bottom:0;">Creá la primera promoción para empezar a aplicar descuentos.</p>
+  </div>
+{% endif %}
+{% endblock %}

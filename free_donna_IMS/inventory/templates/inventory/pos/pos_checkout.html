@@ -32,7 +32,8 @@
           <th>Barcode</th>
           <th>Producto</th>
           <th class="num">Cant</th>
-          <th class="num">Unit</th>
+          <th class="num">P.Unit</th>
+          <th class="num">Desc.</th>
           <th class="num">Subtotal</th>
         </tr>
       </thead>
@@ -40,18 +41,55 @@
         {% for it in cart.values %}
           <tr>
             <td class="mono">{{ it.barcode }}</td>
-            <td>{{ it.nombre|default:it.sku }}</td>
+            <td>
+              <div>{{ it.nombre|default:it.sku }}</div>
+              {% if it.promocion_nombre %}
+                <div class="subtle" style="margin-top:4px;">Promo: {{ it.promocion_nombre }}</div>
+              {% endif %}
+            </td>
             <td class="num">{{ it.qty }}</td>
-            <td class="num">$ {{ it.precio }}</td>
-            <td class="num strong">$ {{ it.line_total }}</td>
+
+            <td class="num">
+              {% if it.descuento_unitario and it.descuento_unitario != "0.00" %}
+                <div class="price-old">$ {{ it.precio_base|floatformat:"2" }}</div>
+                <div class="price-new">$ {{ it.precio_final|floatformat:"2" }}</div>
+              {% else %}
+                $ {{ it.precio_final|default:it.precio_base|floatformat:"2" }}
+              {% endif %}
+            </td>
+
+            <td class="num">
+              {% if it.line_discount and it.line_discount != "0.00" %}
+                <span class="discount-chip">- $ {{ it.line_discount|floatformat:"2" }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td class="num strong">$ {{ it.line_total|floatformat:"2" }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-  <div style="display:flex; justify-content:flex-end; margin-top:12px; font-weight:900;">
-    Total: $ {{ total }}
+  <div class="checkout-totals">
+    <div class="checkout-row">
+      <span>Subtotal</span>
+      <span class="mono">$ {{ subtotal_base|floatformat:"2" }}</span>
+    </div>
+
+    {% if total_descuento and total_descuento != 0 %}
+      <div class="checkout-row checkout-discount">
+        <span>Descuentos</span>
+        <span class="mono">- $ {{ total_descuento|floatformat:"2" }}</span>
+      </div>
+    {% endif %}
+
+    <div class="checkout-row checkout-final">
+      <span>Total</span>
+      <span class="mono">$ {{ total|floatformat:"2" }}</span>
+    </div>
   </div>
 
   <div class="modal-actions" style="padding:0; margin-top:14px;">

@@ -10,8 +10,8 @@ from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
 from httpcore import request
 from sqlalchemy import Cast
-from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
-from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
+from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, Promocion, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
+from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -886,13 +886,33 @@ def _save_cart(session, cart):
     session.modified = True
     
 def _cart_totals(cart):
-    subtotal = Decimal("0.00")
+    subtotal_base = Decimal("0.00")
+    subtotal_final = Decimal("0.00")
+    total_descuento = Decimal("0.00")
+    
     for it in cart.values():
-        line_total = Decimal(it["precio"]) * int(it["qty"])
-        it["line_total"] = str(line_total)  # guardo string para render simple
-        subtotal += line_total
-    return subtotal, subtotal
+        qty = int(it["qty"])
+        precio_base = Decimal(it.get("precio_base", "0.00"))
+        precio_final = Decimal(it.get("precio_final", "0.00"))
+        descuento_unitario = Decimal(it.get("descuento_unitario", "0.00"))
 
+        line_base = precio_base * qty
+        line_total = precio_final * qty
+        line_discount = descuento_unitario * qty
+
+        it["line_base"] = str(line_base)
+        it["line_total"] = str(line_total)
+        it["line_discount"] = str(line_discount)
+
+        subtotal_base += line_base
+        subtotal_final += line_total
+        total_descuento += line_discount
+        
+    return {
+        "subtotal_base": subtotal_base,
+        "subtotal_final": subtotal_final,
+        "total_descuento": total_descuento,
+    }
 def _get_local_activo(request):
     local_id = request.session.get("local_id")
     if not local_id:
@@ -913,7 +933,7 @@ class POSView(LoginRequiredMixin, View):
                     .annotate(disponibles=Count("articulo_id"))
                     )
             stock_map = {r["barcode"]: r["disponibles"] for r in rows}
-        subtotal, total = _cart_totals(cart)
+        totals = _cart_totals(cart)
         hoy = timezone.localdate()  
         ventas_qs = (
             Venta.objects
@@ -949,8 +969,10 @@ class POSView(LoginRequiredMixin, View):
         return render(request, self.template_name, {
             "cart": cart,
             "stock_map": stock_map,
-            "subtotal": subtotal,
-            "total": total,
+            "subtotal_base": totals["subtotal_base"],
+            "subtotal": totals["subtotal_final"],
+            "total": totals["subtotal_final"],
+            "total_descuento": totals["total_descuento"],
             "total_en_efectivo": total_en_efectivo,
             "local_activo": local,
             "hoy": hoy,
@@ -1092,10 +1114,17 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
         line_key = f"{barcode}|{art.talle}|{art.color}"
         cart = _get_cart(request.session)
         if line_key not in cart:
-            precio=getattr(art.product_id, "precio", None)
-            if precio is None:
+            precio_base = getattr(art.product_id, "precio", None)
+            if precio_base is None:
                 messages.error(request, f"El producto '{art.product_id.nombre}' no tiene un precio definido.")
                 return redirect("inventory:pos")
+            promo, promo_data = get_mejor_promocion_para_producto(art.product_id)
+            descuento_unitario = Decimal("0.00")
+            precio_final = Decimal(precio_base)
+            if promo and promo_data:
+                descuento_unitario = promo_data["descuento"]
+                precio_final = promo_data["precio_final"]
+            
             marca_obj = getattr(art.product_id, "marca", None)
             marca_nombre = getattr(marca_obj, "nombre", "") if marca_obj else ""
             cart[line_key] = {
@@ -1106,7 +1135,11 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
                 "barcode": art.barcode,
                 "talle": art.talle,
                 "color": art.color,
-                "precio": str(precio),
+                "precio_base": str(precio_base),
+                "precio_final": str(precio_final),
+                "descuento_unitario": str(descuento_unitario),
+                "promocion_id": promo.promocion_id if promo else None,
+                "promocion_nombre": promo.nombre if promo else "",
                 "qty": 1,
             }
         else:
@@ -1147,12 +1180,14 @@ class POSCheckoutView(LoginRequiredMixin, View):
             messages.info(request, "El carrito está vacío.")
             return redirect("inventory:pos")
 
-        subtotal, total = _cart_totals(cart)
+        totals = _cart_totals(cart)
 
         return render(request, self.template_name, {
             "form": form,
             "cart": cart,
-            "total": total,
+            "subtotal_base": totals["subtotal_base"],
+            "total_descuento": totals["total_descuento"],
+            "total": totals["subtotal_final"],
         })
 
     @transaction.atomic
@@ -1168,26 +1203,33 @@ class POSCheckoutView(LoginRequiredMixin, View):
         
         form = CheckoutForm(request.POST)
         if not form.is_valid():
-            subtotal, total = _cart_totals(cart)
+            totals = _cart_totals(cart)
             return render(request, self.template_name, {
                 "form": form,
                 "cart": cart,
-                "total": total,
+                "subtotal_base": totals["subtotal_base"],
+                "total_descuento": totals["total_descuento"],
+                "total": totals["subtotal_final"],
             })
             
         metodo_de_pago = form.cleaned_data["metodo_pago"]
             
         venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA, metodo_de_pago=metodo_de_pago)
 
-        subtotal = Decimal("0.00")
+        subtotal_base = Decimal("0.00")
+        subtotal_final = Decimal("0.00")
+        descuento_total = Decimal("0.00")
         profit_total = Decimal("0.00")
         
         
         for it in cart.values():
             barcode = it["barcode"]
             qty = int(it["qty"])
-            precio = Decimal(it["precio"])
-
+            precio_base = Decimal(it["precio_base"])
+            descuento_unitario = Decimal(it["descuento_unitario"])
+            precio_final = Decimal(it["precio_final"])
+            promocion_id = it.get("promocion_id")
+            promocion_nombre = it.get("promocion_nombre", "")
             disponibles_qs = (
                 Articulo.objects
                 .select_for_update()
@@ -1206,12 +1248,20 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 for a in articulos
             )
             costo_unitario_prom = (costo_total / qty_d) if qty else Decimal("0.00")
-            
-            total_linea = precio * qty_d
-            profit_linea = (precio - costo_unitario_prom) * qty_d
-            
-            subtotal += total_linea
+
+            total_linea_base = precio_base * qty_d
+            descuento_total_linea = descuento_unitario * qty_d
+            total_linea = precio_final * qty_d
+            profit_linea = (precio_final - costo_unitario_prom) * qty_d
+
+            subtotal_base += total_linea_base
+            subtotal_final += total_linea
+            descuento_total += descuento_total_linea
             profit_total += profit_linea
+            promo_obj = None
+            if promocion_id:
+                promo_obj = Promocion.objects.filter(pk=promocion_id).first()
+
             VentaItem.objects.create(
                 venta=venta,
                 producto_id=it["producto_id"],
@@ -1220,17 +1270,24 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 talle=int(it["talle"]),
                 color=it["color"],
                 cantidad=qty,
-                precio_unitario=precio,
+
+                precio_base_unitario=precio_base,
+                descuento_unitario=descuento_unitario,
+                precio_unitario=precio_final,
+
                 costo_unitario=costo_unitario_prom,
                 profit_linea=profit_linea,
                 total_linea=total_linea,
+
+                promocion=promo_obj,
+                promocion_nombre=promocion_nombre,
             )
-            art_ids = [a.articulo_id for a in articulos]
+            
             movs = []
             venta_articulos = []
             for a in articulos:
                 costo_u = Decimal(a.ingreso_item.costo_unitario) if a.ingreso_item else Decimal("0.00")
-                profit_u = precio - costo_u
+                profit_u = precio_final - costo_u
 
                 movs.append(MovimientoStock(
                     tipo=MovimientoStock.Tipo.VENTA,
@@ -1244,7 +1301,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
                     color=a.color,
                     cantidad=-1,
                     costo_unitario=costo_u,
-                    precio_unitario=precio,
+                    precio_unitario=precio_final,
                     profit_unitario=profit_u,
                     ingreso=None,
                     venta=venta,
@@ -1252,25 +1309,29 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 ))
 
                 venta_articulos.append(VentaArticulo(venta=venta, articulo=a))
-                art_ids.append(a.articulo_id)
             # Marcar unidades como vendidas 
             Articulo.objects.filter(articulo_id__in=[a.articulo_id for a in articulos]).update(
                 estado=Articulo.Estado.VENDIDO
             )
 
             # Registrar unidades vendidas 
-            VentaArticulo.objects.bulk_create([
-                VentaArticulo(venta=venta, articulo=a) for a in articulos
-            ])
+            VentaArticulo.objects.bulk_create(venta_articulos)
             
             MovimientoStock.objects.bulk_create(movs)
 
         #Cerrar venta 
-        venta.subtotal = subtotal
-        venta.total = subtotal
+        venta.subtotal = subtotal_base
+        venta.total_descuento = descuento_total
+        venta.total = subtotal_final
         venta.profit_total = profit_total
         venta.estado = Venta.Estado.CERRADA
-        venta.save(update_fields=["subtotal", "total", "profit_total", "estado"])
+        venta.save(update_fields=[
+            "subtotal",
+            "total_descuento",
+            "total",
+            "profit_total",
+            "estado",
+        ])
 
         
         _save_cart(request.session, {})
@@ -1554,34 +1615,46 @@ def movimiento_pdf(request):
 
 def _ventas_report_pdf(request, local, base_qs, desde, hasta, q, tipo):
     """
-    Reporte de ventas: agrupa por venta, imprime items, NO muestra costo por artículo,
-    muestra costo total por venta y profit total al final.
+    Reporte de ventas:
+    - Agrupa por venta
+    - Imprime items
+    - No muestra costo por artículo
+    - Muestra subtotal, descuentos y total por venta
+    - Muestra costo/profit total por venta y global
     """
     from django.db.models import Q
 
-    # ventas involucradas desde los movimientos
     venta_ids = list(
         base_qs.exclude(venta_id=None)
                .values_list("venta_id", flat=True)
                .distinct()
     )
 
-    ventas = (Venta.objects
-              .select_related("usuario", "local")
-              .prefetch_related("items")   # tu related_name
-              .filter(venta_id__in=venta_ids, local=local)
-              .order_by("-fecha"))
+    ventas = (
+        Venta.objects
+        .select_related("usuario", "local")
+        .prefetch_related("items", "items__producto", "items__promocion")
+        .filter(venta_id__in=venta_ids, local=local)
+        .order_by("-fecha")
+    )
 
-    # Totales globales desde MovimientoStock (fuente de verdad de costo/venta/profit)
-    global_agg = (base_qs
-                  .filter(venta_id__in=venta_ids)
-                  .aggregate(
-                      ventas=Count("venta_id", distinct=True),
-                      unidades=Count("movimiento_id"),
-                      costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-                      venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-                      profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-                  ))
+    # Globales: Venta como fuente de subtotal/desc/total
+    ventas_agg = ventas.aggregate(
+        ventas=Count("venta_id"),
+        subtotal_bruto=Coalesce(Sum("subtotal"), Value(0, output_field=DecimalField())),
+        descuento_total=Coalesce(Sum("total_descuento"), Value(0, output_field=DecimalField())),
+        venta_total=Coalesce(Sum("total"), Value(0, output_field=DecimalField())),
+    )
+
+    # Globales: MovimientoStock como fuente de costo/profit
+    ms_global_agg = (
+        base_qs.filter(venta_id__in=venta_ids)
+        .aggregate(
+            unidades=Count("movimiento_id"),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+        )
+    )
 
     usuarios = sorted({v.usuario.get_full_name().strip() or v.usuario.username for v in ventas})
     usuarios_txt = ", ".join(usuarios) if usuarios else "-"
@@ -1604,49 +1677,58 @@ def _ventas_report_pdf(request, local, base_qs, desde, hasta, q, tipo):
 
     y = header()
 
-    # “summary box”
     c.setFont("Helvetica-Bold", 10)
     c.drawString(40, y, "Resumen")
     y -= 12
     c.setFont("Helvetica", 9)
-    c.drawString(40, y, f"Comprobantes: {global_agg['ventas'] or 0}   Unidades: {global_agg['unidades'] or 0}")
+    c.drawString(40, y, f"Comprobantes: {ventas_agg['ventas'] or 0}   Unidades: {ms_global_agg['unidades'] or 0}")
     y -= 12
-    c.drawString(40, y, f"Vendido: {money(global_agg['venta_total'])}   Costo: {money(global_agg['costo_total'])}   Resultado: {money(global_agg['profit_total'])}")
+    c.drawString(
+        40, y,
+        f"Subtotal: {money(ventas_agg['subtotal_bruto'])}   "
+        f"Descuentos: {money(ventas_agg['descuento_total'])}   "
+        f"Total vendido: {money(ventas_agg['venta_total'])}"
+    )
+    y -= 12
+    c.drawString(
+        40, y,
+        f"Costo total: {money(ms_global_agg['costo_total'])}   "
+        f"Resultado: {money(ms_global_agg['profit_total'])}"
+    )
     y -= 16
 
-
-    # columnas de items (sin costo por artículo)
     item_cols = [
         (40,  "SKU", "L"),
-        (120, "Barcode", "L"),
-        (205, "Producto", "L"),
-        (380, "Var", "L"),
-        (455, "Qty", "R"),
-        (520, "Precio", "R"),
+        (110, "Barcode", "L"),
+        (185, "Producto", "L"),
+        (330, "Var", "L"),
+        (385, "Qty", "R"),
+        (435, "Final", "R"),
+        (495, "Desc.", "R"),
         (w - 40, "Importe", "R"),
     ]
 
     for v in ventas:
-        # agregados por venta desde MovimientoStock
-        vagg = (MovimientoStock.objects
-                .filter(venta=v, tipo=MovimientoStock.Tipo.VENTA)  # ajustá si corresponde
-                .aggregate(
-                    unidades=Count("movimiento_id"),
-                    costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-                    venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-                    profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-                ))
-        
+        vagg_ms = (
+            MovimientoStock.objects
+            .filter(venta=v, tipo=MovimientoStock.Tipo.VENTA)
+            .aggregate(
+                unidades=Count("movimiento_id"),
+                costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+            )
+        )
+
         if hasattr(v.usuario, "get_full_name"):
             user_label = v.usuario.get_full_name().strip()
         else:
             user_label = ""
-    
+
         if not user_label:
             user_label = v.usuario.username
-    
-        y = ensure_space(c, w, h, y, min_y=110, repeat_header_fn=header)
-        # header de venta
+
+        y = ensure_space(c, w, h, y, min_y=130, repeat_header_fn=header)
+
         c.setFont("Helvetica-Bold", 10)
         c.drawString(40, y, f"Comprobante {v.venta_id}")
         c.setFont("Helvetica", 9)
@@ -1657,54 +1739,72 @@ def _ventas_report_pdf(request, local, base_qs, desde, hasta, q, tipo):
         c.line(40, y, w - 40, y)
         y -= 12
 
-        # table header
         y = draw_table_header(c, y, item_cols)
 
         items = list(v.items.all().order_by("item_id"))
         for it in items:
-            y = ensure_space(c, w, h, y, min_y=80, repeat_header_fn=header)
+            y = ensure_space(c, w, h, y, min_y=95, repeat_header_fn=header)
 
-            # campos: adaptá a tu modelo VentaItem real
-            sku = safe(getattr(it, "sku", ""), 14)
-            barcode = safe(getattr(it, "barcode", ""), 16)
-            # producto: si tu item tiene nombre/marca, usá eso; si no, armalo desde it.producto
-            producto_txt = safe(getattr(it, "producto_nombre", None) or getattr(it, "nombre", None) or getattr(getattr(it, "producto", None), "nombre", "") , 32)
-            marca_txt = getattr(it, "marca", None) or getattr(getattr(it, "producto", None), "marca", "")
+            sku = safe(getattr(it, "sku", ""), 12)
+            barcode = safe(getattr(it, "barcode", ""), 14)
+
+            producto_txt = safe(
+                getattr(getattr(it, "producto", None), "nombre", "") or "",
+                26
+            )
+            marca_obj = getattr(getattr(it, "producto", None), "marca", None)
+            marca_txt = getattr(marca_obj, "nombre", "") if marca_obj else ""
             if marca_txt:
-                producto_txt = safe(f"{producto_txt} ({marca_txt})", 40)
+                producto_txt = safe(f"{producto_txt} ({marca_txt})", 32)
 
             talle = getattr(it, "talle", "")
             color = getattr(it, "color", "")
-            var_txt = safe(f"{talle}/{color}", 10)
+            var_txt = safe(f"{talle}/{color}", 8)
 
             qty = int(getattr(it, "cantidad", 1) or 1)
-            precio_u = Decimal(getattr(it, "precio_unitario", 0) or 0)
-            total_linea = precio_u * qty  # NO usamos costo por ítem
+            precio_base = Decimal(getattr(it, "precio_base_unitario", 0) or 0)
+            precio_final = Decimal(getattr(it, "precio_unitario", 0) or 0)
+            descuento_u = Decimal(getattr(it, "descuento_unitario", 0) or 0)
+            total_linea = Decimal(getattr(it, "total_linea", 0) or 0)
+            promo_nombre = getattr(it, "promocion_nombre", "") or ""
 
             c.setFont("Helvetica", 9)
             c.drawString(40, y, sku)
-            c.drawString(120, y, barcode)
-            c.drawString(205, y, producto_txt)
-            c.drawString(380, y, var_txt)
-            c.drawRightString(455, y, str(qty))
-            c.drawRightString(520, y, money(precio_u))
+            c.drawString(110, y, barcode)
+            c.drawString(185, y, producto_txt)
+            c.drawString(330, y, var_txt)
+            c.drawRightString(385, y, str(qty))
+            c.drawRightString(435, y, money(precio_final))
+            c.drawRightString(495, y, money(descuento_u * qty) if descuento_u > 0 else "-")
             c.drawRightString(w - 40, y, money(total_linea))
-            y -= 12
+            y -= 11
 
-        # subtotal venta
-        y -= 6
-        y = ensure_space(c, w, h, y, min_y=80, repeat_header_fn=header)
+            if promo_nombre or descuento_u > 0:
+                c.setFont("Helvetica-Oblique", 8)
+                detail = f"Base: {money(precio_base)}"
+                if descuento_u > 0:
+                    detail += f"  ·  Promo: {promo_nombre or 'Descuento aplicado'}  ·  Desc. u: {money(descuento_u)}"
+                c.drawString(185, y, safe(detail, 85))
+                y -= 10
+
+        y -= 4
+        y = ensure_space(c, w, h, y, min_y=85, repeat_header_fn=header)
         c.setLineWidth(0.6)
-        c.line(320, y, w - 40, y)
+        c.line(300, y, w - 40, y)
         y -= 14
         c.setFont("Helvetica-Bold", 9)
-        c.drawRightString(w - 40, y,
-            f"Total: {money(vagg['venta_total'])}   Costo: {money(vagg['costo_total'])}   Resultado: {money(vagg['profit_total'])}"
+        c.drawRightString(
+            w - 40, y,
+            f"Subtotal: {money(v.subtotal)}   Desc.: {money(v.total_descuento)}   Total: {money(v.total)}"
+        )
+        y -= 12
+        c.drawRightString(
+            w - 40, y,
+            f"Costo: {money(vagg_ms['costo_total'])}   Resultado: {money(vagg_ms['profit_total'])}"
         )
         y -= 16
 
-    # footer global
-    y = ensure_space(c, w, h, y, min_y=90, repeat_header_fn=header)
+    y = ensure_space(c, w, h, y, min_y=95, repeat_header_fn=header)
     c.setLineWidth(1.0)
     c.line(40, y, w - 40, y)
     y -= 18
@@ -1712,11 +1812,15 @@ def _ventas_report_pdf(request, local, base_qs, desde, hasta, q, tipo):
     c.drawString(40, y, "Totales del reporte")
     y -= 14
     c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(w - 40, y, f"Total vendido: {money(global_agg['venta_total'])}")
+    c.drawRightString(w - 40, y, f"Subtotal bruto: {money(ventas_agg['subtotal_bruto'])}")
     y -= 14
-    c.drawRightString(w - 40, y, f"Costo total: {money(global_agg['costo_total'])}")
+    c.drawRightString(w - 40, y, f"Descuentos: {money(ventas_agg['descuento_total'])}")
     y -= 14
-    c.drawRightString(w - 40, y, f"PROFIT TOTAL: {money(global_agg['profit_total'])}")
+    c.drawRightString(w - 40, y, f"Total vendido: {money(ventas_agg['venta_total'])}")
+    y -= 14
+    c.drawRightString(w - 40, y, f"Costo total: {money(ms_global_agg['costo_total'])}")
+    y -= 14
+    c.drawRightString(w - 40, y, f"PROFIT TOTAL: {money(ms_global_agg['profit_total'])}")
 
     c.showPage()
     c.save()
@@ -1735,34 +1839,52 @@ class VentaDetailView(LoginRequiredMixin, DetailView):
         if local and obj.local_id != local.local_id:
             raise get_object_or_404(Venta, venta_id=-1)
         return obj
-    
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         venta = ctx["venta"]
-        
-        items = list(venta.items.all().order_by("item_id"))
+
+        items = list(
+            venta.items
+            .select_related("producto", "producto__marca", "promocion")
+            .all()
+            .order_by("item_id")
+        )
         ctx["items"] = items
-        
-        unidades = (MovimientoStock.objects
-                    .select_related("articulo")
-                    .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
-                    .order_by("movimiento_id"))
+
+        unidades = (
+            MovimientoStock.objects
+            .select_related("articulo", "producto")
+            .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+            .order_by("movimiento_id")
+        )
         ctx["unidades"] = unidades
-        
-        agg = (MovimientoStock.objects
-               .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
-               .aggregate(
-                   unidades=Count("movimiento_id"),
-                   costo_total=Sum("costo_unitario"),
-                   venta_total=Sum("precio_unitario"),
-                   profit_total=Sum("profit_unitario"),
-               ))
+
+        agg = (
+            MovimientoStock.objects
+            .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+            .aggregate(
+                unidades=Count("movimiento_id"),
+                costo_total=Coalesce(Sum("costo_unitario"), Decimal("0.00")),
+                venta_total=Coalesce(Sum("precio_unitario"), Decimal("0.00")),
+                profit_total=Coalesce(Sum("profit_unitario"), Decimal("0.00")),
+            )
+        )
+
         ctx["ms_totals"] = {
             "unidades": agg["unidades"] or 0,
             "costo_total": agg["costo_total"] or Decimal("0.00"),
             "venta_total": agg["venta_total"] or Decimal("0.00"),
             "profit_total": agg["profit_total"] or Decimal("0.00"),
         }
+
+        ctx["sale_totals"] = {
+            "subtotal": venta.subtotal or Decimal("0.00"),
+            "descuento_total": getattr(venta, "total_descuento", Decimal("0.00")) or Decimal("0.00"),
+            "total": venta.total or Decimal("0.00"),
+            "profit_total": venta.profit_total or Decimal("0.00"),
+        }
+
         return ctx
     
 class IngresoDetailView(LoginRequiredMixin, DetailView):
@@ -2356,3 +2478,162 @@ class ProductoBulkAdjustUndoView(LoginRequiredMixin, StaffRequiredMixin, View):
     # opcional: permitir GET con confirmación simple (yo prefiero POST)
     def get(self, request, adjust_id: int):
         return HttpResponseForbidden("Usá POST para deshacer.")
+
+#promociones
+
+def _round_money(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def promocion_aplica_a_producto(promocion, producto):
+    if not promocion.esta_vigente():
+        return False
+
+    if promocion.aplica_a_todos:
+        return True
+
+    if getattr(producto, "marca_id", None) and promocion.marcas.filter(pk=producto.marca_id).exists():
+        return True
+
+    if promocion.productos.filter(product_id=producto.product_id).exists():
+        return True
+
+    return False
+
+def calcular_precio_con_promocion(producto, promocion):
+    precio_base = Decimal(producto.precio or 0)
+
+    if promocion.tipo_descuento == Promocion.TipoDescuento.PORCENTAJE:
+        descuento = _round_money(precio_base * (Decimal(promocion.valor) / Decimal("100")))
+    else:
+        descuento = _round_money(Decimal(promocion.valor))
+
+    if descuento < 0:
+        descuento = Decimal("0.00")
+
+    if descuento > precio_base:
+        descuento = precio_base
+
+    precio_final = _round_money(precio_base - descuento)
+
+    return {
+        "precio_base": precio_base,
+        "descuento": descuento,
+        "precio_final": precio_final,
+    }
+
+
+def get_promociones_activas():
+    ahora = timezone.now()
+    qs = Promocion.objects.filter(estado=Promocion.Estado.ACTIVA).prefetch_related("marcas", "productos")
+
+    # filtrado fino de fechas en Python por simplicidad y claridad
+    return [p for p in qs if p.esta_vigente()]
+
+
+def get_mejor_promocion_para_producto(producto):
+    promos = get_promociones_activas()
+
+    mejor = None
+    mejor_resultado = None
+
+    for promo in promos:
+        if not promocion_aplica_a_producto(promo, producto):
+            continue
+
+        resultado = calcular_precio_con_promocion(producto, promo)
+
+        if mejor is None:
+            mejor = promo
+            mejor_resultado = resultado
+            continue
+
+        if resultado["descuento"] > mejor_resultado["descuento"]:
+            mejor = promo
+            mejor_resultado = resultado
+        elif resultado["descuento"] == mejor_resultado["descuento"]:
+            if promo.prioridad > mejor.prioridad:
+                mejor = promo
+                mejor_resultado = resultado
+
+    return mejor, mejor_resultado
+
+class PromocionListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = Promocion
+    template_name = "inventory/promocion/promocion_list.html"
+    context_object_name = "promociones"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = (
+            Promocion.objects
+            .prefetch_related("marcas", "productos")
+            .all()
+        )
+
+        q = (self.request.GET.get("q") or "").strip()
+        estado = (self.request.GET.get("estado") or "").strip().upper()
+
+        if q:
+            qs = qs.filter(
+                Q(nombre__icontains=q) |
+                Q(descripcion__icontains=q)
+            )
+
+        if estado in [Promocion.Estado.ACTIVA, Promocion.Estado.PAUSADA]:
+            qs = qs.filter(estado=estado)
+
+        return qs.order_by("-prioridad", "-created_at", "nombre")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = (self.request.GET.get("q") or "").strip()
+        ctx["estado"] = (self.request.GET.get("estado") or "").strip().upper()
+        return ctx
+
+
+class PromocionCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = Promocion
+    form_class = PromocionForm
+    template_name = "inventory/promocion/promocion_form.html"
+    success_url = reverse_lazy("inventory:promocion_list")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Promoción creada correctamente.")
+        return super().form_valid(form)
+
+
+class PromocionUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = Promocion
+    form_class = PromocionForm
+    template_name = "inventory/promocion/promocion_form.html"
+    pk_url_kwarg = "promocion_id"
+    success_url = reverse_lazy("inventory:promocion_list")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Promoción actualizada correctamente.")
+        return super().form_valid(form)
+
+
+class PromocionDetailView(LoginRequiredMixin, StaffRequiredMixin, DetailView):
+    model = Promocion
+    template_name = "inventory/promocion/promocion_detail.html"
+    context_object_name = "promocion"
+    pk_url_kwarg = "promocion_id"
+
+
+class PromocionToggleEstadoView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, promocion_id):
+        promocion = get_object_or_404(Promocion, pk=promocion_id)
+
+        if promocion.estado == Promocion.Estado.ACTIVA:
+            promocion.estado = Promocion.Estado.PAUSADA
+            msg = "Promoción pausada correctamente."
+        else:
+            promocion.estado = Promocion.Estado.ACTIVA
+            msg = "Promoción activada correctamente."
+
+        promocion.save(update_fields=["estado"])
+        messages.success(request, msg)
+        return redirect("inventory:promocion_list")
+

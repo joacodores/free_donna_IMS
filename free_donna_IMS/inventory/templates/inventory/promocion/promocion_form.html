@@ -1,0 +1,95 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}
+  {% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}</h2>
+    <p class="subtle">Definí descuento, vigencia y alcance.</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Volver</a>
+  </div>
+</div>
+
+<form method="post" class="table-wrap" style="padding:18px;">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="empty" style="margin-top:0; margin-bottom:14px;">
+      {% for err in form.non_field_errors %}
+        <p style="margin:0;">{{ err }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Nombre</label>
+      {{ form.nombre }}
+      {% for err in form.nombre.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Estado</label>
+      {{ form.estado }}
+      {% for err in form.estado.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div style="grid-column:1 / -1;">
+      <label class="subtle" style="display:block; margin-bottom:6px;">Descripción</label>
+      {{ form.descripcion }}
+      {% for err in form.descripcion.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Tipo de descuento</label>
+      {{ form.tipo_descuento }}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Valor</label>
+      {{ form.valor }}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Fecha inicio</label>
+      {{ form.fecha_inicio }}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Fecha fin</label>
+      {{ form.fecha_fin }}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Prioridad</label>
+      {{ form.prioridad }}
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; padding-top:30px;">
+      {{ form.aplica_a_todos }}
+      <label for="{{ form.aplica_a_todos.id_for_label }}" style="font-weight:900;">Aplica a todo el catálogo</label>
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Marcas</label>
+      {{ form.marcas }}
+    </div>
+
+    <div>
+      <label class="subtle" style="display:block; margin-bottom:6px;">Productos</label>
+      {{ form.productos }}
+    </div>
+  </div>
+
+  <div class="modal-actions" style="padding:18px 0 0 0; justify-content:flex-end;">
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Cancelar</a>
+    <button class="btn-primary" type="submit">Guardar</button>
+  </div>
+</form>
+{% endblock %}

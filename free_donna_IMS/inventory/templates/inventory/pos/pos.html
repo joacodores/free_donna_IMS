@@ -63,6 +63,7 @@
                 <th class="col-bc">Barcode</th>
                 <th class="col-num">Cant.</th>
                 <th class="col-num">P.Unit</th>
+                <th class="col-num">Desc.</th>
                 <th class="col-num">Total</th>
                 <th class="col-act"></th>
               </tr>
@@ -73,11 +74,30 @@
                   <td>
                     <div class="cell-main">{{ it.producto_nombre }}</div>
                     <div class="cell-sub">{{ it.marca }} · {{ it.color }} · Talle {{ it.talle }}</div>
+
+                    {% if it.promocion_nombre %}
+                      <div class="cell-promo">Promo: {{ it.promocion_nombre }}</div>
+                    {% endif %}
                   </td>
                   <td class="mono">{{ it.sku }}</td>
                   <td class="mono">{{ it.barcode }}</td>
                   <td class="num strong">{{ it.qty }}</td>
-                  <td class="num mono">$ {{ it.precio }}</td>
+                  <td class="num mono">
+                    {% if it.descuento_unitario and it.descuento_unitario != "0.00" %}
+                      <div class="price-old">$ {{ it.precio_base|floatformat:"2" }}</div>
+                      <div class="price-new">$ {{ it.precio_final|floatformat:"2" }}</div>
+                    {% else %}
+                      $ {{ it.precio_final|default:it.precio_base|floatformat:"2" }}
+                    {% endif %}
+                  </td>
+
+                  <td class="num mono">
+                    {% if it.line_discount and it.line_discount != "0.00" %}
+                      <span class="discount-chip">- $ {{ it.line_discount|floatformat:"2" }}</span>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
                   <td class="num strong mono">$ {{ it.line_total|floatformat:"2" }}</td>
                   <td class="act">
                     <form method="post" action="{% url 'inventory:pos_remove' %}" class="inline" style="margin:0;">
@@ -93,9 +113,23 @@
         </div>
 
         <div class="cart-footer">
-          <div class="totals">
-            <div class="totals-label">Total</div>
-            <div class="totals-value mono">$ {{ total|floatformat:"2" }}</div>
+          <div class="totals totals-stack">
+            <div class="totals-row">
+              <span class="totals-label">Subtotal</span>
+              <span class="totals-subvalue mono">$ {{ subtotal_base|floatformat:"2" }}</span>
+            </div>
+
+            {% if total_descuento and total_descuento != 0 %}
+              <div class="totals-row totals-discount">
+                <span class="totals-label">Descuentos</span>
+                <span class="totals-subvalue mono">- $ {{ total_descuento|floatformat:"2" }}</span>
+              </div>
+            {% endif %}
+
+            <div class="totals-row totals-final">
+              <span class="totals-label">Total</span>
+              <span class="totals-value mono">$ {{ total|floatformat:"2" }}</span>
+            </div>
           </div>
 
           <div class="cart-buttons">
@@ -135,16 +169,14 @@
         </div>
         <a class="kpi kpi-action"
           href="{% url 'inventory:pos_caja' %}"
-          tabindex="0"
-          >
+          tabindex="0">
           <div class="kpi-label">Caja</div>
           <div class="kpi-value mono" data-cash="{{ total_en_efectivo|default:'0.00' }}">
             $ {{ total_en_efectivo|default:"0.00" }}
           </div>
-            <span class="kpi-tip" role="tooltip">Administrar caja</span>
+          <span class="kpi-tip" role="tooltip">Administrar caja</span>
         </a>
       </div>
-       
 
       {% if ventas_hoy %}
         <div class="sales-list">
