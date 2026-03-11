@@ -1,0 +1,320 @@
+.promocion-form-wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.promocion-card {
+  padding: 22px;
+  overflow: visible;
+}
+
+.promocion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.promocion-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.promocion-field.full {
+  grid-column: 1 / -1;
+}
+
+.promocion-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.promocion-help {
+  font-size: 0.83rem;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.35;
+}
+
+.promocion-errors {
+  color: #ff9f9f;
+  font-size: 0.84rem;
+}
+
+.promocion-inline-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding-top: 30px;
+}
+
+.promocion-inline-check label {
+  margin: 0;
+  font-weight: 800;
+}
+
+.promocion-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 22px;
+}
+
+/* Inputs base si el proyecto no los pisa bien */
+.promocion-card input[type="text"],
+.promocion-card input[type="number"],
+.promocion-card input[type="datetime-local"],
+.promocion-card textarea,
+.promocion-card select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.promocion-card textarea {
+  min-height: 46px;
+  resize: vertical;
+}
+
+.promocion-card input::placeholder,
+.promocion-card textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.promocion-card input:focus,
+.promocion-card textarea:focus,
+.promocion-card select:focus {
+  border-color: rgba(120, 160, 255, 0.28);
+  box-shadow: 0 0 0 1px rgba(120, 160, 255, 0.14);
+}
+
+/* Native selects ocultos */
+.native-multi-select,
+.hidden-native-select {
+  display: none !important;
+}
+
+/* Dropdown custom */
+.multi-dd {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.multi-dd-trigger {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.multi-dd-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.multi-dd.open .multi-dd-trigger {
+  border-color: rgba(120, 160, 255, 0.28);
+  box-shadow: 0 0 0 1px rgba(120, 160, 255, 0.16);
+}
+
+.multi-dd-trigger:disabled {
+  cursor: not-allowed;
+}
+
+.multi-dd-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+}
+
+.multi-dd-placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.multi-dd-caret {
+  flex-shrink: 0;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.multi-dd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(120, 160, 255, 0.14);
+  border: 1px solid rgba(120, 160, 255, 0.22);
+  font-size: 0.84rem;
+  line-height: 1.1;
+  max-width: 100%;
+}
+
+.multi-dd-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-dd-chip-x {
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.multi-dd-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: none;
+  z-index: 999;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1d2942;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.multi-dd.open .multi-dd-panel {
+  display: block;
+}
+
+.multi-dd-search {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.multi-dd-search::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.multi-dd-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.multi-dd-option {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.multi-dd-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.multi-dd-option.selected {
+  background: rgba(120, 160, 255, 0.12);
+  border-color: rgba(120, 160, 255, 0.2);
+}
+
+.multi-dd-option-label {
+  color: rgba(255, 255, 255, 0.95);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.multi-dd-option-mark {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.multi-dd-empty {
+  color: rgba(255, 255, 255, 0.5);
+  padding: 8px 6px;
+  font-size: 0.9rem;
+}
+
+/* Scrollbar sutil */
+.multi-dd-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.multi-dd-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.multi-dd-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+/* Asegurar que los dropdowns no queden cortados por wrappers */
+.table-wrap,
+.page-header,
+.header-actions {
+  overflow: visible;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .promocion-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .promocion-field.full {
+    grid-column: auto;
+  }
+
+  .promocion-inline-check {
+    padding-top: 0;
+  }
+
+  .promocion-actions {
+    justify-content: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .promocion-actions .btn-secondary,
+  .promocion-actions .btn-primary {
+    width: 100%;
+  }
+}

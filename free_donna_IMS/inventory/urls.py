@@ -50,4 +50,5 @@ urlpatterns = [
     path("promociones/<int:promocion_id>/", views.PromocionDetailView.as_view(), name="promocion_detail"),
     path("promociones/<int:promocion_id>/editar/", views.PromocionUpdateView.as_view(), name="promocion_edit"),
     path("promociones/<int:promocion_id>/toggle/", views.PromocionToggleEstadoView.as_view(), name="promocion_toggle"),
+    path("promociones/<int:promocion_id>/delete/", views.PromocionDeleteView.as_view(), name="promocion_delete"),
 ]

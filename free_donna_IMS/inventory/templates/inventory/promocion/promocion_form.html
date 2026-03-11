@@ -1,14 +1,17 @@
 {% extends "inventory/base.html" %}
+{% load static %}
 
 {% block title %}
   {% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<link rel="stylesheet" href="{% static 'css/promocion_form.css' %}">
+
+<div class="page-header promocion-form-wrap">
   <div>
     <h2>{% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}</h2>
-    <p class="subtle">Definí descuento, vigencia y alcance.</p>
+    <p class="subtle">Configurá el descuento, vigencia y alcance.</p>
   </div>
 
   <div class="header-actions">
@@ -16,80 +19,525 @@
   </div>
 </div>
 
-<form method="post" class="table-wrap" style="padding:18px;">
+<form method="post" class="table-wrap promocion-form-wrap promocion-card">
   {% csrf_token %}
 
   {% if form.non_field_errors %}
-    <div class="empty" style="margin-top:0; margin-bottom:14px;">
+    <div class="empty" style="margin-top:0; margin-bottom:16px;">
       {% for err in form.non_field_errors %}
         <p style="margin:0;">{{ err }}</p>
       {% endfor %}
     </div>
   {% endif %}
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Nombre</label>
+  <div class="promocion-grid">
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
       {{ form.nombre }}
-      {% for err in form.nombre.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+      {% if form.nombre.errors %}<div class="promocion-errors">{{ form.nombre.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Estado</label>
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.estado.id_for_label }}">Estado</label>
       {{ form.estado }}
-      {% for err in form.estado.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+      {% if form.estado.errors %}<div class="promocion-errors">{{ form.estado.errors }}</div>{% endif %}
     </div>
 
-    <div style="grid-column:1 / -1;">
-      <label class="subtle" style="display:block; margin-bottom:6px;">Descripción</label>
+    <div class="promocion-field full">
+      <label class="promocion-label" for="{{ form.descripcion.id_for_label }}">Descripción</label>
       {{ form.descripcion }}
-      {% for err in form.descripcion.errors %}<div class="subtle" style="color:#ffb4b4;">{{ err }}</div>{% endfor %}
+      {% if form.descripcion.errors %}<div class="promocion-errors">{{ form.descripcion.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Tipo de descuento</label>
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.tipo_descuento.id_for_label }}">Tipo de descuento</label>
       {{ form.tipo_descuento }}
+      {% if form.tipo_descuento.errors %}<div class="promocion-errors">{{ form.tipo_descuento.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Valor</label>
+    <div class="promocion-field" id="row-valor">
+      <label class="promocion-label" id="label-valor" for="{{ form.valor.id_for_label }}">Valor</label>
       {{ form.valor }}
+      {% if form.valor.errors %}<div class="promocion-errors">{{ form.valor.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Fecha inicio</label>
-      {{ form.fecha_inicio }}
+    <div class="promocion-field" id="row-descuento-porcentaje">
+      <label class="promocion-label" for="{{ form.descuento_porcentaje.id_for_label }}">Descuento (%)</label>
+      {{ form.descuento_porcentaje }}
+      {% if form.descuento_porcentaje.errors %}<div class="promocion-errors">{{ form.descuento_porcentaje.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Fecha fin</label>
-      {{ form.fecha_fin }}
+    <div class="promocion-field" id="row-unidad-objetivo">
+      <label class="promocion-label" for="{{ form.unidad_objetivo.id_for_label }}">Unidad objetivo</label>
+      {{ form.unidad_objetivo }}
+      {% if form.unidad_objetivo.errors %}<div class="promocion-errors">{{ form.unidad_objetivo.errors }}</div>{% endif %}
     </div>
-
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Prioridad</label>
+    
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.prioridad.id_for_label }}">Prioridad</label>
       {{ form.prioridad }}
+      
+      {% if form.prioridad.errors %}<div class="promocion-errors">{{ form.prioridad.errors }}</div>{% endif %}
+    </div>
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.fecha_inicio.id_for_label }}">Fecha inicio</label>
+      {{ form.fecha_inicio }}
+      {% if form.fecha_inicio.errors %}<div class="promocion-errors">{{ form.fecha_inicio.errors }}</div>{% endif %}
     </div>
 
-    <div style="display:flex; align-items:center; gap:10px; padding-top:30px;">
-      {{ form.aplica_a_todos }}
-      <label for="{{ form.aplica_a_todos.id_for_label }}" style="font-weight:900;">Aplica a todo el catálogo</label>
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.fecha_fin.id_for_label }}">Fecha fin</label>
+      {{ form.fecha_fin }}
+      {% if form.fecha_fin.errors %}<div class="promocion-errors">{{ form.fecha_fin.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Marcas</label>
+
+    
+    <div class="promocion-field" id="row-marcas">
+      <label class="promocion-label">Marcas</label>
+        
       {{ form.marcas }}
+        
+      <div class="multi-dd" data-select-id="id_marcas" data-placeholder="Seleccionar marcas">
+        <button type="button" class="multi-dd-trigger">
+          <span class="multi-dd-text">Seleccionar marcas</span>
+          <span class="multi-dd-caret">▾</span>
+        </button>
+      
+        <div class="multi-dd-panel">
+          <input type="text" class="multi-dd-search" placeholder="Buscar marca...">
+          <div class="multi-dd-list"></div>
+        </div>
+      </div>
+    
+      {% if form.marcas.errors %}<div class="promocion-errors">{{ form.marcas.errors }}</div>{% endif %}
     </div>
 
-    <div>
-      <label class="subtle" style="display:block; margin-bottom:6px;">Productos</label>
+    <div class="promocion-field" id="row-productos">
+      <label class="promocion-label">Productos</label>
+    
       {{ form.productos }}
+    
+      <div class="multi-dd" data-select-id="id_productos" data-placeholder="Seleccionar productos">
+        <button type="button" class="multi-dd-trigger">
+          <span class="multi-dd-text">Seleccionar productos</span>
+          <span class="multi-dd-caret">▾</span>
+        </button>
+      
+        <div class="multi-dd-panel">
+          <input type="text" class="multi-dd-search" placeholder="Buscar producto...">
+          <div class="multi-dd-list"></div>
+        </div>
+      </div>
+    
+      {% if form.productos.errors %}<div class="promocion-errors">{{ form.productos.errors }}</div>{% endif %}
     </div>
   </div>
-
-  <div class="modal-actions" style="padding:18px 0 0 0; justify-content:flex-end;">
+  <div class="promocion-inline-check">
+    {{ form.aplica_a_todos }}
+    <label for="{{ form.aplica_a_todos.id_for_label }}">Aplica a todo el catálogo</label>
+    {% if form.aplica_a_todos.errors %}<div class="promocion-errors">{{ form.aplica_a_todos.errors }}</div>{% endif %}
+  </div>
+  
+  <div class="promocion-actions">
     <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Cancelar</a>
     <button class="btn-primary" type="submit">Guardar</button>
   </div>
 </form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const tipo = document.getElementById("id_tipo_descuento");
+  const aplicaATodos = document.getElementById("id_aplica_a_todos");
+
+  const rowValor = document.getElementById("row-valor");
+  const rowDescuentoPorcentaje = document.getElementById("row-descuento-porcentaje");
+  const rowUnidadObjetivo = document.getElementById("row-unidad-objetivo");
+  const rowMarcas = document.getElementById("row-marcas");
+  const rowProductos = document.getElementById("row-productos");
+  const labelValor = document.getElementById("label-valor");
+
+  function updateTipo() {
+    const t = tipo ? tipo.value : "";
+
+    rowValor.style.display = "none";
+    rowDescuentoPorcentaje.style.display = "none";
+    rowUnidadObjetivo.style.display = "none";
+
+    if (t === "PCT") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Porcentaje (%)";
+    } else if (t === "FIX") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Monto fijo";
+    } else if (t === "ESC") {
+      rowDescuentoPorcentaje.style.display = "flex";
+      rowUnidadObjetivo.style.display = "flex";
+    }
+  }
+
+  function updateAlcance() {
+    const ocultar = aplicaATodos && aplicaATodos.checked;
+    rowMarcas.style.display = ocultar ? "none" : "flex";
+    rowProductos.style.display = ocultar ? "none" : "flex";
+  }
+
+  function createMultiPicker(selectId, mountId, placeholder) {
+    const select = document.getElementById(selectId);
+    const mount = document.getElementById(mountId);
+    if (!select || !mount) return null;
+
+    const options = Array.from(select.options).map(opt => ({
+      value: opt.value,
+      label: opt.text,
+      selected: opt.selected
+    }));
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "multi-picker";
+
+    const top = document.createElement("div");
+    top.className = "multi-picker-top";
+
+    const tags = document.createElement("div");
+    tags.className = "multi-picker-tags";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "multi-picker-input";
+    input.placeholder = placeholder;
+
+    const dropdown = document.createElement("div");
+    dropdown.className = "multi-picker-dropdown";
+
+    top.appendChild(tags);
+    top.appendChild(input);
+    wrapper.appendChild(top);
+    wrapper.appendChild(dropdown);
+    mount.appendChild(wrapper);
+
+    function syncSelect() {
+      Array.from(select.options).forEach(opt => {
+        const match = options.find(o => o.value === opt.value);
+        opt.selected = !!match?.selected;
+      });
+    }
+
+    function renderTags() {
+      tags.innerHTML = "";
+      const selected = options.filter(o => o.selected);
+
+      if (!selected.length) return;
+
+      selected.forEach(item => {
+        const chip = document.createElement("div");
+        chip.className = "multi-tag";
+
+        const txt = document.createElement("span");
+        txt.textContent = item.label;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "multi-tag-remove";
+        remove.textContent = "×";
+        remove.addEventListener("click", () => {
+          item.selected = false;
+          syncSelect();
+          renderTags();
+          renderOptions(input.value);
+        });
+
+        chip.appendChild(txt);
+        chip.appendChild(remove);
+        tags.appendChild(chip);
+      });
+    }
+
+    function renderOptions(filterText = "") {
+      dropdown.innerHTML = "";
+      const q = (filterText || "").trim().toLowerCase();
+
+      const filtered = options.filter(item =>
+        item.label.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length) {
+        const empty = document.createElement("div");
+        empty.className = "multi-picker-empty";
+        empty.textContent = "No hay resultados.";
+        dropdown.appendChild(empty);
+        return;
+      }
+
+      filtered.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "multi-option" + (item.selected ? " is-selected" : "");
+
+        const label = document.createElement("div");
+        label.className = "multi-option-label";
+        label.textContent = item.label;
+
+        const check = document.createElement("div");
+        check.className = "multi-option-check";
+        check.textContent = item.selected ? "Seleccionado" : "";
+
+        row.appendChild(label);
+        row.appendChild(check);
+
+        row.addEventListener("click", () => {
+          item.selected = !item.selected;
+          syncSelect();
+          renderTags();
+          renderOptions(input.value);
+        });
+
+        dropdown.appendChild(row);
+      });
+    }
+
+    input.addEventListener("input", () => {
+      renderOptions(input.value);
+    });
+
+    renderTags();
+    renderOptions();
+
+    return {
+      wrapper,
+      setDisabled(disabled) {
+        wrapper.classList.toggle("is-disabled", !!disabled);
+        input.disabled = !!disabled;
+      }
+    };
+  }
+
+  const marcasPicker = createMultiPicker("id_marcas", "picker-marcas", "Buscar marca...");
+  const productosPicker = createMultiPicker("id_productos", "picker-productos", "Buscar producto...");
+
+  function updatePickersState() {
+    const disabled = aplicaATodos && aplicaATodos.checked;
+    if (marcasPicker) marcasPicker.setDisabled(disabled);
+    if (productosPicker) productosPicker.setDisabled(disabled);
+  }
+
+  updateTipo();
+  updateAlcance();
+  updatePickersState();
+
+  if (tipo) tipo.addEventListener("change", updateTipo);
+  if (aplicaATodos) {
+    aplicaATodos.addEventListener("change", function () {
+      updateAlcance();
+      updatePickersState();
+    });
+  }
+});
+  
+document.addEventListener("DOMContentLoaded", function () {
+  const tipo = document.getElementById("id_tipo_descuento");
+  const aplicaATodos = document.getElementById("id_aplica_a_todos");
+
+  const rowValor = document.getElementById("row-valor");
+  const rowDescuentoPorcentaje = document.getElementById("row-descuento-porcentaje");
+  const rowUnidadObjetivo = document.getElementById("row-unidad-objetivo");
+  const rowMarcas = document.getElementById("row-marcas");
+  const rowProductos = document.getElementById("row-productos");
+  const labelValor = document.getElementById("label-valor");
+
+  function updateTipo() {
+    const t = tipo ? tipo.value : "";
+
+    rowValor.style.display = "none";
+    rowDescuentoPorcentaje.style.display = "none";
+    rowUnidadObjetivo.style.display = "none";
+
+    if (t === "PCT") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Porcentaje (%)";
+    } else if (t === "FIX") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Monto fijo";
+    } else if (t === "ESC") {
+      rowDescuentoPorcentaje.style.display = "flex";
+      rowUnidadObjetivo.style.display = "flex";
+    }
+  }
+
+  function updateAlcance() {
+    const ocultar = aplicaATodos && aplicaATodos.checked;
+    rowMarcas.style.display = ocultar ? "none" : "flex";
+    rowProductos.style.display = ocultar ? "none" : "flex";
+  }
+
+  function buildMultiDropdown(root) {
+    const selectId = root.dataset.selectId;
+    const placeholder = root.dataset.placeholder || "Seleccionar";
+    const select = document.getElementById(selectId);
+    if (!select) return null;
+
+    const trigger = root.querySelector(".multi-dd-trigger");
+    const textBox = root.querySelector(".multi-dd-text");
+    const panel = root.querySelector(".multi-dd-panel");
+    const search = root.querySelector(".multi-dd-search");
+    const list = root.querySelector(".multi-dd-list");
+
+    const state = Array.from(select.options).map(opt => ({
+      value: opt.value,
+      label: opt.text,
+      selected: opt.selected
+    }));
+
+    function syncNative() {
+      Array.from(select.options).forEach(opt => {
+        const item = state.find(x => x.value === opt.value);
+        opt.selected = !!item?.selected;
+      });
+    }
+
+    function renderTrigger() {
+      textBox.innerHTML = "";
+      const selected = state.filter(x => x.selected);
+
+      if (!selected.length) {
+        const span = document.createElement("span");
+        span.className = "multi-dd-placeholder";
+        span.textContent = placeholder;
+        textBox.appendChild(span);
+        return;
+      }
+
+      selected.forEach(item => {
+        const chip = document.createElement("span");
+        chip.className = "multi-dd-chip";
+
+        const txt = document.createElement("span");
+        txt.textContent = item.label;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "multi-dd-chip-x";
+        remove.textContent = "×";
+        remove.addEventListener("click", function (e) {
+          e.stopPropagation();
+          item.selected = false;
+          syncNative();
+          renderTrigger();
+          renderList(search.value);
+        });
+
+        chip.appendChild(txt);
+        chip.appendChild(remove);
+        textBox.appendChild(chip);
+      });
+    }
+
+    function renderList(filter = "") {
+      list.innerHTML = "";
+      const q = filter.trim().toLowerCase();
+
+      const filtered = state.filter(item =>
+        item.label.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length) {
+        const empty = document.createElement("div");
+        empty.className = "multi-dd-empty";
+        empty.textContent = "No hay resultados.";
+        list.appendChild(empty);
+        return;
+      }
+
+      filtered.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "multi-dd-option" + (item.selected ? " selected" : "");
+
+        const label = document.createElement("div");
+        label.className = "multi-dd-option-label";
+        label.textContent = item.label;
+
+        const mark = document.createElement("div");
+        mark.className = "multi-dd-option-mark";
+        mark.textContent = item.selected ? "Seleccionado" : "";
+
+        row.appendChild(label);
+        row.appendChild(mark);
+
+        row.addEventListener("click", function () {
+          item.selected = !item.selected;
+          syncNative();
+          renderTrigger();
+          renderList(search.value);
+        });
+
+        list.appendChild(row);
+      });
+    }
+
+    function close() {
+      root.classList.remove("open");
+    }
+
+    function open() {
+      document.querySelectorAll(".multi-dd.open").forEach(el => {
+        if (el !== root) el.classList.remove("open");
+      });
+      root.classList.add("open");
+      setTimeout(() => search.focus(), 0);
+    }
+
+    trigger.addEventListener("click", function () {
+      if (root.classList.contains("open")) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    search.addEventListener("input", function () {
+      renderList(search.value);
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!root.contains(e.target)) {
+        close();
+      }
+    });
+
+    renderTrigger();
+    renderList();
+
+    return {
+      setDisabled(disabled) {
+        trigger.disabled = !!disabled;
+        root.style.opacity = disabled ? ".5" : "1";
+        root.style.pointerEvents = disabled ? "none" : "";
+        if (disabled) close();
+      }
+    };
+  }
+
+  const marcasDD = buildMultiDropdown(document.querySelector('[data-select-id="id_marcas"]'));
+  const productosDD = buildMultiDropdown(document.querySelector('[data-select-id="id_productos"]'));
+
+  function updatePickersState() {
+    const disabled = aplicaATodos && aplicaATodos.checked;
+    if (marcasDD) marcasDD.setDisabled(disabled);
+    if (productosDD) productosDD.setDisabled(disabled);
+  }
+
+  updateTipo();
+  updateAlcance();
+  updatePickersState();
+
+  if (tipo) tipo.addEventListener("change", updateTipo);
+  if (aplicaATodos) {
+    aplicaATodos.addEventListener("change", function () {
+      updateAlcance();
+      updatePickersState();
+    });
+  }
+});
+
+</script>
 {% endblock %}

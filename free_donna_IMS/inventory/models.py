@@ -288,6 +288,7 @@ class Promocion(models.Model):
     class TipoDescuento(models.TextChoices):
         PORCENTAJE = "PCT", "Porcentaje"
         MONTO_FIJO = "FIX", "Monto fijo"
+        ESCALON = "ESC", "Descuento por unidad escalonada" 
     
     class Estado(models.TextChoices):
         ACTIVA = "ACT", "Activa"
@@ -299,7 +300,10 @@ class Promocion(models.Model):
     
     estado = models.CharField(max_length=3, choices=Estado.choices, default=Estado.ACTIVA)
     tipo_descuento = models.CharField(max_length=3, choices=TipoDescuento.choices)
-    valor = models.DecimalField(max_digits=10, decimal_places=2)  
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  
+    
+    unidad_objetivo = models.PositiveIntegerField(null=True, blank=True)
+    descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     
     fecha_inicio = models.DateTimeField(null=True, blank=True)
     fecha_fin = models.DateTimeField(null=True, blank=True) 
@@ -327,3 +331,20 @@ class Promocion(models.Model):
         if self.fecha_fin and ahora > self.fecha_fin:
             return False
         return True
+    
+    @property
+    def alcance_resumen(self):
+        if self.aplica_a_todos:
+            return "Todo el catálogo"
+
+        marcas = self.marcas.count()
+        productos = self.productos.count()
+
+        partes = []
+        if marcas:
+            partes.append(f"{marcas} marca(s)")
+        if productos:
+            partes.append(f"{productos} producto(s)")
+
+        return ", ".join(partes) if partes else "—"
+

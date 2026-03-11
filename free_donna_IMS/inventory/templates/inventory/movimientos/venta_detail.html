@@ -51,7 +51,17 @@
           <td class="num mono">$ {{ it.precio_base_unitario|floatformat:"2" }}</td>
           <td class="num mono">
             {% if it.descuento_unitario > 0 %}
-              — $ {{ it.descuento_unitario|floatformat:"2" }}
+              <div>— $ {{ it.descuento_unitario|floatformat:"2" }}</div>
+          
+              {% if it.promocion_nombre %}
+                <div class="subtle" style="margin-top:4px;">
+                  {{ it.promocion_nombre }}
+                </div>
+              {% elif it.promocion %}
+                <div class="subtle" style="margin-top:4px;">
+                  {{ it.promocion.nombre }}
+                </div>
+              {% endif %}
             {% else %}
               —
             {% endif %}

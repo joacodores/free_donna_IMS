@@ -58,11 +58,10 @@
           <table class="cart-table">
             <thead>
               <tr>
-                <th>Producto</th>
                 <th class="col-sku">SKU</th>
-                <th class="col-bc">Barcode</th>
+                <th class="col-bc">Código</th>
                 <th class="col-num">Cant.</th>
-                <th class="col-num">P.Unit</th>
+                <th class="col-num">Precio u.</th>
                 <th class="col-num">Desc.</th>
                 <th class="col-num">Total</th>
                 <th class="col-act"></th>
@@ -71,34 +70,34 @@
             <tbody>
               {% for key, it in cart.items %}
                 <tr>
-                  <td>
-                    <div class="cell-main">{{ it.producto_nombre }}</div>
-                    <div class="cell-sub">{{ it.marca }} · {{ it.color }} · Talle {{ it.talle }}</div>
-
-                    {% if it.promocion_nombre %}
-                      <div class="cell-promo">Promo: {{ it.promocion_nombre }}</div>
-                    {% endif %}
-                  </td>
                   <td class="mono">{{ it.sku }}</td>
                   <td class="mono">{{ it.barcode }}</td>
                   <td class="num strong">{{ it.qty }}</td>
-                  <td class="num mono">
-                    {% if it.descuento_unitario and it.descuento_unitario != "0.00" %}
-                      <div class="price-old">$ {{ it.precio_base|floatformat:"2" }}</div>
-                      <div class="price-new">$ {{ it.precio_final|floatformat:"2" }}</div>
-                    {% else %}
-                      $ {{ it.precio_final|default:it.precio_base|floatformat:"2" }}
-                    {% endif %}
-                  </td>
 
                   <td class="num mono">
-                    {% if it.line_discount and it.line_discount != "0.00" %}
-                      <span class="discount-chip">- $ {{ it.line_discount|floatformat:"2" }}</span>
+                    {% if it.precio_final_unit and it.precio_final_unit != it.precio_base %}
+                      <div class="price-old">$ {{ it.precio_base|floatformat:2 }}</div>
+                      <div class="price-new">$ {{ it.precio_final_unit|floatformat:2 }}</div>
+                    {% else %}
+                      $ {{ it.precio_base|floatformat:2 }}
+                    {% endif %}
+                  </td>
+                  
+                  <td class="num mono">
+                    {% if it.descuento_total_linea and it.descuento_total_linea != "0" and it.descuento_total_linea != "0.00" %}
+                      <span class="discount-chip">- $ {{ it.descuento_total_linea|floatformat:2 }}</span>
+                      {% if it.promocion_nombre %}
+                        <div class="cell-promo">{{ it.promocion_nombre }}</div>
+                      {% endif %}
                     {% else %}
                       —
                     {% endif %}
                   </td>
-                  <td class="num strong mono">$ {{ it.line_total|floatformat:"2" }}</td>
+                  
+                  <td class="num strong mono">
+                    $ {{ it.total_linea|default:it.subtotal_bruto|floatformat:2 }}
+                  </td>
+
                   <td class="act">
                     <form method="post" action="{% url 'inventory:pos_remove' %}" class="inline" style="margin:0;">
                       {% csrf_token %}
@@ -116,19 +115,19 @@
           <div class="totals totals-stack">
             <div class="totals-row">
               <span class="totals-label">Subtotal</span>
-              <span class="totals-subvalue mono">$ {{ subtotal_base|floatformat:"2" }}</span>
+              <span class="totals-subvalue mono">$ {{ subtotal_base|floatformat:2 }}</span>
             </div>
 
             {% if total_descuento and total_descuento != 0 %}
               <div class="totals-row totals-discount">
                 <span class="totals-label">Descuentos</span>
-                <span class="totals-subvalue mono">- $ {{ total_descuento|floatformat:"2" }}</span>
+                <span class="totals-subvalue mono">- $ {{ total_descuento|floatformat:2 }}</span>
               </div>
             {% endif %}
 
             <div class="totals-row totals-final">
               <span class="totals-label">Total</span>
-              <span class="totals-value mono">$ {{ total|floatformat:"2" }}</span>
+              <span class="totals-value mono">$ {{ total|floatformat:2 }}</span>
             </div>
           </div>
 
@@ -163,18 +162,19 @@
           <div class="kpi-label">Ventas</div>
           <div class="kpi-value mono">{{ ventas_hoy_count|default:0 }}</div>
         </div>
+
         <div class="kpi">
           <div class="kpi-label">Total vendido</div>
           <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
         </div>
+
         <a class="kpi kpi-action"
-          href="{% url 'inventory:pos_caja' %}"
-          tabindex="0">
+           href="{% url 'inventory:pos_caja' %}">
           <div class="kpi-label">Caja</div>
-          <div class="kpi-value mono" data-cash="{{ total_en_efectivo|default:'0.00' }}">
+          <div class="kpi-value mono">
             $ {{ total_en_efectivo|default:"0.00" }}
           </div>
-          <span class="kpi-tip" role="tooltip">Administrar caja</span>
+          <span class="kpi-tip">Administrar caja</span>
         </a>
       </div>
 
@@ -207,46 +207,12 @@
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function(){
-      var scan = document.getElementById("scanInput");
-      if (scan) scan.focus();
-    });
-
-    (() => {
-    const kpi = document.getElementById("cashKpi");
-    const overlay = document.getElementById("cashModalOverlay");
-    const closeBtn = document.getElementById("cashModalClose");
-    const cancelBtn = document.getElementById("cashModalCancel");
-    const monto = document.getElementById("monto_retiro");
-
-    if (!kpi || !overlay) return;
-
-    function openModal(){
-      overlay.hidden = false;
-      document.body.style.overflow = "hidden";
-      setTimeout(() => monto && monto.focus(), 0);
+  document.addEventListener("DOMContentLoaded", function () {
+    const scan = document.getElementById("scanInput");
+    if (scan) {
+      scan.focus();
+      scan.select?.();
     }
-
-    function closeModal(){
-      overlay.hidden = true;
-      document.body.style.overflow = "";
-    }
-
-    kpi.addEventListener("click", openModal);
-    kpi.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal(); }
-    });
-
-    closeBtn && closeBtn.addEventListener("click", closeModal);
-    cancelBtn && cancelBtn.addEventListener("click", closeModal);
-
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) closeModal();
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (!overlay.hidden && e.key === "Escape") closeModal();
-    });
-  })();
+  });
 </script>
 {% endblock %}

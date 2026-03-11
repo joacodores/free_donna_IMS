@@ -108,6 +108,9 @@ class ArticuloImportXlsxForm(forms.Form):
             raise forms.ValidationError("Subí un archivo .xlsx")
         return f
     
+from django import forms
+from .models import Promocion
+
 class PromocionForm(forms.ModelForm):
     class Meta:
         model = Promocion
@@ -117,6 +120,8 @@ class PromocionForm(forms.ModelForm):
             "estado",
             "tipo_descuento",
             "valor",
+            "descuento_porcentaje",
+            "unidad_objetivo",
             "fecha_inicio",
             "fecha_fin",
             "prioridad",
@@ -125,69 +130,69 @@ class PromocionForm(forms.ModelForm):
             "productos",
         ]
         widgets = {
-            "nombre": forms.TextInput(attrs={
-                "class": "search-input",
-                "placeholder": "Ej: 10% en Adidas",
-            }),
-            "descripcion": forms.TextInput(attrs={
-                "class": "search-input",
-                "placeholder": "Descripción breve",
-            }),
+            "nombre": forms.TextInput(attrs={"class": "search-input"}),
+            "descripcion": forms.TextInput(attrs={"class": "search-input"}),
             "estado": forms.Select(attrs={"class": "select"}),
             "tipo_descuento": forms.Select(attrs={"class": "select"}),
-            "valor": forms.NumberInput(attrs={
-                "class": "search-input",
-                "step": "0.01",
-                "min": "0.01",
-            }),
-            "fecha_inicio": forms.DateTimeInput(attrs={
-                "class": "search-input",
-                "type": "datetime-local",
-            }),
-            "fecha_fin": forms.DateTimeInput(attrs={
-                "class": "search-input",
-                "type": "datetime-local",
-            }),
-            "prioridad": forms.NumberInput(attrs={
-                "class": "search-input",
-                "min": "0",
-            }),
-            "aplica_a_todos": forms.CheckboxInput(attrs={
-                "class": "checkbox",
-            }),
+            "valor": forms.NumberInput(attrs={"class": "search-input", "step": "0.01", "min": "0"}),
+            "descuento_porcentaje": forms.NumberInput(attrs={"class": "search-input", "step": "0.01", "min": "0", "max": "100"}),
+            "unidad_objetivo": forms.NumberInput(attrs={"class": "search-input", "min": "2"}),
+            "fecha_inicio": forms.DateTimeInput(attrs={"class": "search-input", "type": "datetime-local"}),
+            "fecha_fin": forms.DateTimeInput(attrs={"class": "search-input", "type": "datetime-local"}),
+            "prioridad": forms.NumberInput(attrs={"class": "search-input", "min": "0"}),
+            "aplica_a_todos": forms.CheckboxInput(attrs={"class": "checkbox"}),
             "marcas": forms.SelectMultiple(attrs={
-                "class": "select",
-                "size": "8",
+                "id": "id_marcas",
+                "class": "native-multi-select",
             }),
             "productos": forms.SelectMultiple(attrs={
-                "class": "select",
-                "size": "10",
+                "id": "id_productos",
+                "class": "native-multi-select",
             }),
-        }
+        }   
 
     def clean(self):
         cleaned = super().clean()
 
+        tipo = cleaned.get("tipo_descuento")
+        valor = cleaned.get("valor")
+        descuento_porcentaje = cleaned.get("descuento_porcentaje")
+        unidad_objetivo = cleaned.get("unidad_objetivo")
+
         aplica_a_todos = cleaned.get("aplica_a_todos")
         marcas = cleaned.get("marcas")
         productos = cleaned.get("productos")
-        tipo = cleaned.get("tipo_descuento")
-        valor = cleaned.get("valor")
-        inicio = cleaned.get("fecha_inicio")
-        fin = cleaned.get("fecha_fin")
+
+        fecha_inicio = cleaned.get("fecha_inicio")
+        fecha_fin = cleaned.get("fecha_fin")
 
         if not aplica_a_todos and not marcas and not productos:
             raise forms.ValidationError(
                 "Seleccioná al menos una marca o un producto, o marcá 'Aplica a todo el catálogo'."
             )
 
-        if valor is not None and valor <= 0:
-            raise forms.ValidationError("El valor del descuento debe ser mayor a 0.")
+        if tipo == Promocion.TipoDescuento.PORCENTAJE:
+            if valor is None or valor <= 0 or valor > 100:
+                self.add_error("valor", "Ingresá un porcentaje entre 1 y 100.")
+            cleaned["descuento_porcentaje"] = None
+            cleaned["unidad_objetivo"] = None
 
-        if tipo == Promocion.TipoDescuento.PORCENTAJE and valor and valor > 100:
-            raise forms.ValidationError("El porcentaje no puede ser mayor a 100.")
+        elif tipo == Promocion.TipoDescuento.MONTO_FIJO:
+            if valor is None or valor <= 0:
+                self.add_error("valor", "Ingresá un monto mayor a 0.")
+            cleaned["descuento_porcentaje"] = None
+            cleaned["unidad_objetivo"] = None
 
-        if inicio and fin and fin < inicio:
-            raise forms.ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
+        elif tipo == Promocion.TipoDescuento.ESCALON:
+            cleaned["valor"] = None
+
+            if unidad_objetivo is None or unidad_objetivo < 2:
+                self.add_error("unidad_objetivo", "La unidad objetivo debe ser 2 o mayor.")
+
+            if descuento_porcentaje is None or descuento_porcentaje <= 0 or descuento_porcentaje > 100:
+                self.add_error("descuento_porcentaje", "Ingresá un porcentaje entre 1 y 100.")
+
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            self.add_error("fecha_fin", "La fecha de fin no puede ser anterior a la fecha de inicio.")
 
         return cleaned

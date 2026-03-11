@@ -887,32 +887,31 @@ def _save_cart(session, cart):
     
 def _cart_totals(cart):
     subtotal_base = Decimal("0.00")
-    subtotal_final = Decimal("0.00")
     total_descuento = Decimal("0.00")
-    
+    total = Decimal("0.00")
+
     for it in cart.values():
         qty = int(it["qty"])
-        precio_base = Decimal(it.get("precio_base", "0.00"))
-        precio_final = Decimal(it.get("precio_final", "0.00"))
-        descuento_unitario = Decimal(it.get("descuento_unitario", "0.00"))
+        precio_base = Decimal(it["precio_base"])
+        descuento_total_linea = Decimal(it.get("descuento_total_linea", "0"))
 
-        line_base = precio_base * qty
-        line_total = precio_final * qty
-        line_discount = descuento_unitario * qty
+        subtotal_linea = precio_base * qty
+        total_linea = subtotal_linea - descuento_total_linea
 
-        it["line_base"] = str(line_base)
-        it["line_total"] = str(line_total)
-        it["line_discount"] = str(line_discount)
+        it["subtotal_bruto"] = str(subtotal_linea)
+        it["total_linea"] = str(total_linea)
 
-        subtotal_base += line_base
-        subtotal_final += line_total
-        total_descuento += line_discount
-        
+        subtotal_base += subtotal_linea
+        total_descuento += descuento_total_linea
+        total += total_linea
+
     return {
         "subtotal_base": subtotal_base,
-        "subtotal_final": subtotal_final,
         "total_descuento": total_descuento,
+        "subtotal_final": total,
     }
+
+
 def _get_local_activo(request):
     local_id = request.session.get("local_id")
     if not local_id:
@@ -1092,66 +1091,74 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
         if not barcode:
             messages.error(request, "Escaneá un código de barras.")
             return redirect("inventory:pos")
-        local=_get_local_activo(request)
+
+        local = _get_local_activo(request)
         if not local:
             messages.error(request, "No hay un local activo seleccionado.")
             return redirect("inventory:pos")
-        
-        art = (Articulo.objects
-                .select_related("product_id")
-                .filter(local=local,barcode=barcode)
-                .order_by("articulo_id")
-                .first())
+
+        qs = (
+            Articulo.objects
+            .select_related("product_id", "product_id__marca")
+            .filter(
+                local=local,
+                barcode=barcode,
+                estado=Articulo.Estado.DISPONIBLE
+            )
+            .order_by("articulo_id")
+        )
+
+        art = qs.first()
         if not art:
-            messages.error(request, f"No existe ningún artículo cargado con código de barras {barcode}.")
+            messages.error(request, f"No hay unidades disponibles para el código {barcode}.")
             return redirect("inventory:pos")
-        
-        disponibles = Articulo.objects.filter(local=local, barcode=barcode, estado=Articulo.Estado.DISPONIBLE).count()
-        if disponibles <= 0:
-            messages.error(request, f"No hay unidades disponibles para el artículo '{art.product_id.nombre}' (Código de barras: {barcode}).")
-            return redirect("inventory:pos")
-        
+
+        disponibles = qs.count()
         line_key = f"{barcode}|{art.talle}|{art.color}"
         cart = _get_cart(request.session)
-        if line_key not in cart:
-            precio_base = getattr(art.product_id, "precio", None)
-            if precio_base is None:
-                messages.error(request, f"El producto '{art.product_id.nombre}' no tiene un precio definido.")
-                return redirect("inventory:pos")
-            promo, promo_data = get_mejor_promocion_para_producto(art.product_id)
-            descuento_unitario = Decimal("0.00")
-            precio_final = Decimal(precio_base)
-            if promo and promo_data:
-                descuento_unitario = promo_data["descuento"]
-                precio_final = promo_data["precio_final"]
-            
-            marca_obj = getattr(art.product_id, "marca", None)
-            marca_nombre = getattr(marca_obj, "nombre", "") if marca_obj else ""
-            cart[line_key] = {
-                "producto_id": art.product_id.product_id,
-                "producto_nombre": getattr(art.product_id, "nombre", ""),
-                "marca": marca_nombre,
-                "sku": art.sku,
-                "barcode": art.barcode,
-                "talle": art.talle,
-                "color": art.color,
-                "precio_base": str(precio_base),
-                "precio_final": str(precio_final),
-                "descuento_unitario": str(descuento_unitario),
-                "promocion_id": promo.promocion_id if promo else None,
-                "promocion_nombre": promo.nombre if promo else "",
-                "qty": 1,
-            }
-        else:
-            new_qty = int(cart[line_key]["qty"]) + 1
-            if new_qty > disponibles:
-                messages.error(request, f"No hay stock suficiente. Disponibles: {disponibles}.")
-                return redirect("inventory:pos")
-            cart[line_key]["qty"] = new_qty
-            
+
+        current_qty = int(cart.get(line_key, {}).get("qty", 0))
+        new_qty = current_qty + 1
+
+        if new_qty > disponibles:
+            messages.error(request, f"No hay stock suficiente. Disponibles: {disponibles}.")
+            return redirect("inventory:pos")
+
+        precio_base = Decimal(art.product_id.precio)
+        promo, promo_data = get_mejor_promocion_para_producto(art.product_id, qty=new_qty)
+        descuento_total_linea = promo_data["descuento"] if promo_data else Decimal("0")
+        precio_final_unit = promo_data["precio_final"] if promo_data else precio_base
+
+        subtotal_bruto = precio_base * new_qty
+        total_linea = subtotal_bruto - descuento_total_linea
+
+        marca_obj = getattr(art.product_id, "marca", None)
+        marca_nombre = getattr(marca_obj, "nombre", "") if marca_obj else ""
+
+        cart[line_key] = {
+            "producto_id": art.product_id.product_id,
+            "producto_nombre": art.product_id.nombre,
+            "marca": marca_nombre,
+            "sku": art.sku,
+            "barcode": art.barcode,
+            "talle": art.talle,
+            "color": art.color,
+
+            "qty": new_qty,
+
+            "precio_base": str(precio_base),
+            "precio_final_unit": str(precio_final_unit),   # útil para mostrar promos normales
+            "descuento_total_linea": str(descuento_total_linea),
+            "subtotal_bruto": str(subtotal_bruto),
+            "total_linea": str(total_linea),
+
+            "promocion_id": promo.promocion_id if promo else None,
+            "promocion_nombre": promo.nombre if promo else "",
+        }
+
         _save_cart(request.session, cart)
         return redirect("inventory:pos")
-    
+
 class POSRemoveItemView(LoginRequiredMixin, View):
     def post(self, request):
         key = request.POST.get("key") or ""
@@ -1196,11 +1203,12 @@ class POSCheckoutView(LoginRequiredMixin, View):
         if not cart:
             messages.error(request, "El carrito está vacío.")
             return redirect("inventory:pos")
-        local=_get_local_activo(request)
+
+        local = _get_local_activo(request)
         if not local:
             messages.error(request, "No hay un local activo seleccionado.")
             return redirect("inventory:pos")
-        
+
         form = CheckoutForm(request.POST)
         if not form.is_valid():
             totals = _cart_totals(cart)
@@ -1211,38 +1219,45 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 "total_descuento": totals["total_descuento"],
                 "total": totals["subtotal_final"],
             })
-            
+
         metodo_de_pago = form.cleaned_data["metodo_pago"]
-            
-        venta = Venta.objects.create(usuario=request.user, local=local,estado=Venta.Estado.ABIERTA, metodo_de_pago=metodo_de_pago)
+
+        venta = Venta.objects.create(
+            usuario=request.user,
+            local=local,
+            estado=Venta.Estado.ABIERTA,
+            metodo_de_pago=metodo_de_pago
+        )
 
         subtotal_base = Decimal("0.00")
         subtotal_final = Decimal("0.00")
         descuento_total = Decimal("0.00")
         profit_total = Decimal("0.00")
-        
-        
+
         for it in cart.values():
             barcode = it["barcode"]
             qty = int(it["qty"])
+            qty_d = Decimal(qty)
+
             precio_base = Decimal(it["precio_base"])
-            descuento_unitario = Decimal(it["descuento_unitario"])
-            precio_final = Decimal(it["precio_final"])
+            precio_final_unit = Decimal(it.get("precio_final_unit", it["precio_base"]))
+            descuento_total_linea = Decimal(it.get("descuento_total_linea", "0"))
             promocion_id = it.get("promocion_id")
             promocion_nombre = it.get("promocion_nombre", "")
+
             disponibles_qs = (
                 Articulo.objects
                 .select_for_update()
                 .filter(local=local, barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
                 .order_by("articulo_id")
             )
+
             articulos = list(disponibles_qs[:qty])
             if len(articulos) < qty:
                 raise ValueError(
                     f"Stock insuficiente para barcode {barcode}. Pediste {qty}, hay {len(articulos)}."
                 )
-            
-            qty_d = Decimal(qty)
+
             costo_total = sum(
                 Decimal(getattr(a.ingreso_item, "costo_unitario", 0) or 0)
                 for a in articulos
@@ -1250,17 +1265,20 @@ class POSCheckoutView(LoginRequiredMixin, View):
             costo_unitario_prom = (costo_total / qty_d) if qty else Decimal("0.00")
 
             total_linea_base = precio_base * qty_d
-            descuento_total_linea = descuento_unitario * qty_d
-            total_linea = precio_final * qty_d
-            profit_linea = (precio_final - costo_unitario_prom) * qty_d
+            total_linea = total_linea_base - descuento_total_linea
+            precio_unitario_real = (total_linea / qty_d) if qty else Decimal("0.00")
+            profit_linea = total_linea - costo_total
 
             subtotal_base += total_linea_base
             subtotal_final += total_linea
             descuento_total += descuento_total_linea
             profit_total += profit_linea
+
             promo_obj = None
             if promocion_id:
                 promo_obj = Promocion.objects.filter(pk=promocion_id).first()
+
+            descuento_unitario_prom = (descuento_total_linea / qty_d) if qty else Decimal("0.00")
 
             VentaItem.objects.create(
                 venta=venta,
@@ -1272,8 +1290,8 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 cantidad=qty,
 
                 precio_base_unitario=precio_base,
-                descuento_unitario=descuento_unitario,
-                precio_unitario=precio_final,
+                descuento_unitario=descuento_unitario_prom,
+                precio_unitario=precio_unitario_real,
 
                 costo_unitario=costo_unitario_prom,
                 profit_linea=profit_linea,
@@ -1282,12 +1300,13 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 promocion=promo_obj,
                 promocion_nombre=promocion_nombre,
             )
-            
+
             movs = []
             venta_articulos = []
+
             for a in articulos:
                 costo_u = Decimal(a.ingreso_item.costo_unitario) if a.ingreso_item else Decimal("0.00")
-                profit_u = precio_final - costo_u
+                profit_u = precio_unitario_real - costo_u
 
                 movs.append(MovimientoStock(
                     tipo=MovimientoStock.Tipo.VENTA,
@@ -1301,7 +1320,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
                     color=a.color,
                     cantidad=-1,
                     costo_unitario=costo_u,
-                    precio_unitario=precio_final,
+                    precio_unitario=precio_unitario_real,
                     profit_unitario=profit_u,
                     ingreso=None,
                     venta=venta,
@@ -1309,17 +1328,14 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 ))
 
                 venta_articulos.append(VentaArticulo(venta=venta, articulo=a))
-            # Marcar unidades como vendidas 
-            Articulo.objects.filter(articulo_id__in=[a.articulo_id for a in articulos]).update(
-                estado=Articulo.Estado.VENDIDO
-            )
 
-            # Registrar unidades vendidas 
+            Articulo.objects.filter(
+                articulo_id__in=[a.articulo_id for a in articulos]
+            ).update(estado=Articulo.Estado.VENDIDO)
+
             VentaArticulo.objects.bulk_create(venta_articulos)
-            
             MovimientoStock.objects.bulk_create(movs)
 
-        #Cerrar venta 
         venta.subtotal = subtotal_base
         venta.total_descuento = descuento_total
         venta.total = subtotal_final
@@ -1333,12 +1349,10 @@ class POSCheckoutView(LoginRequiredMixin, View):
             "estado",
         ])
 
-        
         _save_cart(request.session, {})
 
         messages.success(request, f"Venta #{venta.venta_id} cerrada. Total: $ {venta.total}")
-        return redirect("inventory:pos")
-    
+        return redirect("inventory:pos")  
     
 class MovimientoStockView(LoginRequiredMixin, ListView):
     template_name = "inventory/movimientos/movimientos_list.html"
@@ -2500,26 +2514,51 @@ def promocion_aplica_a_producto(promocion, producto):
 
     return False
 
-def calcular_precio_con_promocion(producto, promocion):
-    precio_base = Decimal(producto.precio or 0)
+def calcular_precio_con_promocion(producto, promo, qty=1):
+    precio = Decimal(producto.precio)
 
-    if promocion.tipo_descuento == Promocion.TipoDescuento.PORCENTAJE:
-        descuento = _round_money(precio_base * (Decimal(promocion.valor) / Decimal("100")))
-    else:
-        descuento = _round_money(Decimal(promocion.valor))
+    if promo.tipo_descuento == Promocion.TipoDescuento.PORCENTAJE:
+        valor = promo.valor or Decimal("0")
+        desc_unit = (valor / Decimal("100")) * precio
+        return {
+            "precio_final": precio - desc_unit,
+            "descuento": desc_unit * qty,
+        }
 
-    if descuento < 0:
-        descuento = Decimal("0.00")
+    if promo.tipo_descuento == Promocion.TipoDescuento.MONTO_FIJO:
+        valor = promo.valor or Decimal("0")
+        desc_unit = min(precio, valor)
+        return {
+            "precio_final": precio - desc_unit,
+            "descuento": desc_unit * qty,
+        }
 
-    if descuento > precio_base:
-        descuento = precio_base
+    if promo.tipo_descuento == Promocion.TipoDescuento.ESCALON:
+        unidad_obj = promo.unidad_objetivo or 0
+        porc = promo.descuento_porcentaje or Decimal("0")
 
-    precio_final = _round_money(precio_base - descuento)
+        if unidad_obj < 2 or porc <= 0:
+            return {
+                "precio_final": precio,
+                "descuento": Decimal("0"),
+            }
+
+        if qty < unidad_obj:
+            return {
+                "precio_final": precio,
+                "descuento": Decimal("0"),
+            }
+
+        descuento_una_unidad = (porc / Decimal("100")) * precio
+
+        return {
+            "precio_final": precio,
+            "descuento": descuento_una_unidad,
+        }
 
     return {
-        "precio_base": precio_base,
-        "descuento": descuento,
-        "precio_final": precio_final,
+        "precio_final": precio,
+        "descuento": Decimal("0"),
     }
 
 
@@ -2530,8 +2569,7 @@ def get_promociones_activas():
     # filtrado fino de fechas en Python por simplicidad y claridad
     return [p for p in qs if p.esta_vigente()]
 
-
-def get_mejor_promocion_para_producto(producto):
+def get_mejor_promocion_para_producto(producto, qty=1):
     promos = get_promociones_activas()
 
     mejor = None
@@ -2541,7 +2579,10 @@ def get_mejor_promocion_para_producto(producto):
         if not promocion_aplica_a_producto(promo, producto):
             continue
 
-        resultado = calcular_precio_con_promocion(producto, promo)
+        resultado = calcular_precio_con_promocion(producto, promo, qty)
+
+        if resultado["descuento"] <= Decimal("0"):
+            continue
 
         if mejor is None:
             mejor = promo
@@ -2558,6 +2599,7 @@ def get_mejor_promocion_para_producto(producto):
 
     return mejor, mejor_resultado
 
+
 class PromocionListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     model = Promocion
     template_name = "inventory/promocion/promocion_list.html"
@@ -2565,11 +2607,7 @@ class PromocionListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = (
-            Promocion.objects
-            .prefetch_related("marcas", "productos")
-            .all()
-        )
+        qs = Promocion.objects.prefetch_related("marcas", "productos").all()
 
         q = (self.request.GET.get("q") or "").strip()
         estado = (self.request.GET.get("estado") or "").strip().upper()
@@ -2602,6 +2640,11 @@ class PromocionCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
         messages.success(self.request, "Promoción creada correctamente.")
         return super().form_valid(form)
 
+    def form_invalid(self, form):
+        print("FORM ERRORS:", form.errors)
+        print("NON FIELD ERRORS:", form.non_field_errors())
+        messages.error(self.request, "No se pudo guardar la promoción. Revisá los campos.")
+        return super().form_invalid(form)
 
 class PromocionUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     model = Promocion
@@ -2636,4 +2679,10 @@ class PromocionToggleEstadoView(LoginRequiredMixin, StaffRequiredMixin, View):
         promocion.save(update_fields=["estado"])
         messages.success(request, msg)
         return redirect("inventory:promocion_list")
-
+class PromocionDeleteView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, promocion_id):
+        promo = get_object_or_404(Promocion, promocion_id=promocion_id)
+        nombre = promo.nombre
+        promo.delete()
+        messages.success(request, f'Promoción "{nombre}" eliminada correctamente.')
+        return redirect("inventory:promocion_list")

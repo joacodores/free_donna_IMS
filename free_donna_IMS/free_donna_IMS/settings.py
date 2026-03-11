@@ -134,4 +134,5 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "free_donna_IMS" / "static",
+    BASE_DIR / "inventory" / "static",
 ]

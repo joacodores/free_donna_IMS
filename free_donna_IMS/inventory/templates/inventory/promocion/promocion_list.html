@@ -55,58 +55,83 @@
         </tr>
       </thead>
       <tbody>
-        {% for promocion in promociones %}
+        {% for p in promociones %}
           <tr>
-            <td class="mono">{{ promocion.promocion_id }}</td>
+            <td class="mono">{{ p.promocion_id }}</td>
+
             <td>
-              <a href="{% url 'inventory:promocion_detail' promocion.promocion_id %}" class="strong" style="color:inherit; text-decoration:none;">
-                {{ promocion.nombre }}
+              <a href="{% url 'inventory:promocion_detail' p.promocion_id %}" class="strong" style="color:inherit; text-decoration:none;">
+                {{ p.nombre }}
               </a>
-              {% if promocion.descripcion %}
-                <div class="subtle" style="margin-top:4px;">{{ promocion.descripcion }}</div>
+              {% if p.descripcion %}
+                <div class="subtle" style="margin-top:4px;">{{ p.descripcion }}</div>
               {% endif %}
             </td>
+
             <td>
-              {% if promocion.tipo_descuento == "PCT" %}
-                <span class="tag">{{ promocion.valor }}%</span>
-              {% else %}
-                <span class="tag">$ {{ promocion.valor }}</span>
+              {% if p.tipo_descuento == "PCT" %}
+                <span class="tag">{{ p.valor }}%</span>
+
+              {% elif p.tipo_descuento == "FIX" %}
+                <span class="tag">$ {{ p.valor }}</span>
+
+              {% elif p.tipo_descuento == "ESC" %}
+                <span class="tag">
+                  {{ p.unidad_objetivo }}º unidad -{{ p.descuento_porcentaje }}%
+                </span>
               {% endif %}
             </td>
-            <td>{{ promocion.alcance_resumen }}</td>
+
+            <td>{{ p.alcance_resumen }}</td>
+
             <td>
-              {% if promocion.estado == "ACT" %}
+              {% if p.estado == "ACT" %}
                 <span class="tag">Activa</span>
               {% else %}
                 <span class="tag">Pausada</span>
               {% endif %}
             </td>
-            <td>{{ promocion.prioridad }}</td>
+
+            <td>{{ p.prioridad }}</td>
+
             <td>
-              {% if promocion.fecha_inicio or promocion.fecha_fin %}
-                <div class="subtle" style="margin:0;">
-                  {{ promocion.fecha_inicio|date:"d/m/Y H:i"|default:"—" }}
+              {% if p.fecha_inicio or p.fecha_fin %}
+                <div class="subtle">
+                  {{ p.fecha_inicio|date:"d/m/Y H:i"|default:"—" }}
                   →
-                  {{ promocion.fecha_fin|date:"d/m/Y H:i"|default:"—" }}
+                  {{ p.fecha_fin|date:"d/m/Y H:i"|default:"—" }}
                 </div>
               {% else %}
                 <span class="subtle">Sin límite</span>
               {% endif %}
             </td>
+
+            {% if request.user.is_staff %}
             <td>
               <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
-                <a class="btn-secondary" href="{% url 'inventory:promocion_edit' promocion.promocion_id %}">Editar</a>
+                <a class="btn-secondary" href="{% url 'inventory:promocion_edit' p.promocion_id %}">Editar</a>
 
-                <form method="post" action="{% url 'inventory:promocion_toggle' promocion.promocion_id %}" style="margin:0;">
+                <form method="post" action="{% url 'inventory:promocion_toggle' p.promocion_id %}" style="margin:0;">
                   {% csrf_token %}
-                  {% if promocion.estado == "ACT" %}
+                  {% if p.estado == "ACT" %}
                     <button type="submit" class="btn-secondary">Pausar</button>
                   {% else %}
                     <button type="submit" class="btn-secondary">Activar</button>
                   {% endif %}
                 </form>
+                <form method="post" 
+                      action="{% url 'inventory:promocion_delete' p.promocion_id %}"
+                      onsubmit="return confirm('¿Eliminar la promoción {{ p.nombre|escapejs }}?');"
+                      style="margin:0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-secondary">
+                    Borrar
+                  </button>
+                </form>
               </div>
             </td>
+            {% endif %}
+
           </tr>
         {% endfor %}
       </tbody>
