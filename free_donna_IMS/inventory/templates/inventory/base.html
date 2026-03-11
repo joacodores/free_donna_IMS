@@ -5,7 +5,12 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Free Donna IMS{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+    <script>
+      (function () {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+      })();
+    </script>
     <link rel="icon" type="image/x-icon" href="{% static 'img/header.jpg' %}">
 
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
@@ -15,7 +20,7 @@
     {% block extra_css %}{% endblock %}
   </head>
 
-  <body>
+ <body data-theme="light">
     <!-- HEADER -->
     <header class="app-header">
       <div class="logo-container">
@@ -48,6 +53,19 @@
               <a class="nav-link" href="{% url 'inventory:marca_list' %}">Marcas</a>
               <a class="nav-link" href="{% url 'inventory:promocion_list' %}">Promociones</a>
             {% endif %}
+          <a
+          class"btn-primary"
+            type="button"
+            id="themeToggle"
+            style="cursor: pointer;"
+            aria-label="Cambiar tema"
+            title="Cambiar tema"
+          >
+          <span  class="nav-link"id="themeToggleText">Cambiar Tema</span>
+            <span class="nav-link" id="themeToggleIcon">🌙</span>
+          </a>
+        
+
             <div class="sep"></div>
             <a href="{% url 'inventory:logout' %}">Salir</a>
           </div>
@@ -123,8 +141,49 @@
         });
       })();
 
-    </script>
+  (function () {
+    const STORAGE_KEY = "theme";
+    const DEFAULT_THEME = "light";
 
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      document.body.setAttribute("data-theme", theme);
+
+      const icon = document.getElementById("themeToggleIcon");
+      const text = document.getElementById("themeToggleText");
+
+      if (icon && text) {
+        if (theme === "dark") {
+          icon.textContent = "☀️";
+          
+        } else {
+          icon.textContent = "🌙";
+          
+        }
+      }
+    }
+
+    function getSavedTheme() {
+      return localStorage.getItem(STORAGE_KEY) || DEFAULT_THEME;
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme") || DEFAULT_THEME;
+      const next = current === "light" ? "dark" : "light";
+      localStorage.setItem(STORAGE_KEY, next);
+      applyTheme(next);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      applyTheme(getSavedTheme());
+
+      const toggleBtn = document.getElementById("themeToggle");
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", toggleTheme);
+      }
+    });
+  })();
+</script>
     {% block extra_js %}{% endblock %}
 
   </body>

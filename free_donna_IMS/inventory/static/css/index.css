@@ -3,34 +3,27 @@
 .dash{
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 70px; /* para que el footer fixed no tape */
+  padding-bottom: 70px;
 }
 
-.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-.subtle{ opacity: .82; }
-
-/* Fondo del main: si no tocás base.html, esto igual queda lindo */
-:root{
-  --bg1: #0e1726;
-  --bg2: #152a45;
-  --card: rgba(255,255,255,.08);
-  --card2: rgba(255,255,255,.10);
-  --stroke: rgba(255,255,255,.12);
-  --text: #eaf0ff;
-  --muted: rgba(234,240,255,.75);
-  --shadow: 0 18px 60px rgba(0,0,0,.30);
-  --shadow2: 0 10px 30px rgba(0,0,0,.25);
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+.subtle{
+  color: var(--muted);
+}
+
+/* Fondo del dashboard */
 .dash:before{
   content:"";
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(1200px 600px at 20% 15%, rgba(110,168,255,.35), transparent 60%),
-    radial-gradient(900px 500px at 80% 25%, rgba(255,160,110,.22), transparent 60%),
-    linear-gradient(180deg, var(--bg1), var(--bg2));
+    radial-gradient(1200px 600px at 20% 15%, color-mix(in srgb, var(--accent1) 18%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 80% 25%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 60%);
+  pointer-events: none;
 }
 
 /* ========== HERO ========== */
@@ -41,7 +34,7 @@
   gap: 18px;
   padding: 18px;
   border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  background: linear-gradient(180deg, var(--card2), var(--card));
   border-radius: 18px;
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
@@ -55,14 +48,15 @@
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.18);
+  background: var(--card2);
   color: var(--muted);
   font-weight: 800;
   font-size: 13px;
 }
 
 .hero-badge .dot{
-  width: 10px; height: 10px;
+  width: 10px;
+  height: 10px;
   border-radius: 99px;
   background: rgba(95, 245, 179, .9);
   box-shadow: 0 0 0 4px rgba(95, 245, 179, .18);
@@ -74,12 +68,12 @@
   margin: 14px 0 6px 0;
   font-size: clamp(28px, 4vw, 40px);
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 900;
 }
 
 .hero-name{
-  background: linear-gradient(90deg, rgba(126,166,255,1), rgba(255,199,140,1));
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -107,9 +101,9 @@
   border-radius: 14px;
   text-decoration: none;
   font-weight: 900;
-  color: #08101d;
-  background: linear-gradient(90deg, rgba(126,166,255,1), rgba(255,199,140,1));
-  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+  color: #0f1729;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  box-shadow: 0 10px 26px rgba(0,0,0,.14);
   border: 0;
   transform: translateY(0);
   transition: transform .15s ease, filter .15s ease;
@@ -134,13 +128,13 @@
   text-decoration: none;
   font-weight: 900;
   color: var(--text);
-  background: rgba(255,255,255,.06);
+  background: var(--card2);
   border: 1px solid var(--stroke);
   transition: background .15s ease, transform .15s ease;
 }
 
 .btn-ghost:hover{
-  background: rgba(255,255,255,.10);
+  background: var(--card);
   transform: translateY(-1px);
 }
 
@@ -149,7 +143,7 @@
   color: var(--muted);
   font-weight: 700;
   font-size: 13px;
-  opacity: .9;
+  opacity: .95;
 }
 
 .hero-right{
@@ -159,10 +153,10 @@
 
 .mini-card{
   border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.16);
+  background: var(--card2);
   border-radius: 16px;
   padding: 14px;
-  box-shadow: var(--shadow2);
+  box-shadow: var(--shadow-soft);
 }
 
 .mini-title{
@@ -177,7 +171,7 @@
   margin-top: 8px;
   font-size: 22px;
   font-weight: 900;
-  color: var(--text);
+  color: var(--text-strong);
 }
 
 .mini-sub{
@@ -198,13 +192,14 @@
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
-  background: rgba(255,255,255,.06);
+  background: var(--card);
   color: var(--text);
   font-weight: 900;
   transition: background .15s ease, transform .15s ease;
 }
+
 .mini-links a:hover{
-  background: rgba(255,255,255,.10);
+  background: var(--card2);
   transform: translateY(-1px);
 }
 
@@ -219,10 +214,10 @@
 
 .card{
   border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+  background: linear-gradient(180deg, var(--card2), var(--card));
   border-radius: 18px;
   padding: 16px;
-  box-shadow: var(--shadow2);
+  box-shadow: var(--shadow-soft);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -237,17 +232,20 @@
 
 .card h2{
   margin: 0;
-  color: var(--text);
+  color: var(--text-strong);
   font-size: 16px;
   letter-spacing: -0.01em;
 }
 
 .link{
-  color: rgba(126,166,255,1);
+  color: var(--accent1);
   text-decoration: none;
   font-weight: 900;
 }
-.link:hover{ text-decoration: underline; }
+
+.link:hover{
+  text-decoration: underline;
+}
 
 /* KPIs */
 .kpi-grid{
@@ -260,7 +258,7 @@
   padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.16);
+  background: var(--card2);
 }
 
 .kpi-label{
@@ -274,7 +272,7 @@
 .kpi-value{
   margin-top: 10px;
   font-size: 22px;
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 900;
 }
 
@@ -292,16 +290,19 @@
   gap: 8px;
   padding: 7px 10px;
   border-radius: 999px;
-  background: rgba(0,0,0,.18);
+  background: var(--card2);
   border: 1px solid var(--stroke);
   color: var(--text);
   font-weight: 800;
   font-size: 12px;
 }
+
 .chip-dot{
-  width: 8px; height: 8px; border-radius: 99px;
-  background: rgba(126,166,255,1);
-  box-shadow: 0 0 0 4px rgba(126,166,255,.18);
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--accent1);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent1) 18%, transparent);
 }
 
 /* Activity */
@@ -319,17 +320,17 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
   padding: 12px 12px;
-  background: rgba(0,0,0,.16);
+  background: var(--card2);
   transition: transform .15s ease, background .15s ease;
 }
 
 .act-row:hover{
   transform: translateY(-1px);
-  background: rgba(255,255,255,.08);
+  background: var(--card);
 }
 
 .act-title{
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 900;
 }
 
@@ -346,17 +347,18 @@
 }
 
 .empty-box{
-  border: 1px dashed rgba(255,255,255,.25);
+  border: 1px dashed var(--stroke);
   border-radius: 16px;
   padding: 18px;
-  background: rgba(0,0,0,.12);
+  background: var(--card);
 }
 
 .empty-title{
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 900;
   margin-bottom: 6px;
 }
+
 .empty-sub{
   color: var(--muted);
   font-weight: 700;
@@ -375,13 +377,13 @@
   border: 1px solid var(--stroke);
   border-radius: 18px;
   padding: 14px;
-  background: rgba(0,0,0,.16);
+  background: var(--card2);
   transition: transform .15s ease, background .15s ease;
 }
 
 .quick-card:hover{
   transform: translateY(-1px);
-  background: rgba(255,255,255,.08);
+  background: var(--card);
 }
 
 .q-icon{
@@ -390,7 +392,7 @@
 
 .q-title{
   margin-top: 10px;
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 900;
 }
 
@@ -417,21 +419,24 @@
   padding: 12px;
   border: 1px solid var(--stroke);
   border-radius: 16px;
-  background: rgba(0,0,0,.16);
+  background: var(--card2);
   color: var(--text);
   font-weight: 800;
 }
 
 .bullet{
-  width: 10px; height: 10px;
+  width: 10px;
+  height: 10px;
   border-radius: 99px;
   display: inline-block;
   flex: 0 0 auto;
 }
+
 .bullet.ok{
   background: rgba(95, 245, 179, .9);
   box-shadow: 0 0 0 4px rgba(95, 245, 179, .18);
 }
+
 .bullet.warn{
   background: rgba(255, 199, 140, 1);
   box-shadow: 0 0 0 4px rgba(255, 199, 140, .18);

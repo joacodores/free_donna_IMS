@@ -1,4 +1,4 @@
-/* ===== POS (Dark Glass Theme) ===== */
+/* ===== POS · THEME AWARE ===== */
 
 .pos-shell{
   display:flex;
@@ -13,7 +13,7 @@
   justify-content:space-between;
   gap:12px;
   padding: 10px 2px 14px 2px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  border-bottom: 1px solid var(--stroke);
 }
 
 .pos-title{
@@ -21,11 +21,12 @@
   font-size:26px;
   font-weight:950;
   letter-spacing:-0.02em;
+  color: var(--text-strong);
 }
 
 .pos-subtitle{
   margin:6px 0 0 0;
-  color: rgba(234,240,255,0.70);
+  color: var(--muted);
   font-weight:650;
 }
 
@@ -42,43 +43,54 @@
 
 /* Panel base */
 .panel{
-  border-radius: 20px;
+  border-radius: 22px;
   overflow:hidden;
   display:flex;
   flex-direction:column;
   min-height: 470px;
 
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(248,250,253,0.92),
+    rgba(241,244,249,0.96)
+  );
+  border: 1px solid rgba(76,96,140,0.12);
+  box-shadow:
+    0 20px 45px rgba(28, 38, 64, 0.10),
+    0 6px 16px rgba(28, 38, 64, 0.05);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
+body[data-theme="dark"] .panel{
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
 /* Variantes con glow sutil */
 .panel--cart{
   box-shadow:
-    0 18px 60px rgba(0,0,0,0.35),
-    0 0 0 1px rgba(16,185,129,0.08),
-    0 0 40px rgba(16,185,129,0.08);
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--success) 8%, transparent),
+    0 0 40px color-mix(in srgb, var(--success) 8%, transparent);
 }
 
 .panel--sales{
   box-shadow:
-    0 18px 60px rgba(0,0,0,0.35),
-    0 0 0 1px rgba(126,166,255,0.10),
-    0 0 40px rgba(126,166,255,0.10);
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--info) 10%, transparent),
+    0 0 40px color-mix(in srgb, var(--info) 10%, transparent);
 }
 
 /* Head */
 .panel-head{
   padding:14px 14px 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  border-bottom: 1px solid var(--stroke);
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
   gap:10px;
-
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  background: linear-gradient(180deg, var(--card2), transparent);
 }
 
 .panel-title{
@@ -86,11 +98,13 @@
   align-items:center;
   gap:10px;
 }
+
 .panel-title h3{
   margin:0;
   font-size:15px;
   font-weight:950;
   letter-spacing: .01em;
+  color: var(--text-strong);
 }
 
 .panel-meta{
@@ -101,9 +115,9 @@
 }
 
 .chip{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgba(234,240,255,0.88);
+  border: 1px solid var(--stroke);
+  background: var(--card2);
+  color: var(--text);
   padding:6px 10px;
   border-radius:999px;
   font-size:12px;
@@ -112,12 +126,14 @@
 
 /* Dots */
 .dot{
-  width:10px; height:10px; border-radius:999px;
+  width:10px;
+  height:10px;
+  border-radius:999px;
   display:inline-block;
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 10%, transparent);
 }
 .dot-green{ background:#10b981; }
-.dot-blue{ background:#7ea6ff; }
+.dot-blue{ background:var(--accent1); }
 
 /* ===== Scanbar ===== */
 .scanbar{
@@ -132,29 +148,29 @@
   width:100%;
   padding: 14px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(234,240,255,0.95);
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
   outline:none;
   font-size:16px;
   font-weight:900;
 }
 
 .scanbar-input::placeholder{
-  color: rgba(234,240,255,0.55);
+  color: var(--muted);
 }
 
 .scanbar-input:focus{
-  border-color: rgba(126,166,255,0.45);
-  box-shadow: 0 0 0 3px rgba(126,166,255,0.18);
+  background: var(--input-bg-focus);
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 3px rgba(111,124,255,0.16);
 }
 
-/* hint abajo del input (sin tocar template: lo metemos como pseudo-elemento en el contenedor) */
 .panel--cart .scanbar::after{
   content: "Tip: Enter suma 1 unidad · Escáner recomendado";
   grid-column: 1 / -1;
   margin-top: 8px;
-  color: rgba(234,240,255,0.60);
+  color: var(--muted);
   font-weight: 700;
   font-size: 12px;
 }
@@ -173,10 +189,9 @@
   flex:1;
 }
 
-/* scrollbar sutil */
 .cart-table-wrap::-webkit-scrollbar{ height: 10px; }
 .cart-table-wrap::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,0.10);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
   border-radius: 999px;
 }
 .cart-table-wrap::-webkit-scrollbar-track{ background: transparent; }
@@ -193,38 +208,36 @@
   top:0;
   z-index:1;
   text-align:left;
-
   font-size:12px;
   letter-spacing:0.06em;
   text-transform: uppercase;
-  color: rgba(234,240,255,0.62);
+  color: var(--muted);
   font-weight: 950;
-
   padding: 10px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,27,51,0.45);
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--card-solid) 84%, transparent);
   backdrop-filter: blur(10px);
 }
 
 .cart-table td{
   padding: 12px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   vertical-align:top;
-  color: rgba(234,240,255,0.90);
+  color: var(--text);
 }
 
-/* filas */
 .cart-table tbody tr:hover{
-  background: rgba(255,255,255,0.04);
+  background: var(--hover-soft);
 }
 
 .cell-main{
   font-weight: 950;
-  color: rgba(234,240,255,0.95);
+  color: var(--text-strong);
 }
+
 .cell-sub{
   margin-top:4px;
-  color: rgba(234,240,255,0.62);
+  color: var(--muted);
   font-weight: 700;
   font-size: 12px;
 }
@@ -232,6 +245,7 @@
 .mono{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
 .num{ text-align:right; }
 .strong{ font-weight: 950; }
 
@@ -245,6 +259,7 @@
 .cart-table td.num.strong{
   position: relative;
 }
+
 .cart-table td.num.strong::before{
   content:"";
   position:absolute;
@@ -254,24 +269,25 @@
   height: 26px;
   transform: translateY(-50%);
   border-radius: 999px;
-  background: rgba(126,166,255,0.10);
-  border: 1px solid rgba(126,166,255,0.22);
+  background: color-mix(in srgb, var(--accent1) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent1) 24%, transparent);
   z-index:-1;
 }
 
 /* Botón quitar minimal */
 .btn-ghost-danger{
-  border:1px solid rgba(255,90,103,0.35);
-  background: rgba(255,90,103,0.10);
-  color: rgba(255,220,225,0.95);
+  border:1px solid color-mix(in srgb, var(--danger) 34%, var(--stroke));
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: color-mix(in srgb, var(--danger) 75%, var(--text));
   padding:8px 10px;
   border-radius: 14px;
   font-weight: 950;
   cursor:pointer;
   transition: transform .12s ease, background .12s ease;
 }
+
 .btn-ghost-danger:hover{
-  background: rgba(255,90,103,0.18);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
   transform: translateY(-1px);
 }
 
@@ -287,14 +303,13 @@
 /* ===== Cart footer ===== */
 .cart-footer{
   padding: 14px;
-  border-top:1px solid rgba(255,255,255,0.10);
+  border-top:1px solid var(--stroke);
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
   flex-wrap:wrap;
-
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06));
+  background: linear-gradient(180deg, transparent, var(--card2));
 }
 
 .totals{
@@ -305,13 +320,13 @@
 
 .totals-label{
   font-weight: 850;
-  color: rgba(234,240,255,0.68);
+  color: var(--muted);
 }
 
 .totals-value{
   font-size: 22px;
   font-weight: 980;
-  color: rgba(234,240,255,0.98);
+  color: var(--text-strong);
 }
 
 .cart-buttons{
@@ -335,16 +350,16 @@
 .kpi{
   border-radius: 16px;
   padding: 12px 12px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--stroke);
   background:
-    radial-gradient(500px 120px at 20% 0%, rgba(126,166,255,0.18), transparent 55%),
-    radial-gradient(450px 120px at 80% 0%, rgba(255,184,107,0.12), transparent 55%),
-    rgba(255,255,255,0.06);
+    radial-gradient(500px 120px at 20% 0%, color-mix(in srgb, var(--accent1) 12%, transparent), transparent 55%),
+    radial-gradient(450px 120px at 80% 0%, color-mix(in srgb, var(--accent2) 11%, transparent), transparent 55%),
+    var(--card2);
 }
 
 .kpi-label{
   font-size:12px;
-  color: rgba(234,240,255,0.65);
+  color: var(--muted);
   font-weight: 950;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -354,7 +369,27 @@
   margin-top:8px;
   font-size: 20px;
   font-weight: 980;
-  color: rgba(234,240,255,0.98);
+  color: var(--text-strong);
+}
+
+/* Caja destacada */
+.kpi:last-child{
+  border-color: color-mix(in srgb, var(--danger) 26%, var(--stroke));
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--danger) 18%, transparent),
+      color-mix(in srgb, var(--danger) 28%, transparent)
+    );
+}
+
+.kpi:last-child .kpi-label,
+.kpi:last-child .kpi-value{
+  color: #5a1f25;
+}
+
+body[data-theme="dark"] .kpi:last-child .kpi-label,
+body[data-theme="dark"] .kpi:last-child .kpi-value{
+  color: rgba(54, 34, 34, 0.92);
 }
 
 /* ===== Sales list ===== */
@@ -373,61 +408,66 @@
   justify-content:space-between;
   gap:12px;
   padding: 12px 12px;
-
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--stroke);
   border-radius: 16px;
-
-  background: rgba(255,255,255,0.05);
+  background: var(--card2);
   text-decoration:none;
   color: inherit;
-
   transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
 }
 
 .sale-row:hover{
-  border-color: rgba(126,166,255,0.28);
-  background: rgba(255,255,255,0.08);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.30);
+  border-color: color-mix(in srgb, var(--accent1) 28%, var(--stroke));
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
   transform: translateY(-1px);
 }
 
-.sale-title{ font-weight: 980; }
+.sale-title{
+  font-weight: 980;
+  color: var(--text-strong);
+}
+
 .sale-sub{
   margin-top: 4px;
-  color: rgba(234,240,255,0.62);
+  color: var(--muted);
   font-weight: 750;
   font-size: 12px;
 }
 
 .sale-right{ text-align:right; }
-.sale-total{ font-weight: 980; }
+
+.sale-total{
+  font-weight: 980;
+  color: var(--text-strong);
+}
 
 .sale-profit{
   margin-top: 4px;
-  color: rgba(16,185,129,0.95);
+  color: var(--success);
   font-weight: 980;
   font-size: 12px;
 }
-
 
 .empty-state{
   margin:14px;
   border-radius: 18px;
   padding: 16px;
-
-  border: 1px dashed rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.04);
+  border: 1px dashed var(--stroke);
+  background: color-mix(in srgb, var(--card2) 86%, transparent);
 }
 
 .empty-title{
   font-weight: 980;
   margin-bottom: 6px;
+  color: var(--text-strong);
 }
 
 .empty-sub{
-  color: rgba(234,240,255,0.66);
+  color: var(--muted);
   font-weight: 700;
 }
+
 .kpi-action{
   text-decoration: none;
   cursor: pointer;
@@ -439,17 +479,18 @@
   left: 50%;
   bottom: calc(100% + 10px);
   transform: translateX(-50%) translateY(4px);
-  background: rgba(15,15,18,.92);
-  color: #fff;
+  background: color-mix(in srgb, var(--card-solid) 96%, transparent);
+  color: var(--text);
   padding: 6px 10px;
   border-radius: 999px;
+  border: 1px solid var(--stroke);
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s ease, transform .12s ease;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  box-shadow: var(--shadow-soft);
   z-index: 5;
 }
 
@@ -460,7 +501,7 @@
   top: 100%;
   transform: translateX(-50%);
   border: 7px solid transparent;
-  border-top-color: rgba(15,15,18,.92);
+  border-top-color: color-mix(in srgb, var(--card-solid) 96%, transparent);
 }
 
 .kpi-action:hover .kpi-tip,
@@ -469,36 +510,38 @@
   transform: translateX(-50%) translateY(0);
 }
 
-
-.kpi:last-child{
-  border-color: rgba(247, 25, 25, 0.25);
-  background-color: rgb(223, 100, 100);
-}
-.kpi:last-child .kpi-label, .kpi:last-child .kpi-value{
-  color: rgba(54, 34, 34, 0.85);
-}
-
 .icon-btn{
-  border: none;
-  background: rgba(255,255,255,.06);
-  color: #fff;
+  border: 1px solid var(--stroke);
+  background: var(--card2);
+  color: var(--text);
   cursor: pointer;
   width: 36px;
   height: 36px;
   border-radius: 12px;
 }
 
-.icon-btn:hover{ background: rgba(255,255,255,.10); }
+.icon-btn:hover{
+  background: var(--card);
+}
 
-.form-row{ display:flex; flex-direction:column; gap:6px; margin-top: 10px; }
+.form-row{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top: 10px;
+}
+
 .input{
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.06);
-  color: #fff;
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
 }
-.input::placeholder{ color: rgba(255,255,255,.55); }
+
+.input::placeholder{
+  color: var(--muted);
+}
 
 .modal-actions{
   display:flex;
@@ -511,7 +554,7 @@
   margin-top: 6px;
   font-size: 12px;
   font-weight: 800;
-  color: rgba(255, 199, 140, .95);
+  color: var(--warning);
 }
 
 .price-old{
@@ -522,16 +565,16 @@
 
 .price-new{
   font-weight: 900;
-  color: #eaf0ff;
+  color: var(--text-strong);
 }
 
 .discount-chip{
   display: inline-block;
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(255, 199, 140, .14);
-  border: 1px solid rgba(255, 199, 140, .28);
-  color: rgba(255, 199, 140, .95);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--stroke));
+  color: var(--warning);
   font-size: 12px;
   font-weight: 900;
 }
@@ -555,7 +598,7 @@
 }
 
 .totals-discount .totals-subvalue{
-  color: rgba(255, 199, 140, .95);
+  color: var(--warning);
 }
 
 .totals-final .totals-value{
@@ -576,15 +619,17 @@
   justify-content:space-between;
   gap:12px;
   font-weight: 800;
+  color: var(--text);
 }
 
 .checkout-discount{
-  color: rgba(255, 199, 140, .95);
+  color: var(--warning);
 }
 
 .checkout-final{
   font-size: 18px;
   font-weight: 900;
   padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,.10);
+  border-top: 1px solid var(--stroke);
+  color: var(--text-strong);
 }

@@ -6,6 +6,22 @@
 .promocion-card {
   padding: 22px;
   overflow: visible;
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.72),
+    rgba(244,247,252,.94)
+  );
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+body[data-theme="dark"] .promocion-card {
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.08),
+    rgba(255,255,255,.05)
+  );
 }
 
 .promocion-grid {
@@ -31,17 +47,17 @@
 .promocion-label {
   font-size: 0.95rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--text);
 }
 
 .promocion-help {
   font-size: 0.83rem;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
   line-height: 1.35;
 }
 
 .promocion-errors {
-  color: #ff9f9f;
+  color: var(--danger);
   font-size: 0.84rem;
 }
 
@@ -56,6 +72,7 @@
 .promocion-inline-check label {
   margin: 0;
   font-weight: 800;
+  color: var(--text);
 }
 
 .promocion-actions {
@@ -65,7 +82,7 @@
   padding-top: 22px;
 }
 
-/* Inputs base si el proyecto no los pisa bien */
+/* Inputs base */
 .promocion-card input[type="text"],
 .promocion-card input[type="number"],
 .promocion-card input[type="datetime-local"],
@@ -73,13 +90,14 @@
 .promocion-card select {
   width: 100%;
   min-height: 46px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
   border-radius: 12px;
   padding: 10px 12px;
   outline: none;
   box-sizing: border-box;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 
 .promocion-card textarea {
@@ -89,14 +107,15 @@
 
 .promocion-card input::placeholder,
 .promocion-card textarea::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted);
 }
 
 .promocion-card input:focus,
 .promocion-card textarea:focus,
 .promocion-card select:focus {
-  border-color: rgba(120, 160, 255, 0.28);
-  box-shadow: 0 0 0 1px rgba(120, 160, 255, 0.14);
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 2px rgba(120, 160, 255, 0.14);
+  background: var(--input-bg-focus);
 }
 
 /* Native selects ocultos */
@@ -115,11 +134,11 @@
 .multi-dd-trigger {
   width: 100%;
   min-height: 46px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
   border-radius: 12px;
   padding: 10px 12px;
-  color: #fff;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -127,19 +146,22 @@
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 
 .multi-dd-trigger:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--stroke-strong);
 }
 
 .multi-dd.open .multi-dd-trigger {
-  border-color: rgba(120, 160, 255, 0.28);
-  box-shadow: 0 0 0 1px rgba(120, 160, 255, 0.16);
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 2px rgba(120, 160, 255, 0.14);
+  background: var(--input-bg-focus);
 }
 
 .multi-dd-trigger:disabled {
   cursor: not-allowed;
+  opacity: .75;
 }
 
 .multi-dd-text {
@@ -152,7 +174,7 @@
 }
 
 .multi-dd-placeholder {
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--muted);
 }
 
 .multi-dd-caret {
@@ -167,11 +189,12 @@
   gap: 6px;
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(120, 160, 255, 0.14);
-  border: 1px solid rgba(120, 160, 255, 0.22);
+  background: color-mix(in srgb, var(--accent1) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent1) 22%, var(--stroke));
   font-size: 0.84rem;
   line-height: 1.1;
   max-width: 100%;
+  color: var(--text);
 }
 
 .multi-dd-chip span {
@@ -183,7 +206,7 @@
 .multi-dd-chip-x {
   background: transparent;
   border: 0;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--muted);
   cursor: pointer;
   padding: 0;
   font-size: 0.95rem;
@@ -197,12 +220,20 @@
   right: 0;
   display: none;
   z-index: 999;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #1d2942;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.90),
+    rgba(244,247,252,.98)
+  );
   border-radius: 14px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  box-shadow: var(--shadow);
   padding: 10px;
   box-sizing: border-box;
+}
+
+body[data-theme="dark"] .multi-dd-panel {
+  background: #1d2942;
 }
 
 .multi-dd.open .multi-dd-panel {
@@ -212,9 +243,9 @@
 .multi-dd-search {
   width: 100%;
   min-height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
   border-radius: 10px;
   padding: 10px 12px;
   outline: none;
@@ -222,8 +253,13 @@
   box-sizing: border-box;
 }
 
+.multi-dd-search:focus {
+  border-color: var(--stroke2);
+  background: var(--input-bg-focus);
+}
+
 .multi-dd-search::placeholder {
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--muted);
 }
 
 .multi-dd-list {
@@ -247,28 +283,28 @@
 }
 
 .multi-dd-option:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-soft);
 }
 
 .multi-dd-option.selected {
-  background: rgba(120, 160, 255, 0.12);
-  border-color: rgba(120, 160, 255, 0.2);
+  background: color-mix(in srgb, var(--accent1) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent1) 18%, var(--stroke));
 }
 
 .multi-dd-option-label {
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--text);
   min-width: 0;
   word-break: break-word;
 }
 
 .multi-dd-option-mark {
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
   font-size: 0.82rem;
   flex-shrink: 0;
 }
 
 .multi-dd-empty {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted);
   padding: 8px 6px;
   font-size: 0.9rem;
 }
@@ -283,7 +319,7 @@
 }
 
 .multi-dd-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
   border-radius: 999px;
 }
 
