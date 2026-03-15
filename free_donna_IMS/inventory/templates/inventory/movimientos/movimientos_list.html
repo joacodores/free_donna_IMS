@@ -10,14 +10,15 @@
 <div class="page-header">
   <div>
     <h2>Movimientos de stock</h2>
-    <p class="subtle">Historial de movimientos: ingresos, ventas y transferencias de stock. Filtra por tipo, rango de fechas, marca, articulo, usuario y más. Cuando esté listo, exporta los movimientos a un único PDF.</p>
+    <p class="subtle">Historial de ingresos, ventas, transferencias, bajas y devoluciones.</p>
+    
   </div>
+  <div>
+    {% if can_export_pdf %}
+    <a class="btn-secondary btn-export" href="{% url 'inventory:movimientos_pdf' %}?{{ request.GET.urlencode }}">Exportar PDF</a>
+  {% endif %}
+</div>
 
-  <div class="header-actions">
-    {% if request.user.is_staff %}
-      <a class="btn-secondary" href="{% url 'inventory:movimientos_pdf' %}?{{ request.GET.urlencode }}">Exportar PDF</a>
-    {% endif %}
-  </div>
 </div>
 
 {% if error_local %}
@@ -28,69 +29,71 @@
 {% else %}
 
 <form method="get" class="filters-row">
-  <select name="mode" class="select">   
+  {% if all_locals_active %}
+    <input type="hidden" name="all_locals" value="1">
+  {% endif %}
+
+  <select name="mode" class="select">
     <option value="doc" {% if mode == "doc" %}selected{% endif %}>Agrupar por documento</option>
-    <option value="day" {% if mode == "day" %}selected{% endif %}>Resumen por día</option>
-    <option value="variant" {% if mode == "variant" %}selected{% endif %}>Agrupar por variante</option>
-    <option value="unit" {% if mode == "unit" %}selected{% endif %}>Detalle por unidad</option>
+    {% if request.user.is_staff %}
+      <option value="day" {% if mode == "day" %}selected{% endif %}>Resumen por día</option>
+    {% endif %}
   </select>
 
   <select name="tipo" class="select">
     <option value="all" {% if tipo == "all" %}selected{% endif %}>Todos</option>
     <option value="IN" {% if tipo == "IN" %}selected{% endif %}>Ingresos</option>
     <option value="OUT" {% if tipo == "OUT" %}selected{% endif %}>Ventas</option>
-    <option value="ADJ" {% if tipo == "ADJ" %}selected{% endif %}>Ajustes</option>
     <option value="TRF" {% if tipo == "TRF" %}selected{% endif %}>Transferencias</option>
     <option value="BAJ" {% if tipo == "BAJ" %}selected{% endif %}>Bajas</option>
     <option value="RET" {% if tipo == "RET" %}selected{% endif %}>Devoluciones</option>
   </select>
 
-  <input class="search-input" type="text" name="q" value="{{ q }}" placeholder="Buscar barcode / sku / producto / marca">
+  <input class="search-input" type="text" name="q" value="{{ q }}" placeholder="Buscar por código / sku / producto / marca">
   <input class="date-input" type="date" name="from" value="{{ from }}">
   <input class="date-input" type="date" name="to" value="{{ to }}">
+  
+  <button class="btn-primary btn-apply" type="submit">Aplicar</button>
+  <a class="btn-secondary" href="{% url 'inventory:movimientos' %}{% if all_locals_active %}?all_locals=1{% endif %}">Limpiar</a>
 
-  <button class="btn-secondary" type="submit">Aplicar</button>
-  <a class="btn-secondary" href="{% url 'inventory:movimientos' %}">Limpiar</a>
 </form>
-{% with can_see_cost=request.user.is_staff can_export=request.user.is_staff %}
+
+{% with can_see_cost=request.user.is_staff %}
 {% if rows %}
   <div class="table-wrap">
-    <table class="table">
+    <table class="table {% if all_locals_active %}has-local{% endif %}">
+
       {% if mode == "doc" %}
         <thead>
           <tr>
             <th>Fecha</th>
+            {% if all_locals_active %}
+              <th>Local</th>
+            {% endif %}
             <th>Tipo</th>
             <th>Documento</th>
             <th class="num">Unidades</th>
+            <th class="num">Venta</th>
             {% if can_see_cost %}
-              <th class="num">Costo</th>
-              <th class="num">Venta</th>
-              <th class="num">Profit</th>
-            {% else %}
-              <th class="num">Venta</th>
+              <th class="num">Ganancia</th>
             {% endif %}
             <th class="col-menu"></th>
           </tr>
         </thead>
-
+      
         <tbody>
           {% for r in rows %}
-            {# reset por fila para que no "herede" doc_url de otra iteración #}
-            {% with doc_url="" doc_pdf_url="" %}
-              {# URLs destino por tipo #}
+            {% with doc_url="" %}
               {% if r.tipo == "OUT" and r.venta_id %}
                 {% url 'inventory:venta_detail' r.venta_id as doc_url %}
-                {% url 'inventory:venta_pdf' r.venta_id as doc_pdf_url %}
               {% elif r.tipo == "IN" and r.ingreso_id %}
                 {% url 'inventory:ingreso_detail' r.ingreso_id as doc_url %}
-                {% url 'inventory:ingreso_pdf' r.ingreso_id as doc_pdf_url %}
               {% elif r.tipo == "TRF" and r.transferencia_id %}
                 {% url 'inventory:transferencia_detail' r.transferencia_id as doc_url %}
               {% elif r.tipo == "BAJ" and r.baja_id %}
                 {% url 'inventory:baja_detail' r.baja_id as doc_url %}
               {% endif %}
-
+        
               <tr
                 class="row-click {% if doc_url %}row-link{% endif %}"
                 role="button"
@@ -102,8 +105,13 @@
                 {% endif %}
               >
                 <td class="mono">{{ r.fecha|date:"Y-m-d H:i" }}</td>
+        
+                {% if all_locals_active %}
+                  <td>{{ r.local__nombre|default:"—" }}</td>
+                {% endif %}
+        
                 <td class="strong">{{ r.tipo }}</td>
-
+        
                 <td>
                   {% if r.tipo == "OUT" %}
                     Venta #{{ r.venta_id }}
@@ -111,24 +119,22 @@
                     Ingreso #{{ r.ingreso_id }}
                   {% elif r.tipo == "TRF" %}
                     Transferencia #{{ r.transferencia_id }}
-                    {% if r.transfer_label %}
-                      <div class="subtle" style="margin-top:4px;">{{ r.transfer_label }}</div>
-                    {% endif %}
                   {% elif r.tipo == "BAJ" %}
                     Baja #{{ r.baja_id }}
+                  {% elif r.tipo == "RET" %}
+                    Devolución
                   {% else %}
                     —
                   {% endif %}
                 </td>
               
-                <td class="num">{{ r.items }}</td>
+                <td class="num">{{ r.unidades }}</td>
+                <td class="num mono">$ {{ r.venta_total }}</td>
+              
                 {% if can_see_cost %}
-                <td class="num mono">$ {{ r.costo_total }}</td>
-                <td class="num mono">$ {{ r.venta_total }}</td>
-                <td class="num mono">$ {{ r.profit_total }}</td>
-                {% else %}
-                <td class="num mono">$ {{ r.venta_total }}</td>
+                  <td class="num mono">$ {{ r.ganancia_total }}</td>
                 {% endif %}
+              
                 <td class="cell-menu" onclick="event.stopPropagation();">
                   <div class="kebab-wrap">
                     <details class="kebab">
@@ -139,222 +145,100 @@
                       <div class="kebab-menu">
                         {% if r.tipo == "OUT" and r.venta_id %}
                           <a class="kebab-item" href="{% url 'inventory:venta_detail' r.venta_id %}">Ver</a>
-                          {% if can_export %}
+                          {% if request.user.is_staff %}
                             <a class="kebab-item" href="{% url 'inventory:venta_pdf' r.venta_id %}">Exportar PDF</a>
                           {% endif %}
                         {% elif r.tipo == "IN" and r.ingreso_id %}
                           <a class="kebab-item" href="{% url 'inventory:ingreso_detail' r.ingreso_id %}">Ver</a>
-                          {% if can_export %}
+                          {% if request.user.is_staff %}
                             <a class="kebab-item" href="{% url 'inventory:ingreso_pdf' r.ingreso_id %}">Exportar PDF</a>
                           {% endif %}
                         {% elif r.tipo == "TRF" and r.transferencia_id %}
                           <a class="kebab-item" href="{% url 'inventory:transferencia_detail' r.transferencia_id %}">Ver</a>
                         {% elif r.tipo == "BAJ" and r.baja_id %}
-                            <a class="kebab-item" href="{% url 'inventory:baja_detail' r.baja_id %}">Ver #{{ r.baja_id }}</a>
-                          {% else %}
-                          <span class="kebab-item" style="opacity:.6; cursor:default;">No Doc</span>
+                          <a class="kebab-item" href="{% url 'inventory:baja_detail' r.baja_id %}">Ver</a>
+                        {% else %}
+                          <span class="kebab-item" style="opacity:.6; cursor:default;">Sin acción</span>
                         {% endif %}
                       </div>
-                    </details>  
+                    </details>
                   </div>
                 </td>
               </tr>
             {% endwith %}
           {% endfor %}
         </tbody>
-
       {% endif %}
-
+      
       {% if mode == "day" %}
         <thead>
           <tr>
             <th>Día</th>
-            <th class="num">Movimientos</th>
-            <th class="num">Unidades netas</th>
-            {% if can_see_cost %}
-              <th class="num">Costo</th>
-              <th class="num">Venta</th>
-              <th class="num">Profit</th>
-            {% else %}
-              <th class="num">Venta</th>
+            {% if all_locals_active %}
+              <th>Local</th>
             {% endif %}
+            <th class="num">Unidades OUT</th>
+            <th class="num">Unidades IN</th>
+            <th class="num">Venta</th>
+            <th class="num">Ganancia</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
             <tr>
               <td class="mono">{{ r.dia|date:"Y-m-d" }}</td>
-              <td class="num">{{ r.movimientos }}</td>
-              <td class="num">{{ r.unidades }}</td>
-              {% if can_see_cost %}
-                <td class="num mono">$ {{ r.costo_total }}</td>
-                <td class="num mono">$ {{ r.venta_total }}</td>
-                <td class="num mono">$ {{ r.profit_total }}</td>
-              {% else %}
-                <td class="num mono">$ {{ r.venta_total }}</td>
+              {% if all_locals_active %}
+                <td>{{ r.local__nombre|default:"—" }}</td>
               {% endif %}
+              <td class="num">{{ r.unidades_out }}</td>
+              <td class="num">{{ r.unidades_in }}</td>
+              <td class="num mono">$ {{ r.venta_total }}</td>
+              <td class="num mono">$ {{ r.ganancia_total }}</td>
             </tr>
           {% endfor %}
         </tbody>
       {% endif %}
 
-      {% if mode == "variant" %}
-        <thead>
-          <tr>
-            <th>Barcode</th>
-            <th>SKU</th>
-            <th>Producto</th>
-            <th>Variante</th>
-            <th class="num">Mov</th>
-            <th class="num">Unidades netas</th>
-            {% if can_see_cost %}
-              <th class="num">Costo</th>
-              <th class="num">Venta</th>
-              <th class="num">Profit</th>
-            {% else %}
-              <th class="num">Venta</th>
-            {% endif %}
-            <th>Último</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in rows %}
-            <tr>
-              <td class="mono">{{ r.barcode }}</td>
-              <td class="mono">{{ r.sku }}</td>
-              <td>{{ r.producto__nombre }} <span class="subtle">({{ r.producto__marca__nombre }})</span></td>
-              <td class="mono">{{ r.talle }}/{{ r.color }}</td>
-              <td class="num">{{ r.movimientos }}</td>
-              <td class="num">{{ r.unidades }}</td>
-              {% if can_see_cost %}
-                <td class="num mono">$ {{ r.costo_total }}</td>
-                <td class="num mono">$ {{ r.venta_total }}</td>
-                <td class="num mono">$ {{ r.profit_total }}</td>
-              {% else %}
-                <td class="num mono">$ {{ r.venta_total }}</td>
-              {% endif %}
-              <td class="mono">{{ r.last_fecha|date:"Y-m-d H:i" }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      {% endif %}
-
-      {% if mode == "unit" %}
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Doc</th>
-            <th>ID Art</th>
-            <th>Barcode</th>
-            <th>SKU</th>
-            <th>Var</th>
-            <th class="num">Cant</th>
-            {% if can_see_cost %}
-              <th class="num">Costo</th>
-              <th class="num">Precio</th>
-              <th class="num">Profit</th>
-            {% else %}
-              <th class="num">Precio</th>
-            {% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in rows %}
-            <tr>
-              <td class="mono">{{ m.fecha|date:"Y-m-d H:i" }}</td>
-              <td class="strong">{{ m.tipo }}</td>
-              <td class="mono">
-                {% if m.venta_id %}V#{{ m.venta_id }}{% elif m.ingreso_id %}I#{{ m.ingreso_id }}{% else %}—{% endif %}
-              </td>
-              <td class="mono">{{ m.articulo_id }}</td>
-              <td class="mono">{{ m.barcode }}</td>
-              <td class="mono">{{ m.sku }}</td>
-              <td class="mono">{{ m.talle }}/{{ m.color }}</td>
-              <td class="num">{{ m.cantidad }}</td>
-              {% if can_see_cost %}
-                <td class="num mono">$ {{ m.costo_unitario }}</td>
-                <td class="num mono">{% if m.precio_unitario %}$ {{ m.precio_unitario }}{% else %}—{% endif %}</td>
-                <td class="num mono">$ {{ m.profit_unitario }}</td>
-              {% else %}
-                <td class="num mono">{% if m.precio_unitario %}$ {{ m.precio_unitario }}{% else %}—{% endif %}</td>
-              {% endif %}
-            </tr>
-          {% endfor %}
-        </tbody>
-      {% endif %}
     </table>
   </div>
 {% else %}
   <div class="empty">
     <p style="margin:0; font-weight:900;">No hay movimientos para estos filtros.</p>
-    <p class="subtle" style="margin-bottom:0;">Probá cambiar el rango de fechas o el modo.</p>
+    <p class="subtle" style="margin-bottom:0;">Probá cambiar el rango de fechas o los filtros.</p>
   </div>
-  {% endif %}
-  {% endwith %}
+{% endif %}
+{% endwith %}
 
 <script>
   function rowGo(tr, evt){
-    // si el click vino desde el menú, no navegamos
     if (evt && evt.target && evt.target.closest && evt.target.closest(".kebab")) return;
     var href = tr.dataset.href;
     if (href) window.location.href = href;
   }
 
-    document.addEventListener("click", function(e){
-      const btn = e.target.closest(".kebab-btn");
-    
-      document.querySelectorAll(".kebab").forEach(k=>{
-        if (!btn || k !== btn.parentElement){
-          k.classList.remove("open");
-        }
-      });
-    
-      if (btn){
-        btn.parentElement.classList.toggle("open");
-        e.stopPropagation();
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest(".kebab-btn");
+
+    document.querySelectorAll(".kebab").forEach(k => {
+      if (!btn || k !== btn.parentElement){
+        k.classList.remove("open");
       }
     });
+
+    if (btn){
+      btn.parentElement.classList.toggle("open");
+      e.stopPropagation();
+    }
+  });
 
   document.addEventListener("keydown", function(e){
     if (e.key === "Escape"){
-      document.querySelectorAll(".kebab.open").forEach(function(k){ k.classList.remove("open"); });
+      document.querySelectorAll(".kebab.open").forEach(function(k){
+        k.classList.remove("open");
+      });
     }
   });
 </script>
-
-<script>
-  function toggleKebab(event, btn){
-    event.stopPropagation();
-  
-    const kebab = btn.closest(".kebab");
-  
-    // cerrar todos
-    document.querySelectorAll(".kebab").forEach(k=>{
-      if (k !== kebab){
-        k.classList.remove("active");
-      }
-    });
-  
-    // toggle actual
-    kebab.classList.toggle("active");
-  }
-  
-  // cerrar al clickear fuera
-  document.addEventListener("click", function(){
-    document.querySelectorAll(".kebab").forEach(k=>{
-      k.classList.remove("active");
-    });
-  });
-  function rowGo(tr, evt){
-    console.log("rowGo", tr.dataset.href, evt.target);
-    if (evt && evt.target && evt.target.closest && evt.target.closest(".kebab")) return;
-    var href = tr.dataset.href;
-    if (href) window.location.href = href;
-  }
-</script>
-
-
 
 {% endif %}
 {% endblock %}

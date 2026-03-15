@@ -32,8 +32,8 @@
     <thead>
       <tr>
         <th>SKU</th>
-        <th>Barcode</th>
-        <th>Variante</th>
+        <th>Código de barras</th>
+        
         <th class="num">Cantidad</th>
         {% if request.user.is_staff %}
           <th class="num">Costo u.</th>
@@ -46,7 +46,7 @@
         <tr>
           <td class="mono">{{ it.sku }}</td>
           <td class="mono">{{ it.barcode }}</td>
-          <td class="mono">{{ it.talle }}/{{ it.color }}</td>
+          
           <td class="num">{{ it.cantidad }}</td>
           {% if request.user.is_staff %}
           <td class="num mono">$ {{ it.costo_unitario }}</td>
@@ -74,9 +74,9 @@
       <thead>
         <tr>
           <th>Art ID</th>
-          <th>Barcode</th>
+          <th>Código de barras</th>
           <th>SKU</th>
-          <th>Var</th>
+          
           {% if request.user.is_staff %}
             <th class="num">Costo u.</th>
           {% endif %}
@@ -88,7 +88,7 @@
             <td class="mono">{{ m.articulo_id }}</td>
             <td class="mono">{{ m.barcode }}</td>
             <td class="mono">{{ m.sku }}</td>
-            <td class="mono">{{ m.talle }}/{{ m.color }}</td>
+            
             {% if request.user.is_staff %}
             <td class="num mono">$ {{ m.costo_unitario }}</td>
             {% endif %}

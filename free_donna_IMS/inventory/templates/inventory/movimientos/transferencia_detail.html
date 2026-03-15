@@ -65,10 +65,7 @@
         <tr>
           <th>ID Art</th>
           <th>SKU</th>
-          <th>Barcode</th>
-          <th>Variante</th>
-          <th>Producto</th>
-          <th>Marca</th>
+          <th>Código de barras</th>
           <th class="num">Estado</th>
           <th class="num">Local actual</th>
         </tr>
@@ -80,23 +77,6 @@
             <td class="mono">{{ it.articulo_id|default:it.articulo.articulo_id }}</td>
             <td class="strong">{{ it.sku }}</td>
             <td class="mono">{{ it.barcode }}</td>
-            <td class="mono">{{ it.talle }}/{{ it.color }}</td>
-
-            <td>
-              {% if it.articulo and it.articulo.product_id %}
-                {{ it.articulo.product_id.nombre|default:"—" }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-
-            <td>
-              {% if it.articulo and it.articulo.product_id %}
-                {{ it.articulo.product_id.marca|default:"—" }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
 
             <td class="num">
               {% if it.articulo %}

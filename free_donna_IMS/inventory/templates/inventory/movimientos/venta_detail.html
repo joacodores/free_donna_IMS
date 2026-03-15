@@ -20,13 +20,13 @@
   <div class="header-actions">
     <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Volver</a>
     {% if request.user.is_staff %}
-      <a class="btn-secondary" href="{% url 'inventory:venta_pdf' venta.venta_id %}">Exportar PDF</a>
+      <a class="btn-secondary btn-export"href="{% url 'inventory:venta_pdf' venta.venta_id %}">Exportar PDF</a>
     {% endif %}
   </div>
 </div>
 
 <div class="table-wrap">
-  <table class="table">
+  <table class="table table-detail-doc">
     <thead>
       <tr>
         <th>Código</th>
