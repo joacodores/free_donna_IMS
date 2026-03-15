@@ -167,7 +167,7 @@ body[data-theme="dark"] .panel{
 }
 
 .panel--cart .scanbar::after{
-  content: "Tip: Enter suma 1 unidad · Escáner recomendado";
+  
   grid-column: 1 / -1;
   margin-top: 8px;
   color: var(--muted);

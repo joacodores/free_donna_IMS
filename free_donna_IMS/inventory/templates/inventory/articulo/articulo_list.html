@@ -19,21 +19,31 @@
   <div class="header-actions">
     {% if request.user.is_staff %}
       {% if all_locals_active %}
-        <a class="btn-secondary" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode|cut:'all_locals=1'|cut:'&&' }}{% endif %}">
+        <a class="btn-secondary"
+           href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if scan %}scan={{ scan|urlencode }}&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}">
           Ver stock de local
         </a>
       {% else %}
-        <a class="btn-secondary" href="?{{ request.GET.urlencode }}{% if request.GET.urlencode %}&{% endif %}all_locals=1">
+        <a class="btn-secondary"
+           href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if scan %}scan={{ scan|urlencode }}&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}&all_locals=1">
           Ver stock general
         </a>
       {% endif %}
     {% endif %}
+
     <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Productos</a>
     <a class="btn-primary" href="{% url 'inventory:articulo_create' %}">+ Cargar artículos</a>
   </div>
 </div>
 
 <form method="get" class="scan-row" id="scanForm" autocomplete="off">
+  {% if all_locals_active %}
+    <input type="hidden" name="all_locals" value="1" />
+  {% endif %}
+  <input type="hidden" name="field" value="{{ field }}" />
+  <input type="hidden" name="estado" value="{{ estado }}" />
+  <input type="hidden" name="mode" value="unit" />
+
   <input
     name="scan"
     value="{{ scan }}"
@@ -47,11 +57,17 @@
   <button class="btn-primary" type="submit">OK</button>
 
   {% if scan %}
-    <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Limpiar</a>
+    <a class="btn-secondary"
+       href="{% url 'inventory:articulo_list' %}?{% if all_locals_active %}all_locals=1&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}">
+      Limpiar
+    </a>
   {% endif %}
 </form>
 
 <form method="get" class="search-row">
+  {% if all_locals_active %}
+    <input type="hidden" name="all_locals" value="1" />
+  {% endif %}
   <input type="hidden" name="scan" value="" />
 
   <input
@@ -88,7 +104,10 @@
   <button class="btn-secondary" type="submit">Buscar</button>
 
   {% if q or field != "all" or estado != "DISP" or mode != "qty" %}
-    <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Limpiar</a>
+    <a class="btn-secondary"
+       href="{% url 'inventory:articulo_list' %}{% if all_locals_active %}?all_locals=1{% endif %}">
+      Limpiar
+    </a>
   {% endif %}
 </form>
 
@@ -131,6 +150,7 @@
               data-marca="{{ a.product_id.marca.nombre|default_if_none:''|escapejs }}"
               data-product-id="{{ a.product_id.product_id }}"
               data-qty="1"
+              
             >
               <td class="mono">{{ a.articulo_id }}</td>
               <td class="strong">{{ a.sku }}</td>
@@ -184,6 +204,7 @@
               data-marca="{{ a.product_id__marca__nombre|default_if_none:''|escapejs }}"
               data-product-id="{{ a.product_id }}"
               data-qty="{{ a.qty }}"
+              
             >
               <td class="num strong">{{ a.qty }}</td>
               <td class="strong">{{ a.sku }}</td>
@@ -215,22 +236,14 @@
       <div class="pagination-right">
         {% if page_obj.has_previous %}
           <a class="btn-secondary"
-             href="?page={{ page_obj.previous_page_number }}
-             {% if q %}&q={{ q|urlencode }}{% endif %}
-             &field={{ field|urlencode }}
-             &estado={{ estado|urlencode }}
-             &mode={{ mode|urlencode }}">
+             href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if scan %}&scan={{ scan|urlencode }}{% endif %}&field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}{% if all_locals_active %}&all_locals=1{% endif %}">
             ← Anterior
           </a>
         {% endif %}
 
         {% if page_obj.has_next %}
           <a class="btn-secondary"
-             href="?page={{ page_obj.next_page_number }}
-             {% if q %}&q={{ q|urlencode }}{% endif %}
-             &field={{ field|urlencode }}
-             &estado={{ estado|urlencode }}
-             &mode={{ mode|urlencode }}">
+             href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if scan %}&scan={{ scan|urlencode }}{% endif %}&field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}{% if all_locals_active %}&all_locals=1{% endif %}">
             Siguiente →
           </a>
         {% endif %}
@@ -276,7 +289,6 @@
     <div class="modal-body">
       <dl class="kv">
         <dt>Cantidad</dt><dd id="m_qty">—</dd>
-        <dt>ID</dt><dd id="m_id">—</dd>
         <dt>SKU</dt><dd id="m_sku">—</dd>
         <dt>Barcode</dt><dd id="m_barcode">—</dd>
         <dt>Estado</dt><dd id="m_estado">—</dd>
@@ -285,6 +297,7 @@
         <dt>Marca</dt><dd id="m_marca">—</dd>
         <dt>Talle</dt><dd id="m_talle">—</dd>
         <dt>Color</dt><dd id="m_color">—</dd>
+        
       </dl>
     </div>
 
@@ -525,7 +538,9 @@
     const marca = rowEl.dataset.marca || "";
     const productId = rowEl.dataset.productId || "";
     const qty = rowEl.dataset.qty || "";
+    const local = rowEl.dataset.local || "";
     const mode = rowEl.dataset.mode || "unit";
+
 
     const $ = (x) => document.getElementById(x);
 
@@ -543,6 +558,9 @@
     if ($("m_marca")) $("m_marca").textContent = marca || "—";
     if ($("m_talle")) $("m_talle").textContent = talle || "—";
     if ($("m_color")) $("m_color").textContent = color || "—";
+    const localDt = $("m_local_dt");
+    const localDd = $("m_local");
+
 
     var verProd = document.getElementById("m_ver_producto");
     if (verProd) verProd.href = productId ? ("/productos/?open=" + encodeURIComponent(productId)) : "#";

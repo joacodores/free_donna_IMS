@@ -12,12 +12,12 @@
   <header class="pos-topbar">
     <div>
       <h2 class="pos-title">POS</h2>
-      <p class="pos-subtitle">Escaneá barcode para agregar al carrito. El scanner con Enter suma 1 unidad.</p>
+      <p class="pos-subtitle">Escaneá el código de barras para agregar al carrito. En caso de no tener, busca el código en la sección de artículos.</p>
     </div>
 
     <div class="pos-actions">
       <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Artículos</a>
-      <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Kardex</a>
+      <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Historial</a>
     </div>
   </header>
 

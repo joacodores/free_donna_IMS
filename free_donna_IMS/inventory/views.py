@@ -469,6 +469,10 @@ class ArticulosBulkBajaView(LoginRequiredMixin, StaffRequiredMixin, View):
         messages.success(request, f"Baja aplicada a {len(ids)} artículo(s).")
         return redirect("inventory:articulo_list")
     
+from django.db.models import Q, Count, Max
+from django.views.generic import ListView, View
+from django.http import JsonResponse
+
 class ArticuloListView(LoginRequiredMixin, ListView):
     model = Articulo
     template_name = "inventory/articulo/articulo_list.html"
@@ -476,14 +480,9 @@ class ArticuloListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("product_id", "product_id__marca")
+        qs = _articulos_visibles_qs(self.request)
 
         estado = (self.request.GET.get("estado") or "DISP").strip().upper()
-        if not _should_show_all_locals(self.request):
-            local_id = self.request.session.get("local_id")
-            if local_id:
-                qs = qs.filter(local_id=local_id)
-
         if estado in ["DISP", "VEND", "BAJA"]:
             qs = qs.filter(estado=estado)
 
@@ -537,17 +536,25 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         if mode == "unit":
             return qs.order_by("created_at", "articulo_id")
 
+        values_fields = [
+            "sku",
+            "barcode",
+            "talle",
+            "color",
+            "estado",
+            "product_id",
+            "product_id__nombre",
+            "product_id__marca__nombre",
+        ]
+
+        if _should_show_all_locals(self.request):
+            values_fields.extend([
+                "local_id",
+                "local_id__nombre",
+            ])
+
         return (
-            qs.values(
-                "sku",
-                "barcode",
-                "talle",
-                "color",
-                "estado",
-                "product_id",
-                "product_id__nombre",
-                "product_id__marca__nombre",
-            )
+            qs.values(*values_fields)
             .annotate(
                 qty=Count("articulo_id"),
                 last_created=Max("created_at"),
@@ -555,7 +562,6 @@ class ArticuloListView(LoginRequiredMixin, ListView):
             .order_by("-last_created", "barcode", "talle", "color")
         )
 
-    
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["locales"] = Local.objects.all().order_by("nombre")
@@ -572,14 +578,14 @@ class ArticuloListView(LoginRequiredMixin, ListView):
 
         mode = (self.request.GET.get("mode") or "qty").strip().lower()
         if ctx["scan"]:
-            mode = "unit"  
+            mode = "unit"
         if mode not in ["qty", "unit"]:
             mode = "qty"
         ctx["mode"] = mode
 
         ctx["auto_open_first"] = bool(ctx["scan"] and ctx["mode"] == "unit" and ctx["articulos"])
         return ctx
-
+    
 def build_sku(producto, color: str, talle) -> str:
     nombre = (getattr(producto, "nombre", "") or "").strip()
     color = (color or "").strip()
@@ -693,19 +699,30 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         MovimientoStock.objects.bulk_create(movs)
         messages.success(self.request, f"Ingreso #{ingreso.ingreso_id} registrado: {cantidad} unidad(es) de {producto}.")
         return super().form_valid(form)
-    
+
+
+def _articulos_visibles_qs(request):
+    qs = Articulo.objects.select_related("product_id", "product_id__marca", "local")
+
+    if not _should_show_all_locals(request):
+        local_id = request.session.get("local_id")
+        if local_id:
+            qs = qs.filter(local_id=local_id)
+
+    return qs
+
 class ArticuloLookupByBarcodeView(LoginRequiredMixin, View):
     def get(self, request):
         barcode = (request.GET.get("barcode") or "").strip()
         if not barcode:
             return JsonResponse({"found": False}, status=400)
 
+        qs = _articulos_visibles_qs(request)
+
         art = (
-            Articulo.objects
-            .select_related("product_id")
-            .filter(barcode=barcode)
-            .order_by("-articulo_id")
-            .first()
+            qs.filter(barcode=barcode)
+              .order_by("-articulo_id")
+              .first()
         )
 
         if not art:
