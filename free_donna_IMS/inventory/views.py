@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from email.mime import base
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from zoneinfo import ZoneInfo
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, HttpResponse
 from django.urls import reverse_lazy
@@ -1502,38 +1503,19 @@ class MovimientoStockView(LoginRequiredMixin, ListView):
             "all_locals_active": show_all,
             "can_export_pdf": False,
         })
+
 def money(x):
     if x is None:
         x = Decimal("0.00")
-    # formato simple, podés mejorar con locale si querés
     return f"$ {Decimal(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 
 def safe(s, maxlen=80):
     s = "" if s is None else str(s)
     return s[:maxlen]
 
-def draw_brand_header(c, w, h, title, subtitle_lines):
-    # header “profesional” (sobrio)
-    top = h - 36
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(40, top, title)
-
-    y = top - 16
-    c.setFont("Helvetica", 9)
-    for line in subtitle_lines:
-        c.drawString(40, y, line)
-        y -= 12
-
-    # separador
-    c.setLineWidth(0.8)
-    c.line(40, y, w - 40, y)
-    return y - 14  # y inicial de contenido
 
 def ensure_space(c, w, h, y, min_y=70, repeat_header_fn=None):
-    """
-    Si no hay espacio, nueva página y reimprime header si te pasan repeat_header_fn.
-    repeat_header_fn debe devolver un y nuevo.
-    """
     if y < min_y:
         c.showPage()
         if repeat_header_fn:
@@ -1541,23 +1523,327 @@ def ensure_space(c, w, h, y, min_y=70, repeat_header_fn=None):
         return h - 60
     return y
 
-def draw_table_header(c, y, cols):
-    """
-    cols: lista de tuplas (x, text, align) align: 'L' o 'R'
-    """
-    c.setFont("Helvetica-Bold", 9)
-    for x, text, align in cols:
-        if align == "R":
-            c.drawRightString(x, y, text)
-        else:
-            c.drawString(x, y, text)
-    c.setFont("Helvetica", 9)
-    return y - 12
+AR_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
 
+def ar_dt(dt):
+    if dt is None:
+        return None
+
+    # Si Django lo tiene como aware, convertir a hora Argentina
+    if timezone.is_aware(dt):
+        return dt.astimezone(AR_TZ)
+
+    # Si viene naive, asumir que ya está en hora local del negocio
+    return dt
+
+def fmt_ar_dt(dt):
+    dt = ar_dt(dt)
+    return dt.strftime("%Y-%m-%d %H:%M") if dt else "-"
+
+def fmt_ar_date(dt):
+    dt = ar_dt(dt)
+    return dt.strftime("%Y-%m-%d") if dt else "-"
+
+def _draw_centered_header(c, w, h, title, subtitle_lines):
+    top = h - 42
+
+    c.setFont("Helvetica-Bold", 15)
+    c.drawCentredString(w / 2, top, title)
+
+    y = top - 18
+    c.setFont("Helvetica", 9)
+    for line in subtitle_lines:
+        c.drawCentredString(w / 2, y, line)
+        y -= 12
+
+    y -= 2
+    c.setLineWidth(0.8)
+    c.line(40, y, w - 40, y)
+
+    return y - 18
+
+
+def _draw_sales_summary_block(c, w, y, ventas_count, unidades, subtotal, descuentos, total, costo, resultado):
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(40, y, "Resumen de ventas")
+    y -= 18
+
+    c.setFont("Helvetica", 11)
+    c.drawString(40, y, f"Comprobantes: {ventas_count}")
+    y -= 14
+    c.drawString(40, y, f"Unidades: {unidades}")
+    y -= 16
+
+    c.drawString(40, y, f"Subtotal: {money(subtotal)}")
+    y -= 14
+    c.drawString(40, y, f"Descuentos: {money(descuentos)}")
+    y -= 14
+    c.drawString(40, y, f"Costo total: {money(costo)}")
+    y -= 18
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, f"Total vendido: {money(total)}")
+    y -= 14
+    c.drawString(40, y, f"Ganancia: {money(resultado)}")
+    y -= 30
+
+    return y
+
+
+def _draw_sale_title(c, w, y, venta):
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, f"Venta {fmt_ar_dt(venta.fecha)}")
+    y -= 14
+
+    usuario_txt = ""
+    if hasattr(venta.usuario, "get_full_name"):
+        usuario_txt = venta.usuario.get_full_name().strip()
+    if not usuario_txt:
+        usuario_txt = venta.usuario.username
+
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Usuario: {usuario_txt}   Método de pago: {venta.get_metodo_de_pago_display()}")
+    y -= 10
+
+    c.setLineWidth(0.6)
+    c.line(40, y, w - 40, y)
+    y -= 14
+
+    return y
+
+
+def _draw_sale_table_header(c, w, y):
+    cols = [
+        (40,  "SKU", "L"),
+        (270, "Código", "L"),
+        (355, "Cant.", "R"),
+        (430, "Precio u.", "R"),
+        (485, "Desc.", "R"),
+        (w - 40, "Total", "R"),
+    ]
+
+    c.setFont("Helvetica-Bold", 9)
+    for x, txt, align in cols:
+        if align == "R":
+            c.drawRightString(x, y, txt)
+        else:
+            c.drawString(x, y, txt)
+
+    y -= 14
+    c.setFont("Helvetica", 9)
+    return y
+
+def _draw_sale_totals(c, w, y, venta, costo_total, ganancia_total):
+    c.setLineWidth(0.6)
+    c.line(315, y, w - 40, y)
+    y -= 18
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawRightString(
+        w - 40,
+        y,
+        f"Subtotal: {money(venta.subtotal)}   Desc.: {money(venta.total_descuento)}   Costo: {money(costo_total)}"
+    )
+    y -= 20
+
+    c.drawRightString(
+        w - 40,
+        y,
+        f"Total: {money(venta.total)}   Ganancia: {money(ganancia_total)}"
+    )
+    y -= 30
+
+    return y
+
+def _estimate_sale_block_height(venta):
+    items = list(venta.items.all())
+    h = 34   # título + usuario + línea
+    h += 16  # table header
+    for it in items:
+        h += 12
+        descuento_u = Decimal(getattr(it, "descuento_unitario", 0) or 0)
+        promo_obj = getattr(it, "promocion", None)
+        promo_nombre = getattr(promo_obj, "nombre", "") if promo_obj else ""
+        if descuento_u > 0 and promo_nombre:
+            h += 10
+    h += 6
+    h += 34  # totales
+    h += 18  # aire entre comprobantes
+    return h
+
+
+
+
+
+def _render_ventas_pdf(request, local, ventas_qs):
+    ventas = list(
+        ventas_qs
+        .select_related("usuario", "local")
+        .prefetch_related("items", "items__producto", "items__producto__marca", "items__promocion")
+        .order_by("-fecha", "-venta_id")
+    )
+
+    if not ventas:
+        return HttpResponse("No hay ventas para exportar.", status=400)
+
+    venta_ids = [v.venta_id for v in ventas]
+
+    ventas_agg = (
+        Venta.objects
+        .filter(venta_id__in=venta_ids)
+        .aggregate(
+            ventas=Count("venta_id"),
+            subtotal_bruto=Coalesce(Sum("subtotal"), Value(0, output_field=DecimalField())),
+            descuento_total=Coalesce(Sum("total_descuento"), Value(0, output_field=DecimalField())),
+            venta_total=Coalesce(Sum("total"), Value(0, output_field=DecimalField())),
+        )
+    )
+
+    ms_global_agg = (
+        MovimientoStock.objects
+        .filter(venta_id__in=venta_ids, tipo=MovimientoStock.Tipo.VENTA)
+        .aggregate(
+            unidades=Count("movimiento_id"),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+        )
+    )
+
+    fechas = [ar_dt(v.fecha) for v in ventas if v.fecha]
+    min_fecha = min(fechas)
+    max_fecha = max(fechas)
+    
+    if min_fecha.date() == max_fecha.date():
+        fecha_line = f"Fecha: {fmt_ar_date(min_fecha)}"
+    else:
+        fecha_line = f"Rango: {fmt_ar_date(min_fecha)} a {fmt_ar_date(max_fecha)}"
+    usuarios = sorted({
+        (v.usuario.get_full_name().strip() if hasattr(v.usuario, "get_full_name") else "") or v.usuario.username
+        for v in ventas
+    })
+    usuarios_txt = ", ".join(usuarios) if usuarios else "-"
+
+    resp = HttpResponse(content_type="application/pdf")
+    if len(ventas) == 1:
+        filename = f'venta_{ventas[0].venta_id}.pdf'
+    else:
+        filename = "reporte_ventas.pdf"
+    resp["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    c = canvas.Canvas(resp, pagesize=A4)
+    w, h = A4
+
+    def header():
+        return _draw_centered_header(
+            c, w, h,
+            title=f"Reporte de Ventas - FreeDonna",
+            subtitle_lines=[
+                f"Local: {local.nombre}",
+                fecha_line,
+                f"Usuarios: {safe(usuarios_txt, 110)}",
+                f"Generado: {timezone.now().astimezone(AR_TZ).strftime('%Y-%m-%d %H:%M')}",
+            ]
+        )
+
+    y = header()
+
+    if len(ventas) > 1:
+        y = ensure_space(c, w, h, y, min_y=150, repeat_header_fn=header)
+        y = _draw_sales_summary_block(
+            c, w, y,
+            ventas_count=ventas_agg["ventas"] or 0,
+            unidades=ms_global_agg["unidades"] or 0,
+            subtotal=ventas_agg["subtotal_bruto"],
+            descuentos=ventas_agg["descuento_total"],
+            total=ventas_agg["venta_total"],
+            costo=ms_global_agg["costo_total"],
+            resultado=ms_global_agg["profit_total"],
+        )
+
+    for venta in ventas:
+        estimated_height = _estimate_sale_block_height(venta)
+
+        if y < max(120, 60 + estimated_height):
+            c.showPage()
+            y = header()
+
+        venta_ms_agg = (
+            MovimientoStock.objects
+            .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
+            .aggregate(
+                costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+            )
+        )
+
+        y = _draw_sale_title(c, w, y, venta)
+        y = _draw_sale_table_header(c, w, y)
+
+        items = list(venta.items.all().order_by("item_id"))
+
+        for it in items:
+            if y < 95:
+                c.showPage()
+                y = header()
+                y = _draw_sale_title(c, w, y, venta)
+                y = _draw_sale_table_header(c, w, y)
+
+            sku_base = safe(getattr(it, "sku", ""), 20)
+            talle = safe(getattr(it, "talle", ""), 8)
+            color = safe(getattr(it, "color", ""), 12)
+            sku = safe(f"{sku_base} {color} {talle}".strip(), 34)
+
+            barcode = safe(getattr(it, "barcode", ""), 24)
+            qty = int(getattr(it, "cantidad", 1) or 1)
+
+            precio_u = Decimal(getattr(it, "precio_unitario", 0) or 0)
+            descuento_u = Decimal(getattr(it, "descuento_unitario", 0) or 0)
+            total_linea = Decimal(getattr(it, "total_linea", 0) or 0)
+            descuento_total = descuento_u * qty
+
+            c.setFont("Helvetica", 9)
+            c.drawString(40, y, sku)
+            c.drawString(270, y, barcode)
+            c.drawRightString(355, y, str(qty))
+            c.drawRightString(430, y, money(precio_u))
+            c.drawRightString(485, y, money(descuento_total))
+            c.drawRightString(w - 40, y, money(total_linea))
+            y -= 12
+
+            promo_obj = getattr(it, "promocion", None)
+            promo_nombre = getattr(promo_obj, "nombre", "") if promo_obj else ""
+            if descuento_u > 0 and promo_nombre:
+                c.setFont("Helvetica-Oblique", 8)
+                c.drawString(40, y, safe(f"Promo aplicada: {promo_nombre}", 100))
+                y -= 11
+
+        y -= 6
+        y = _draw_sale_totals(
+            c, w, y,
+            venta=venta,
+            costo_total=venta_ms_agg["costo_total"],
+            ganancia_total=venta_ms_agg["profit_total"],
+        )
+    c.save()
+    return resp
+
+def venta_pdf(request, venta_id: int):
+    local = _get_local_activo(request)
+
+    venta = get_object_or_404(
+        Venta.objects.select_related("local", "usuario"),
+        venta_id=venta_id
+    )
+
+    if local and venta.local_id != local.local_id:
+        return HttpResponse("No autorizado para este local.", status=403)
+
+    ventas_qs = Venta.objects.filter(venta_id=venta.venta_id, local=venta.local)
+    return _render_ventas_pdf(request, venta.local, ventas_qs)
 
 def movimiento_pdf(request):
     if not request.user.is_staff:
         return HttpResponse("No autorizado.", status=403)
+
     local = _get_local_activo(request)
     if not local:
         return HttpResponse("No hay local activo.", status=400)
@@ -1568,297 +1854,100 @@ def movimiento_pdf(request):
     desde = (request.GET.get("from") or "").strip()
     hasta = (request.GET.get("to") or "").strip()
 
-    base = (MovimientoStock.objects
-            .filter(local=local)
-            .select_related("producto", "venta", "ingreso", "articulo", "usuario"))
+    base = (
+        MovimientoStock.objects
+        .filter(local=local)
+        .select_related("producto", "venta", "ingreso", "articulo", "usuario")
+    )
 
     if tipo in ["IN", "OUT", "ADJ", "TRF", "BAJ", "RET"]:
         base = base.filter(tipo=tipo)
 
     if q:
-        base = (base.filter(barcode__icontains=q) |
-                base.filter(sku__icontains=q) |
-                base.filter(producto__nombre__icontains=q) |
-                base.filter(producto__marca__nombre__icontains=q))
+        base = base.filter(
+            Q(barcode__icontains=q) |
+            Q(sku__icontains=q) |
+            Q(producto__nombre__icontains=q) |
+            Q(producto__marca__nombre__icontains=q)
+        )
 
     if desde:
         base = base.filter(fecha__date__gte=desde)
     if hasta:
         base = base.filter(fecha__date__lte=hasta)
 
-    # ---- NUEVO: si es un reporte SOLO DE VENTAS, lo renderizamos “bonito”
-    is_sales_report = (mode == "doc" and tipo in ["OUT", "VENTA"])  # ajustá si tu tipo real de venta es "OUT"
-    # Si tu enum real en MovimientoStock para ventas es MovimientoStock.Tipo.VENTA,
-    # entonces setearías is_sales_report si tipo == "OUT" (como venís usando en UI)
-    # y el filtro del base ya te deja solo ventas.
-
+    is_sales_report = (mode == "doc" and tipo in ["OUT", "VENTA"])
     if is_sales_report:
-        return _ventas_report_pdf(request, local, base, desde, hasta, q, tipo)
+        venta_ids = list(
+            base.exclude(venta_id=None)
+                .values_list("venta_id", flat=True)
+                .distinct()
+        )
 
-    # ---- lo que ya tenías para unit/day/variant/doc (igual que tu versión actual)
+        ventas_qs = Venta.objects.filter(venta_id__in=venta_ids, local=local)
+        return _render_ventas_pdf(request, local, ventas_qs)
+
     if mode == "unit":
         rows = list(base.order_by("-fecha", "-movimiento_id")[:1500])
     elif mode == "day":
-        rows = list(base.annotate(dia=TruncDate("fecha")).values("dia").annotate(
-            movimientos=Count("movimiento_id"),
-            unidades=Sum("cantidad"),
-            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-        ).order_by("-dia"))
+        rows = list(
+            base.annotate(dia=TruncDate("fecha"))
+                .values("dia")
+                .annotate(
+                    movimientos=Count("movimiento_id"),
+                    unidades=Sum("cantidad"),
+                    costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                    venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                    profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                )
+                .order_by("-dia")
+        )
     elif mode == "variant":
-        rows = list(base.values("barcode","sku","talle","color","producto__nombre","producto__marca__nombre").annotate(
-            movimientos=Count("movimiento_id"),
-            unidades=Sum("cantidad"),
-            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-            last_fecha=Max("fecha"),
-        ).order_by("barcode","talle","color"))
+        rows = list(
+            base.values("barcode", "sku", "talle", "color", "producto__nombre", "producto__marca__nombre")
+                .annotate(
+                    movimientos=Count("movimiento_id"),
+                    unidades=Sum("cantidad"),
+                    costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                    venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                    profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                    last_fecha=Max("fecha"),
+                )
+                .order_by("barcode", "talle", "color")
+        )
     else:
-        rows = list(base.values("tipo","venta_id","ingreso_id").annotate(
-            fecha=Max("fecha"),
-            items=Count("movimiento_id"),
-            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-            venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
-            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-        ).order_by("-fecha"))
+        rows = list(
+            base.values("tipo", "venta_id", "ingreso_id")
+                .annotate(
+                    fecha=Max("fecha"),
+                    items=Count("movimiento_id"),
+                    costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+                    venta_total=Coalesce(Sum("precio_unitario"), Value(0, output_field=DecimalField())),
+                    profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
+                )
+                .order_by("-fecha")
+        )
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'inline; filename="movimientos.pdf"'
     c = canvas.Canvas(response, pagesize=A4)
     w, h = A4
 
-    y = draw_brand_header(
+    y = _draw_centered_header(
         c, w, h,
         title=f"Movimientos de Stock - {local.nombre}",
         subtitle_lines=[
-            f"Modo: {mode}  |  Tipo: {tipo}  |  Búsqueda: {q or '-'}",
-            f"Rango: {desde or '-'} a {hasta or '-'}  |  Generado: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
+            f"Modo: {mode}  |  Tipo: {tipo}",
+            f"Rango: {desde or '-'} a {hasta or '-'}",
+            f"Generado: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
         ]
     )
 
-    # ... tu render actual de rows (unit/day/variant/doc) ...
-    # (copiá y pegá tal cual tu lógica existente de imprimir filas)
-    # (no la repito acá para no hacer ruido)
-
-    c.showPage()
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, "Render de movimientos general pendiente / conservar lógica actual.")
     c.save()
     return response
 
-
-def _ventas_report_pdf(request, local, base_qs, desde, hasta, q, tipo):
-    """
-    Reporte de ventas:
-    - Agrupa por venta
-    - Imprime items
-    - No muestra costo por artículo
-    - Muestra subtotal, descuentos y total por venta
-    - Muestra costo/profit total por venta y global
-    """
-    from django.db.models import Q
-
-    venta_ids = list(
-        base_qs.exclude(venta_id=None)
-               .values_list("venta_id", flat=True)
-               .distinct()
-    )
-
-    ventas = (
-        Venta.objects
-        .select_related("usuario", "local")
-        .prefetch_related("items", "items__producto", "items__promocion")
-        .filter(venta_id__in=venta_ids, local=local)
-        .order_by("-fecha")
-    )
-
-    # Globales: Venta como fuente de subtotal/desc/total
-    ventas_agg = ventas.aggregate(
-        ventas=Count("venta_id"),
-        subtotal_bruto=Coalesce(Sum("subtotal"), Value(0, output_field=DecimalField())),
-        descuento_total=Coalesce(Sum("total_descuento"), Value(0, output_field=DecimalField())),
-        venta_total=Coalesce(Sum("total"), Value(0, output_field=DecimalField())),
-    )
-
-    # Globales: MovimientoStock como fuente de costo/profit
-    ms_global_agg = (
-        base_qs.filter(venta_id__in=venta_ids)
-        .aggregate(
-            unidades=Count("movimiento_id"),
-            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-            profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-        )
-    )
-
-    usuarios = sorted({v.usuario.get_full_name().strip() or v.usuario.username for v in ventas})
-    usuarios_txt = ", ".join(usuarios) if usuarios else "-"
-
-    resp = HttpResponse(content_type="application/pdf")
-    resp["Content-Disposition"] = 'inline; filename="reporte_ventas.pdf"'
-    c = canvas.Canvas(resp, pagesize=A4)
-    w, h = A4
-
-    def header():
-        return draw_brand_header(
-            c, w, h,
-            title=f"Reporte de Ventas - {local.nombre}",
-            subtitle_lines=[
-                f"Rango: {desde or '-'} a {hasta or '-'}  |  Búsqueda: {q or '-'}",
-                f"Usuarios: {usuarios_txt}",
-                f"Generado: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
-            ]
-        )
-
-    y = header()
-
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, y, "Resumen")
-    y -= 12
-    c.setFont("Helvetica", 9)
-    c.drawString(40, y, f"Comprobantes: {ventas_agg['ventas'] or 0}   Unidades: {ms_global_agg['unidades'] or 0}")
-    y -= 12
-    c.drawString(
-        40, y,
-        f"Subtotal: {money(ventas_agg['subtotal_bruto'])}   "
-        f"Descuentos: {money(ventas_agg['descuento_total'])}   "
-        f"Total vendido: {money(ventas_agg['venta_total'])}"
-    )
-    y -= 12
-    c.drawString(
-        40, y,
-        f"Costo total: {money(ms_global_agg['costo_total'])}   "
-        f"Resultado: {money(ms_global_agg['profit_total'])}"
-    )
-    y -= 16
-
-    item_cols = [
-        (40,  "SKU", "L"),
-        (110, "Barcode", "L"),
-        (185, "Producto", "L"),
-        (330, "Var", "L"),
-        (385, "Qty", "R"),
-        (435, "Final", "R"),
-        (495, "Desc.", "R"),
-        (w - 40, "Importe", "R"),
-    ]
-
-    for v in ventas:
-        vagg_ms = (
-            MovimientoStock.objects
-            .filter(venta=v, tipo=MovimientoStock.Tipo.VENTA)
-            .aggregate(
-                unidades=Count("movimiento_id"),
-                costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
-                profit_total=Coalesce(Sum("profit_unitario"), Value(0, output_field=DecimalField())),
-            )
-        )
-
-        if hasattr(v.usuario, "get_full_name"):
-            user_label = v.usuario.get_full_name().strip()
-        else:
-            user_label = ""
-
-        if not user_label:
-            user_label = v.usuario.username
-
-        y = ensure_space(c, w, h, y, min_y=130, repeat_header_fn=header)
-
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(40, y, f"Comprobante {v.venta_id}")
-        c.setFont("Helvetica", 9)
-        c.drawRightString(w - 40, y, v.fecha.strftime("%Y-%m-%d %H:%M"))
-        y -= 12
-        c.drawString(40, y, f"Usuario: {user_label}   Pago: {v.get_metodo_de_pago_display()}")
-        y -= 10
-        c.line(40, y, w - 40, y)
-        y -= 12
-
-        y = draw_table_header(c, y, item_cols)
-
-        items = list(v.items.all().order_by("item_id"))
-        for it in items:
-            y = ensure_space(c, w, h, y, min_y=95, repeat_header_fn=header)
-
-            sku = safe(getattr(it, "sku", ""), 12)
-            barcode = safe(getattr(it, "barcode", ""), 14)
-
-            producto_txt = safe(
-                getattr(getattr(it, "producto", None), "nombre", "") or "",
-                26
-            )
-            marca_obj = getattr(getattr(it, "producto", None), "marca", None)
-            marca_txt = getattr(marca_obj, "nombre", "") if marca_obj else ""
-            if marca_txt:
-                producto_txt = safe(f"{producto_txt} ({marca_txt})", 32)
-
-            talle = getattr(it, "talle", "")
-            color = getattr(it, "color", "")
-            var_txt = safe(f"{talle}/{color}", 8)
-
-            qty = int(getattr(it, "cantidad", 1) or 1)
-            precio_base = Decimal(getattr(it, "precio_base_unitario", 0) or 0)
-            precio_final = Decimal(getattr(it, "precio_unitario", 0) or 0)
-            descuento_u = Decimal(getattr(it, "descuento_unitario", 0) or 0)
-            total_linea = Decimal(getattr(it, "total_linea", 0) or 0)
-            promo_nombre = getattr(it, "promocion_nombre", "") or ""
-
-            c.setFont("Helvetica", 9)
-            c.drawString(40, y, sku)
-            c.drawString(110, y, barcode)
-            c.drawString(185, y, producto_txt)
-            c.drawString(330, y, var_txt)
-            c.drawRightString(385, y, str(qty))
-            c.drawRightString(435, y, money(precio_final))
-            c.drawRightString(495, y, money(descuento_u * qty) if descuento_u > 0 else "-")
-            c.drawRightString(w - 40, y, money(total_linea))
-            y -= 11
-
-            if promo_nombre or descuento_u > 0:
-                c.setFont("Helvetica-Oblique", 8)
-                detail = f"Base: {money(precio_base)}"
-                if descuento_u > 0:
-                    detail += f"  ·  Promo: {promo_nombre or 'Descuento aplicado'}  ·  Desc. u: {money(descuento_u)}"
-                c.drawString(185, y, safe(detail, 85))
-                y -= 10
-
-        y -= 4
-        y = ensure_space(c, w, h, y, min_y=85, repeat_header_fn=header)
-        c.setLineWidth(0.6)
-        c.line(300, y, w - 40, y)
-        y -= 14
-        c.setFont("Helvetica-Bold", 9)
-        c.drawRightString(
-            w - 40, y,
-            f"Subtotal: {money(v.subtotal)}   Desc.: {money(v.total_descuento)}   Total: {money(v.total)}"
-        )
-        y -= 12
-        c.drawRightString(
-            w - 40, y,
-            f"Costo: {money(vagg_ms['costo_total'])}   Resultado: {money(vagg_ms['profit_total'])}"
-        )
-        y -= 16
-
-    y = ensure_space(c, w, h, y, min_y=95, repeat_header_fn=header)
-    c.setLineWidth(1.0)
-    c.line(40, y, w - 40, y)
-    y -= 18
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(40, y, "Totales del reporte")
-    y -= 14
-    c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(w - 40, y, f"Subtotal bruto: {money(ventas_agg['subtotal_bruto'])}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"Descuentos: {money(ventas_agg['descuento_total'])}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"Total vendido: {money(ventas_agg['venta_total'])}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"Costo total: {money(ms_global_agg['costo_total'])}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"PROFIT TOTAL: {money(ms_global_agg['profit_total'])}")
-
-    c.showPage()
-    c.save()
-    return resp
 
 class VentaDetailView(LoginRequiredMixin, DetailView):
     model = Venta
@@ -2021,95 +2110,6 @@ class BajaDetailView(LoginRequiredMixin, DetailView):
         ctx["ms_totals"] = {"unidades": total_unidades, "costo_total": total_costo}
         return ctx
     
-def venta_pdf(request, venta_id: int):
-    local = _get_local_activo(request)
-    venta = get_object_or_404(Venta.objects.select_related("local","usuario"), venta_id=venta_id)
-    if local and venta.local_id != local.local_id:
-        return HttpResponse("No autorizado para este local.", status=403)
-
-    items = list(venta.items.all().order_by("item_id"))
-
-    agg = (MovimientoStock.objects
-           .filter(venta=venta, tipo=MovimientoStock.Tipo.VENTA)
-           .aggregate(
-               unidades=Count("movimiento_id"),
-               costo_total=Sum("costo_unitario"),
-               venta_total=Sum("precio_unitario"),
-               profit_total=Sum("profit_unitario"),
-           ))
-
-    resp = HttpResponse(content_type="application/pdf")
-    resp["Content-Disposition"] = f'inline; filename="venta_{venta_id}.pdf"'
-    c = canvas.Canvas(resp, pagesize=A4)
-    w, h = A4
-
-    def header():
-        return draw_brand_header(
-            c, w, h,
-            title=f"Comprobante / Detalle de Venta #{venta.venta_id}",
-            subtitle_lines=[
-                f"Fecha: {venta.fecha.strftime('%Y-%m-%d %H:%M')}  |  Local: {venta.local}  |  Usuario: {venta.usuario.username}",
-                f"Método de pago: {venta.get_metodo_de_pago_display()}  |  Estado: {venta.get_estado_display()}",
-                f"Generado: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
-            ]
-        )
-
-    y = header()
-
-    cols = [
-        (40, "SKU", "L"),
-        (120, "Barcode", "L"),
-        (210, "Var", "L"),
-        (300, "Descripción", "L"),
-        (450, "Qty", "R"),
-        (520, "Precio", "R"),
-        (w - 40, "Importe", "R"),
-    ]
-
-    y = draw_table_header(c, y, cols)
-
-    for it in items:
-        y = ensure_space(c, w, h, y, min_y=80, repeat_header_fn=header)
-
-        sku = safe(getattr(it, "sku", ""), 14)
-        barcode = safe(getattr(it, "barcode", ""), 16)
-        var_txt = safe(f"{getattr(it,'talle','')}/{getattr(it,'color','')}", 10)
-
-        qty = int(getattr(it, "cantidad", 1) or 1)
-        precio_u = Decimal(getattr(it, "precio_unitario", 0) or 0)
-        total_linea = precio_u * qty
-
-        # descripción más “humana”
-        desc = safe(getattr(it, "nombre", None) or getattr(getattr(it, "producto", None), "nombre", ""), 40)
-        marca = getattr(it, "marca", None) or getattr(getattr(it, "producto", None), "marca", "")
-        if marca:
-            desc = safe(f"{desc} ({marca})", 46)
-
-        c.drawString(40, y, sku)
-        c.drawString(120, y, barcode)
-        c.drawString(210, y, var_txt)
-        c.drawString(300, y, desc)
-        c.drawRightString(450, y, str(qty))
-        c.drawRightString(520, y, money(precio_u))
-        c.drawRightString(w - 40, y, money(total_linea))
-        y -= 12
-
-    # Totales
-    y -= 6
-    y = ensure_space(c, w, h, y, min_y=90, repeat_header_fn=header)
-    c.line(320, y, w - 40, y)
-    y -= 16
-    c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(w - 40, y, f"Total vendido: {money(agg['venta_total'] or 0)}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"Costo total (sin detalle): {money(agg['costo_total'] or 0)}")
-    y -= 14
-    c.drawRightString(w - 40, y, f"Profit: {money(agg['profit_total'] or 0)}")
-
-    c.showPage()
-    c.save()
-    return resp
-
 
 def ingreso_pdf(request, ingreso_id: int):
     local = _get_local_activo(request)
