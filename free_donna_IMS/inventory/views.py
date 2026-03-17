@@ -4,7 +4,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from zoneinfo import ZoneInfo
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, HttpResponse
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, DeleteView, TemplateView, FormView
 from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F, Case, When
 from django.db.models.fields import DecimalField, IntegerField
@@ -23,6 +23,7 @@ from datetime import datetime as Datetime, time, timezone, datetime
 from django.db.models.functions import TruncDate, Coalesce, TruncMinute, Concat
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 from django.utils import timezone
 from openpyxl import load_workbook
 
@@ -30,8 +31,60 @@ from openpyxl import load_workbook
 
 @login_required
 def index(request):
-    return render(request, "inventory/index.html")
+    local = _get_local_activo(request)
+    hoy = timezone.localdate()
 
+    ventas_qs = (
+        Venta.objects
+        .filter(
+            usuario=request.user,
+            local=local if local else None,
+            estado=Venta.Estado.CERRADA,
+            fecha__date=hoy,
+        )
+        .order_by("-venta_id")
+    )
+
+    agg = ventas_qs.aggregate(
+        ventas_hoy_count=Count("venta_id"),
+        ventas_hoy_total=Coalesce(Sum("total"), Decimal("0.00")),
+    )
+
+    ventas_hoy = list(
+        ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total")[:8]
+    )
+
+    caja_qs = (
+        RetiroCaja.objects
+        .filter(
+            local=local if local else None,
+            fecha=hoy,
+        )
+        .select_related("usuario")
+        .order_by("-fecha")
+    )
+
+    if not request.user.is_staff:
+        caja_qs = caja_qs.filter(usuario=request.user)
+
+    movimientos_caja = list(caja_qs[:8])
+
+    promociones_activas = Promocion.objects.filter(estado="ACT").count()
+    total_en_efectivo = _saldo_caja_local(local) if local else Decimal("0.00")
+
+    context = {
+        "now": timezone.now(),
+        "local_activo_id": getattr(local, "local_id", None),
+
+        "ventas_hoy_count": agg["ventas_hoy_count"] or 0,
+        "ventas_hoy_total": agg["ventas_hoy_total"] or Decimal("0.00"),
+        "efectivo_en_caja": total_en_efectivo,
+        "promociones_activas": promociones_activas,
+
+        "ventas_hoy": ventas_hoy,
+        "movimientos_caja": movimientos_caja,
+    }
+    return render(request, "inventory/index.html", context)
 
 def _is_admin(user):
     return user.is_staff or user.is_superuser
@@ -935,6 +988,34 @@ def _get_local_activo(request):
     if not local_id:
         return None
     return Local.objects.get(local_id=local_id)
+def _saldo_caja_local(local):
+    if not local:
+        return Decimal("0.00")
+
+    ventas_efectivo = (
+        Venta.objects
+        .filter(
+            local=local,
+            estado=Venta.Estado.CERRADA,
+            metodo_de_pago=Venta.MetodoPago.EFECTIVO,
+        )
+        .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
+    )["total"] or Decimal("0.00")
+
+    entradas = (
+        RetiroCaja.objects
+        .filter(local=local, tipo=RetiroCaja.Tipo.ENTRADA)
+        .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+    )["total"] or Decimal("0.00")
+
+    salidas = (
+        RetiroCaja.objects
+        .filter(local=local, tipo=RetiroCaja.Tipo.SALIDA)
+        .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+    )["total"] or Decimal("0.00")
+
+    saldo = ventas_efectivo + entradas - salidas
+    return saldo if saldo > 0 else Decimal("0.00")
 
 class POSView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos.html"
@@ -967,21 +1048,7 @@ class POSView(LoginRequiredMixin, View):
             ventas_hoy_total=Coalesce(Sum("total"), Decimal("0.00")),
         )
         ventas_hoy = ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total")[:50]
-        total_ventas_efectivo = (
-            ventas_qs.filter(metodo_de_pago=Venta.MetodoPago.EFECTIVO)
-            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-
-        retiros = (
-            RetiroCaja.objects
-            .filter(local=local, usuario=request.user, fecha=hoy)
-            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-        
-
-        total_en_efectivo = total_ventas_efectivo - retiros
-        if total_en_efectivo < 0:
-            total_en_efectivo = Decimal("0.00")
+        total_en_efectivo = _saldo_caja_local(local)
             
         return render(request, self.template_name, {
             "cart": cart,
@@ -1002,106 +1069,108 @@ class POSView(LoginRequiredMixin, View):
 class POSCajaView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos_caja.html"
     def get(self, request):
-        local=_get_local_activo(request)
-        hoy=timezone.localdate()
-        
-        ventas_qs = (
-            Venta.objects
-            .filter(
-                usuario=request.user,
-                local=local if local else None,
-                estado=Venta.Estado.CERRADA,
-                fecha__date=hoy,   
-            )
-            .order_by("-venta_id")
-        )
-        
-        total_ventas_efectivo = (
-            ventas_qs.filter(metodo_de_pago=Venta.MetodoPago.EFECTIVO)
-            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-        
-        retiros_hoy = (
+        local = _get_local_activo(request)
+        hoy = timezone.localdate()
+
+        saldo_actual = _saldo_caja_local(local)
+
+        movimientos_hoy = (
             RetiroCaja.objects
-            .filter(local=local, usuario=request.user, fecha=hoy).order_by("creado_en")[:30]
+            .filter(local=local, fecha=hoy)
+            .select_related("usuario")
+            .order_by("-creado_en")[:30]
         )
-        retiros_total = (
+
+        entradas_hoy = (
             RetiroCaja.objects
-            .filter(local=local, usuario=request.user, fecha=hoy)
+            .filter(local=local, fecha=hoy, tipo=RetiroCaja.Tipo.ENTRADA)
             .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
         )["total"] or Decimal("0.00")
-        
-        total_en_efectivo = total_ventas_efectivo - retiros_total
-        if total_en_efectivo < 0:
-            total_en_efectivo = Decimal("0.00")
-        
+
+        salidas_hoy = (
+            RetiroCaja.objects
+            .filter(local=local, fecha=hoy, tipo=RetiroCaja.Tipo.SALIDA)
+            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
         return render(request, self.template_name, {
             "local_activo": local,
             "hoy": hoy,
-            "retiros_hoy": retiros_hoy,
-            "retiros_total": retiros_total,
-            "total_en_efectivo": total_en_efectivo,
+            "saldo_actual": saldo_actual,
+            "movimientos_hoy": movimientos_hoy,
+            "entradas_hoy": entradas_hoy,
+            "salidas_hoy": salidas_hoy,
+            "puede_agregar_efectivo": request.user.is_staff,
         })
         
     def post(self, request):
         local = _get_local_activo(request)
         if not local:
             messages.error(request, "No hay un local activo seleccionado.")
-            return redirect("inventory:pos")
+            return redirect("inventory:pos_caja")
 
         hoy = timezone.localdate()
 
+        accion = (request.POST.get("accion") or "salida").strip().lower()
         monto_raw = (request.POST.get("monto") or "").strip()
         nota = (request.POST.get("nota") or "").strip()
-        motivo = (request.POST.get("motivo") or RetiroCaja.Motivo.GUARDAR).strip().upper()
+        motivo = (request.POST.get("motivo") or RetiroCaja.Motivo.OTRO).strip().upper()
 
         try:
             monto = Decimal(monto_raw)
         except (InvalidOperation, TypeError):
             messages.error(request, "Monto inválido.")
-            return redirect("inventory:pos")
+            return redirect("inventory:pos_caja")
 
         if monto <= 0:
             messages.error(request, "El monto debe ser mayor a 0.")
-            return redirect("inventory:pos")
+            return redirect("inventory:pos_caja")
 
-        # Ventas efectivo del día (tu criterio actual: por usuario + local + hoy)
-        ventas_efectivo = (Venta.objects
-            .filter(
-                usuario=request.user,
-                local=local,
-                estado=Venta.Estado.CERRADA,
-                fecha__date=hoy,
-                metodo_de_pago=Venta.MetodoPago.EFECTIVO,
-            )
-            .aggregate(total=Coalesce(Sum("total"), Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-
-        # Retiros del día (también por usuario + local + hoy, para “desligarse” entre empleados)
-        retiros_hoy = (RetiroCaja.objects
-            .filter(local=local, usuario=request.user, fecha=hoy)
-            .aggregate(total=Coalesce(Sum("monto"), Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-
-        disponible = ventas_efectivo - retiros_hoy
-        if monto > disponible:
-            messages.error(request, f"No alcanza el efectivo disponible. Disponible: $ {disponible:.2f}")
-            return redirect("inventory:pos")
-
-        if motivo not in {c for c, _ in RetiroCaja.Motivo.choices}:
+        motivos_validos = {c for c, _ in RetiroCaja.Motivo.choices}
+        if motivo not in motivos_validos:
             motivo = RetiroCaja.Motivo.OTRO
+
+        if accion == "entrada":
+            if not request.user.is_staff:
+                messages.error(request, "Solo un administrador puede agregar efectivo.")
+                return redirect("inventory:pos_caja")
+
+            if motivo == RetiroCaja.Motivo.GUARDAR:
+                motivo = RetiroCaja.Motivo.APORTE
+
+            RetiroCaja.objects.create(
+                local=local,
+                usuario=request.user,
+                fecha=hoy,
+                tipo=RetiroCaja.Tipo.ENTRADA,
+                monto=monto,
+                motivo=motivo,
+                nota=nota,
+            )
+
+            messages.success(request, f"Ingreso de efectivo registrado: $ {monto:.2f}")
+            return redirect("inventory:pos_caja")
+
+        saldo_disponible = _saldo_caja_local(local)
+        if monto > saldo_disponible:
+            messages.error(
+                request,
+                f"No alcanza el efectivo disponible. Disponible: $ {saldo_disponible:.2f}"
+            )
+            return redirect("inventory:pos_caja")
 
         RetiroCaja.objects.create(
             local=local,
             usuario=request.user,
             fecha=hoy,
+            tipo=RetiroCaja.Tipo.SALIDA,
             monto=monto,
             motivo=motivo,
             nota=nota,
         )
 
         messages.success(request, f"Retiro registrado: $ {monto:.2f}")
-        return redirect("inventory:pos")
+        return redirect("inventory:pos_caja")
 
 class POSAddItemByBarcodeView(LoginRequiredMixin, View):
     def post(self, request):
@@ -1670,11 +1739,14 @@ def _estimate_sale_block_height(venta):
     h += 18  # aire entre comprobantes
     return h
 
-
-
-
-
-def _render_ventas_pdf(request, local, ventas_qs):
+def _render_ventas_pdf(
+    request,
+    local,
+    ventas_qs,
+    include_caja=False,
+    caja_fecha=None,
+    caja_usuario=None,
+):
     ventas = list(
         ventas_qs
         .select_related("usuario", "local")
@@ -1711,20 +1783,45 @@ def _render_ventas_pdf(request, local, ventas_qs):
     fechas = [ar_dt(v.fecha) for v in ventas if v.fecha]
     min_fecha = min(fechas)
     max_fecha = max(fechas)
-    
+
     if min_fecha.date() == max_fecha.date():
         fecha_line = f"Fecha: {fmt_ar_date(min_fecha)}"
     else:
         fecha_line = f"Rango: {fmt_ar_date(min_fecha)} a {fmt_ar_date(max_fecha)}"
+
     usuarios = sorted({
         (v.usuario.get_full_name().strip() if hasattr(v.usuario, "get_full_name") else "") or v.usuario.username
         for v in ventas
     })
     usuarios_txt = ", ".join(usuarios) if usuarios else "-"
 
+    caja_rows = []
+    caja_total = Decimal("0.00")
+
+    if include_caja and caja_fecha:
+        caja_qs = (
+            RetiroCaja.objects
+            .filter(local=local, fecha=caja_fecha)
+            .select_related("usuario")
+            .order_by("-creado_en")
+        )
+
+        if caja_usuario and not request.user.is_staff:
+            caja_qs = caja_qs.filter(usuario=caja_usuario)
+
+        caja_rows = list(caja_qs)
+
+        caja_total = (
+            caja_qs.aggregate(
+                total=Coalesce(Sum("monto"), Value(0, output_field=DecimalField()))
+            )["total"] or Decimal("0.00")
+        )
+
     resp = HttpResponse(content_type="application/pdf")
-    if len(ventas) == 1:
+    if len(ventas) == 1 and not include_caja:
         filename = f'venta_{ventas[0].venta_id}.pdf'
+    elif include_caja:
+        filename = "resumen_dia.pdf"
     else:
         filename = "reporte_ventas.pdf"
     resp["Content-Disposition"] = f'inline; filename="{filename}"'
@@ -1733,9 +1830,10 @@ def _render_ventas_pdf(request, local, ventas_qs):
     w, h = A4
 
     def header():
+        title = "Resumen del Día" if include_caja else "Reporte de Ventas - FreeDonna"
         return _draw_centered_header(
             c, w, h,
-            title=f"Reporte de Ventas - FreeDonna",
+            title=title,
             subtitle_lines=[
                 f"Local: {local.nombre}",
                 fecha_line,
@@ -1823,6 +1921,75 @@ def _render_ventas_pdf(request, local, ventas_qs):
             costo_total=venta_ms_agg["costo_total"],
             ganancia_total=venta_ms_agg["profit_total"],
         )
+
+    if include_caja:
+        y = ensure_space(c, w, h, y, min_y=140, repeat_header_fn=header)
+
+        c.setStrokeColor(colors.HexColor("#D9DEE7"))
+        c.line(40, y, w - 40, y)
+        y -= 18
+
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(colors.HexColor("#1F2A44"))
+        c.drawString(40, y, "Gastos de caja del día")
+        y -= 16
+
+        c.setFont("Helvetica", 9)
+        c.setFillColor(colors.HexColor("#5B657A"))
+        c.drawString(40, y, f"Cantidad de movimientos: {len(caja_rows)}")
+        c.drawRightString(w - 40, y, f"Total gastos: {money(caja_total)}")
+        y -= 18
+
+        if caja_rows:
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(colors.HexColor("#1F2A44"))
+            c.drawString(40, y, "Hora")
+            c.drawString(95, y, "Usuario")
+            c.drawRightString(w - 40, y, "Monto")
+            y -= 10
+
+            c.setStrokeColor(colors.HexColor("#D9DEE7"))
+            c.line(40, y, w - 40, y)
+            y -= 14
+
+            for mov in caja_rows:
+                y = ensure_space(c, w, h, y, min_y=90, repeat_header_fn=header)
+
+                fecha_mov = getattr(mov, "creado_en", None) or getattr(mov, "fecha_hora", None)
+                hora = ar_dt(fecha_mov).strftime("%H:%M") if fecha_mov else "--:--"
+
+                usuario_txt = "-"
+                if getattr(mov, "usuario", None):
+                    usuario_txt = (
+                        mov.usuario.get_full_name().strip()
+                        if hasattr(mov.usuario, "get_full_name") and mov.usuario.get_full_name().strip()
+                        else mov.usuario.username
+                    )
+                monto = getattr(mov, "monto", Decimal("0.00")) or Decimal("0.00")
+                motivo = getattr(mov, "motivo", "") or ""
+                nota = getattr(mov, "nota", "") or ""
+
+                # fila principal
+                c.setFont("Helvetica", 9)
+                c.setFillColor(colors.black)
+                c.drawString(40, y, hora)
+                c.drawString(95, y, safe(usuario_txt, 28))
+                c.drawString(230, y, safe(motivo, 25))   # 👈 motivo
+                c.drawRightString(w - 40, y, money(monto))
+                y -= 12
+
+                
+                if nota:
+                    c.setFont("Helvetica-Oblique", 8)
+                    c.setFillColor(colors.HexColor("#5B657A"))
+                    c.drawString(95, y, safe(nota, 80))
+                    y -= 11
+        else:
+            c.setFont("Helvetica", 9)
+            c.setFillColor(colors.HexColor("#5B657A"))
+            c.drawString(40, y, "No se registraron gastos de caja en el día.")
+            y -= 14
+
     c.save()
     return resp
 
@@ -1887,6 +2054,17 @@ def movimiento_pdf(request):
         ventas_qs = Venta.objects.filter(venta_id__in=venta_ids, local=local)
         return _render_ventas_pdf(request, local, ventas_qs)
 
+    is_ingresos_report = (mode == "doc" and tipo in ["IN", "INGRESO"])
+    if is_ingresos_report:
+        ingreso_ids = list(
+            base.exclude(ingreso_id=None)
+                .values_list("ingreso_id", flat=True)
+                .distinct()
+        )
+
+        ingresos_qs = Ingreso.objects.filter(ingreso_id__in=ingreso_ids, local=local)
+        return _render_ingresos_pdf(request, local, ingresos_qs)
+
     if mode == "unit":
         rows = list(base.order_by("-fecha", "-movimiento_id")[:1500])
     elif mode == "day":
@@ -1948,7 +2126,32 @@ def movimiento_pdf(request):
     c.save()
     return response
 
+def pos_resumen_dia_pdf(request):
+    local = _get_local_activo(request)
+    if not local:
+        return HttpResponse("No hay local activo.", status=400)
 
+    hoy = timezone.localdate()
+
+    ventas_qs = (
+        Venta.objects
+        .filter(
+            usuario=request.user,
+            local=local,
+            estado=Venta.Estado.CERRADA,
+            fecha__date=hoy,
+        )
+        .order_by("-fecha", "-venta_id")
+    )
+
+    return _render_ventas_pdf(
+        request,
+        local,
+        ventas_qs,
+        include_caja=True,
+        caja_fecha=hoy,
+        caja_usuario=request.user,
+    )
 class VentaDetailView(LoginRequiredMixin, DetailView):
     model = Venta
     template_name = "inventory/movimientos/venta_detail.html"
@@ -2110,83 +2313,279 @@ class BajaDetailView(LoginRequiredMixin, DetailView):
         ctx["ms_totals"] = {"unidades": total_unidades, "costo_total": total_costo}
         return ctx
     
+def _draw_ingresos_header(c, w, h, title, subtitle_lines):
+    top = h - 42
 
-def ingreso_pdf(request, ingreso_id: int):
-    local = _get_local_activo(request)
-    ingreso = get_object_or_404(Ingreso.objects.select_related("local","usuario"), ingreso_id=ingreso_id)
-    if local and ingreso.local_id != local.local_id:
-        return HttpResponse("No autorizado para este local.", status=403)
+    c.setFont("Helvetica-Bold", 15)
+    c.drawCentredString(w / 2, top, title)
 
-    items = list(ingreso.items.all().order_by("item_id"))
-    agg = (MovimientoStock.objects
-           .filter(ingreso=ingreso, tipo=MovimientoStock.Tipo.INGRESO)
-           .aggregate(
-               unidades=Count("movimiento_id"),
-               costo_total=Sum("costo_unitario"),
-           ))
-
-    resp = HttpResponse(content_type="application/pdf")
-    resp["Content-Disposition"] = f'inline; filename="ingreso_{ingreso_id}.pdf"'
-    c = canvas.Canvas(resp, pagesize=A4)
-    w, h = A4
-
-    y = h - 40
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(40, y, f"INGRESO #{ingreso.ingreso_id}")
-    y -= 16
+    y = top - 18
     c.setFont("Helvetica", 9)
-    c.drawString(40, y, f"Fecha: {ingreso.fecha.strftime('%Y-%m-%d %H:%M')}   Local: {ingreso.local}   Usuario: {ingreso.usuario.username}")
-    y -= 14
-    if ingreso.referencia:
-        c.drawString(40, y, f"Referencia: {ingreso.referencia}")
-        y -= 14
-    if ingreso.nota:
-        c.drawString(40, y, f"Nota: {ingreso.nota[:90]}")
-        y -= 14
+    for line in subtitle_lines:
+        c.drawCentredString(w / 2, y, line)
+        y -= 12
 
-    c.line(40, y, 560, y)
+    y -= 2
+    c.setLineWidth(0.8)
+    c.line(40, y, w - 40, y)
+
+    return y - 22
+def _draw_ingresos_summary_block(c, y, ingresos_count, unidades, costo_total):
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "Resumen del reporte")
+    y -= 18
+
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Comprobantes: {ingresos_count}")
+    y -= 12
+    c.drawString(40, y, f"Unidades: {unidades}")
+    y -= 12
+    c.drawString(40, y, f"Costo total: {money(costo_total)}")
+    y -= 28
+
+    return y
+
+def _draw_ingreso_title(c, w, y, ingreso):
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, f"Ingreso {fmt_ar_dt(ingreso.fecha)}")
+    y -= 14
+
+    usuario_txt = ""
+    if hasattr(ingreso.usuario, "get_full_name"):
+        usuario_txt = ingreso.usuario.get_full_name().strip()
+    if not usuario_txt:
+        usuario_txt = ingreso.usuario.username
+
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Usuario: {usuario_txt}")
+    y -= 12
+
+    if ingreso.referencia:
+        c.drawString(40, y, f"Referencia: {safe(ingreso.referencia, 90)}")
+        y -= 12
+
+    if ingreso.nota:
+        c.drawString(40, y, f"Nota: {safe(ingreso.nota, 95)}")
+        y -= 12
+
+    c.setLineWidth(0.6)
+    c.line(40, y, w - 40, y)
+    y -= 14
+
+    return y
+
+def _draw_ingreso_table_header(c, w, y):
+    cols = [
+        (40,  "SKU", "L"),
+        (280, "Código", "L"),
+        (430, "Cant.", "R"),
+        (505, "Costo u.", "R"),
+        (w - 40, "Total", "R"),
+    ]
+
+    c.setFont("Helvetica-Bold", 9)
+    for x, txt, align in cols:
+        if align == "R":
+            c.drawRightString(x, y, txt)
+        else:
+            c.drawString(x, y, txt)
+
+    y -= 14
+    c.setFont("Helvetica", 9)
+    return y
+
+def _draw_ingreso_totals(c, w, y, ingreso, costo_total, unidades):
+    c.setLineWidth(0.6)
+    c.line(360, y, w - 40, y)
     y -= 16
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(40, y, "SKU")
-    c.drawString(140, y, "Barcode")
-    c.drawString(270, y, "Var")
-    c.drawRightString(380, y, "Qty")
-    c.drawRightString(470, y, "Costo u.")
-    c.drawRightString(560, y, "Total")
-    y -= 12
-    c.setFont("Helvetica", 9)
-
-    for it in items:
-        if y < 80:
-            c.showPage()
-            y = h - 40
-            c.setFont("Helvetica", 9)
-
-        
-        
-        c.drawString(40, y, str(it.sku)[:18])
-        c.drawString(140, y, str(it.barcode)[:18])
-        c.drawString(270, y, f"{it.talle}/{it.color}"[:10])
-        c.drawRightString(380, y, str(it.cantidad))
-        c.drawRightString(470, y, f"$ {it.costo_unitario}")
-        c.drawRightString(560, y, f"$ {it.total_linea}")
-        y -= 12
-
-    y -= 8
-    c.line(360, y, 560, y)
-    y -= 16
-    c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(560, y, f"Costo total: $ {agg['costo_total'] or 0}")
+    c.drawRightString(w - 40, y, f"Costo total: {money(costo_total)}")
     y -= 14
-    c.setFont("Helvetica", 9)
-    c.drawRightString(560, y, f"Unidades: {agg['unidades'] or 0}")
 
-    c.showPage()
+    c.drawRightString(w - 40, y, f"Unidades: {unidades}")
+    y -= 28
+
+    return y
+
+def _draw_ingreso_totals(c, w, y, ingreso, costo_total, unidades):
+    c.setLineWidth(0.6)
+    c.line(360, y, w - 40, y)
+    y -= 16
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawRightString(w - 40, y, f"Costo total: {money(costo_total)}")
+    y -= 14
+
+    c.drawRightString(w - 40, y, f"Unidades: {unidades}")
+    y -= 28
+
+    return y
+
+def _estimate_ingreso_block_height(ingreso):
+    items = list(ingreso.items.all())
+    h = 52  # título + usuario + línea base
+
+    if ingreso.referencia:
+        h += 12
+    if ingreso.nota:
+        h += 12
+
+    h += 16  # header tabla
+    h += 12 * len(items)
+    h += 42  # cierre
+    h += 18  # aire entre comprobantes
+
+    return h
+
+def _render_ingresos_pdf(request, local, ingresos_qs):
+    ingresos = list(
+        ingresos_qs
+        .select_related("usuario", "local")
+        .prefetch_related("items")
+        .order_by("-fecha", "-ingreso_id")
+    )
+
+    if not ingresos:
+        return HttpResponse("No hay ingresos para exportar.", status=400)
+
+    ingreso_ids = [i.ingreso_id for i in ingresos]
+
+    ingresos_agg = (
+        Ingreso.objects
+        .filter(ingreso_id__in=ingreso_ids)
+        .aggregate(
+            ingresos=Count("ingreso_id"),
+        )
+    )
+
+    ms_global_agg = (
+        MovimientoStock.objects
+        .filter(ingreso_id__in=ingreso_ids, tipo=MovimientoStock.Tipo.INGRESO)
+        .aggregate(
+            unidades=Coalesce(Sum("cantidad"), Value(0)),
+            costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+        )
+    )
+
+    fechas = [ar_dt(i.fecha) for i in ingresos if i.fecha]
+    min_fecha = min(fechas)
+    max_fecha = max(fechas)
+
+    if min_fecha.date() == max_fecha.date():
+        fecha_line = f"Fecha: {fmt_ar_date(min_fecha)}"
+    else:
+        fecha_line = f"Rango: {fmt_ar_date(min_fecha)} a {fmt_ar_date(max_fecha)}"
+
+    usuarios = sorted({
+        (i.usuario.get_full_name().strip() if hasattr(i.usuario, "get_full_name") else "") or i.usuario.username
+        for i in ingresos
+    })
+    usuarios_txt = ", ".join(usuarios) if usuarios else "-"
+
+    resp = HttpResponse(content_type="application/pdf")
+    if len(ingresos) == 1:
+        filename = f'ingreso_{ingresos[0].ingreso_id}.pdf'
+    else:
+        filename = "reporte_ingresos.pdf"
+    resp["Content-Disposition"] = f'inline; filename="{filename}"'
+
+    c = canvas.Canvas(resp, pagesize=A4)
+    w, h = A4
+
+    def header():
+        return _draw_ingresos_header(
+            c, w, h,
+            title="Reporte de Ingresos - FreeDonna",
+            subtitle_lines=[
+                f"Local: {local.nombre}",
+                fecha_line,
+                f"Usuarios: {safe(usuarios_txt, 110)}",
+                f"Generado: {timezone.now().astimezone(AR_TZ).strftime('%Y-%m-%d %H:%M')}",
+            ]
+        )
+
+    y = header()
+
+    if len(ingresos) > 1:
+        y = ensure_space(c, w, h, y, min_y=140, repeat_header_fn=header)
+        y = _draw_ingresos_summary_block(
+            c, y,
+            ingresos_count=ingresos_agg["ingresos"] or 0,
+            unidades=ms_global_agg["unidades"] or 0,
+            costo_total=ms_global_agg["costo_total"] or 0,
+        )
+
+    for ingreso in ingresos:
+        items = list(ingreso.items.all().order_by("item_id"))
+
+        ingreso_ms_agg = (
+            MovimientoStock.objects
+            .filter(ingreso=ingreso, tipo=MovimientoStock.Tipo.INGRESO)
+            .aggregate(
+                unidades=Coalesce(Sum("cantidad"), Value(0)),
+                costo_total=Coalesce(Sum("costo_unitario"), Value(0, output_field=DecimalField())),
+            )
+        )
+
+        estimated_height = _estimate_ingreso_block_height(ingreso)
+        if y - estimated_height < 70:
+            c.showPage()
+            y = header()
+
+        y = _draw_ingreso_title(c, w, y, ingreso)
+        y = _draw_ingreso_table_header(c, w, y)
+
+        for it in items:
+            if y < 95:
+                c.showPage()
+                y = header()
+                y = _draw_ingreso_title(c, w, y, ingreso)
+                y = _draw_ingreso_table_header(c, w, y)
+
+            sku_base = safe(getattr(it, "sku", ""), 22)
+            talle = safe(getattr(it, "talle", ""), 8)
+            color = safe(getattr(it, "color", ""), 12)
+            sku = safe(f"{sku_base} {color} {talle}".strip(), 38)
+
+            barcode = safe(getattr(it, "barcode", ""), 22)
+            qty = int(getattr(it, "cantidad", 1) or 1)
+
+            costo_u = Decimal(getattr(it, "costo_unitario", 0) or 0)
+            total_linea = Decimal(getattr(it, "total_linea", 0) or 0)
+
+            c.setFont("Helvetica", 9)
+            c.drawString(40, y, sku)
+            c.drawString(280, y, barcode)
+            c.drawRightString(430, y, str(qty))
+            c.drawRightString(505, y, money(costo_u))
+            c.drawRightString(w - 40, y, money(total_linea))
+            y -= 12
+
+        y -= 8
+        y = _draw_ingreso_totals(
+            c, w, y,
+            ingreso=ingreso,
+            costo_total=ingreso_ms_agg["costo_total"] or 0,
+            unidades=ingreso_ms_agg["unidades"] or 0,
+        )
+
     c.save()
     return resp
 
+def ingreso_pdf(request, ingreso_id: int):
+    local = _get_local_activo(request)
 
+    ingreso = get_object_or_404(
+        Ingreso.objects.select_related("local", "usuario"),
+        ingreso_id=ingreso_id
+    )
+
+    if local and ingreso.local_id != local.local_id:
+        return HttpResponse("No autorizado para este local.", status=403)
+
+    ingresos_qs = Ingreso.objects.filter(ingreso_id=ingreso.ingreso_id, local=ingreso.local)
+    return _render_ingresos_pdf(request, ingreso.local, ingresos_qs)
 
 class ArticulosTransferirView(LoginRequiredMixin, View):
     

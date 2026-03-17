@@ -15,7 +15,7 @@
   <div class="header-actions">
     <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=IN">Volver</a>
   {% if request.user.is_staff %}
-    <a class="btn-secondary" href="{% url 'inventory:ingreso_pdf' ingreso.ingreso_id %}">Exportar PDF</a>
+    <a class="btn-secondary btn-export" href="{% url 'inventory:ingreso_pdf' ingreso.ingreso_id %}">Exportar PDF</a>
   {% endif %}
   </div>
 </div>

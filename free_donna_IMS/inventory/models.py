@@ -139,8 +139,6 @@ class IngresoItem(models.Model):
     cantidad = models.IntegerField()
     total_linea = models.DecimalField(max_digits=12, decimal_places=2)
     
-
-    
 class Transferencia(models.Model):
     transferencia_id = models.BigAutoField(primary_key=True)
     fecha = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -220,17 +218,38 @@ class MovimientoStock(models.Model):
     
 
 class RetiroCaja(models.Model):
+    class Tipo(models.TextChoices):
+        SALIDA = "SALIDA", "Salida"
+        ENTRADA = "ENTRADA", "Entrada"
+
     class Motivo(models.TextChoices):
         GUARDAR = "GUARDAR", "Guardar (dueño)"
         GASTO = "GASTO", "Gasto del día"
+        APORTE = "APORTE", "Aporte de caja"
+        AJUSTE = "AJUSTE", "Ajuste"
         OTRO = "OTRO", "Otro"
 
     retiro_id = models.BigAutoField(primary_key=True)
 
-    local = models.ForeignKey("inventory.Local", on_delete=models.PROTECT, related_name="retiros_caja")
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="retiros_caja")
+    local = models.ForeignKey(
+        "inventory.Local",
+        on_delete=models.PROTECT,
+        related_name="retiros_caja"
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="retiros_caja"
+    )
 
     fecha = models.DateField(default=timezone.localdate, db_index=True)
+
+    tipo = models.CharField(
+        max_length=10,
+        choices=Tipo.choices,
+        default=Tipo.SALIDA,
+        db_index=True,
+    )
 
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     motivo = models.CharField(max_length=16, choices=Motivo.choices, default=Motivo.GUARDAR)
@@ -241,6 +260,7 @@ class RetiroCaja(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["local", "fecha"]),
+            models.Index(fields=["local", "tipo"]),
         ]
         ordering = ["-creado_en"]
 

@@ -1,43 +1,40 @@
-{# inventory/templates/inventory/pos/pos.html #}
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %}POS{% endblock %}
+{% block title %}Free Donna - Carrito{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/pos.css' %}">
 
 <div class="pos-shell">
 
-  <header class="pos-topbar">
-    <div>
-      <h2 class="pos-title">POS</h2>
-      <p class="pos-subtitle">Escaneá el código de barras para agregar al carrito. En caso de no tener, busca el código en la sección de artículos.</p>
-    </div>
+<header class="pos-topbar">
+  <div></div>
 
-    <div class="pos-actions">
-      <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Artículos</a>
-      <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=OUT">Historial</a>
-    </div>
-  </header>
+
+</header>
 
   <div class="pos-grid">
 
-    {# ===================== LEFT: CARRITO ===================== #}
     <section class="panel--cart">
       <div class="panel-head">
         <div class="panel-title">
-          <span class="dot dot-green"></span>
-          <h3>Carrito</h3>
+          <div class="panel-title-dot">
+            <span class="dot dot-green"></span>
+            <h3>Carrito</h3 >
+          </div>
+          <p class="panel-subtext">
+          Escaneá el código de barras para agregar al carrito. Si no lo tenés, buscá el artículo desde su listado.
+          </p>
         </div>
 
         <div class="panel-meta">
-          {% if local_activo %}
-            <span class="chip">Local: <b>{{ local_activo.nombre }}</b></span>
-          {% endif %}
-          <span class="chip">Usuario: <b>{{ request.user.username }}</b></span>
+          
+          <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Buscar artículos</a>
         </div>
+      
       </div>
+      
 
       <form method="post" action="{% url 'inventory:pos_add' %}" class="scanbar" autocomplete="off">
         {% csrf_token %}
@@ -82,18 +79,16 @@
                       $ {{ it.precio_base|floatformat:2 }}
                     {% endif %}
                   </td>
-                  
+
                   <td class="num mono">
                     {% if it.descuento_total_linea and it.descuento_total_linea != "0" and it.descuento_total_linea != "0.00" %}
                       <span class="discount-chip">- $ {{ it.descuento_total_linea|floatformat:2 }}</span>
-                      {% if it.promocion_nombre %}
-                        <div class="cell-promo">{{ it.promocion_nombre }}</div>
-                      {% endif %}
+                      
                     {% else %}
-                      —
+                      $ 0,00
                     {% endif %}
                   </td>
-                  
+
                   <td class="num strong mono">
                     $ {{ it.total_linea|default:it.subtotal_bruto|floatformat:2 }}
                   </td>
@@ -106,12 +101,24 @@
                     </form>
                   </td>
                 </tr>
+                {% if it.promocion_nombre %}
+                <tr class="promo-row">
+                  <td colspan="7">
+                    <div class="cell-promo">
+                      Promoción: {{ it.promocion_nombre }}
+                    </div>
+                  </td>
+                </tr>
+                {% endif %}
+                
               {% endfor %}
             </tbody>
           </table>
         </div>
 
         <div class="cart-footer">
+          <a class="btn-danger-soft" href="{% url 'inventory:pos_clear' %}">Vaciar</a>
+
           <div class="totals totals-stack">
             <div class="totals-row">
               <span class="totals-label">Subtotal</span>
@@ -129,12 +136,13 @@
               <span class="totals-label">Total</span>
               <span class="totals-value mono">$ {{ total|floatformat:2 }}</span>
             </div>
-          </div>
-
+            
           <div class="cart-buttons">
-            <a class="btn-secondary" href="{% url 'inventory:pos_clear' %}">Vaciar</a>
             <a class="btn-primary" href="{% url 'inventory:pos_checkout' %}">Cerrar venta</a>
           </div>
+            
+          </div>
+
         </div>
       {% else %}
         <div class="empty-state">
@@ -144,15 +152,15 @@
       {% endif %}
     </section>
 
-    {# ===================== RIGHT: VENTAS DEL DÍA ===================== #}
     <section class="panel panel--sales">
       <div class="panel-head">
-        <div class="panel-title">
+        <div class="panel-title panel-title-dot">
           <span class="dot dot-blue"></span>
           <h3>Mis ventas de hoy</h3>
         </div>
 
         <div class="panel-meta">
+          <span class="chip">Usuario: <b>{{ request.user.username }}</b></span>
           <span class="chip">Fecha: <b>{{ hoy|date:"Y-m-d" }}</b></span>
         </div>
       </div>
@@ -168,13 +176,10 @@
           <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
         </div>
 
-        <a class="kpi kpi-action"
-           href="{% url 'inventory:pos_caja' %}">
+        <a class="kpi kpi-action" href="{% url 'inventory:pos_caja' %}">
           <div class="kpi-label">Caja</div>
-          <div class="kpi-value mono">
-            $ {{ total_en_efectivo|default:"0.00" }}
-          </div>
-          <span class="kpi-tip">Administrar caja</span>
+          <div class="kpi-value mono">$ {{ total_en_efectivo|default:"0.00" }}</div>
+          <span class="kpi-tip">Saldo actual</span>
         </a>
       </div>
 
@@ -198,9 +203,15 @@
       {% else %}
         <div class="empty-state">
           <div class="empty-title">Todavía no tenés ventas hoy</div>
-          <div class="empty-sub">Cuando cierres ventas, van a aparecer acá con totales y método de pago.</div>
+          <div class="empty-sub">
+            Cuando cierres ventas, van a aparecer acá con su total y método de pago.
+          </div>
         </div>
       {% endif %}
+      <div class="sales-actions">
+        <a href="{% url 'inventory:pos_resumen_dia_pdf' %}" class="btn-primary" target="_blank">
+          Exportar resumen del día</a>
+      </div>
     </section>
 
   </div>
@@ -211,7 +222,9 @@
     const scan = document.getElementById("scanInput");
     if (scan) {
       scan.focus();
-      scan.select?.();
+      if (typeof scan.select === "function") {
+        scan.select();
+      }
     }
   });
 </script>

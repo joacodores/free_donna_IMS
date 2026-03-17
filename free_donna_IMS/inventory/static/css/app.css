@@ -1,9 +1,9 @@
 :root{
   color-scheme: light;
 
-  --bg0: #dce3f1;
-  --bg1: #eff3fa;
-  --bg2: #c1ccdf;
+  --bg0: #e2f0fc;
+  --bg1: #b7cbf1;
+  --bg2: #889bbd;
 
   --card: rgba(250, 252, 255, 0.72);
   --card2: rgba(244, 247, 252, 0.92);
@@ -20,7 +20,7 @@
   --accent1: #a7ddb5;
   --accent2: #bde2a7;
   --accent1-strong: #6677ea;
-  --danger: #d55b68;
+  --danger: #b80000;
 
   --success: #81c784;
   --warning: #d6a85c;
@@ -117,11 +117,11 @@ textarea{
 
 .app-main{
   flex:1;
-  padding: 26px 18px 34px 18px;
+  padding: 22px 22px;
+
 }
 
 .app-container{
-  max-width: 1160px;
   margin: 0 auto;
 }
 

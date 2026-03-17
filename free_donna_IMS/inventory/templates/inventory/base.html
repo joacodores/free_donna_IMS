@@ -54,15 +54,15 @@
               <a class="nav-link" href="{% url 'inventory:promocion_list' %}">Promociones</a>
             {% endif %}
           <a
-          class"btn-primary"
+            class="theme-toggle-btn"
             type="button"
-            id="themeToggle"
+            data-theme-toggle
             style="cursor: pointer;"
             aria-label="Cambiar tema"
             title="Cambiar tema"
           >
-          <span  class="nav-link"id="themeToggleText">Cambiar Tema</span>
-            <span class="nav-link" id="themeToggleIcon">🌙</span>
+            <span class="nav-link" data-theme-toggle-text>Cambiar tema</span>
+            <span class="nav-link" data-theme-toggle-icon>🌙</span>
           </a>
         
 
@@ -141,6 +141,7 @@
         });
       })();
 
+
   (function () {
     const STORAGE_KEY = "theme";
     const DEFAULT_THEME = "light";
@@ -149,18 +150,13 @@
       document.documentElement.setAttribute("data-theme", theme);
       document.body.setAttribute("data-theme", theme);
 
-      const icon = document.getElementById("themeToggleIcon");
-      const text = document.getElementById("themeToggleText");
+      document.querySelectorAll("[data-theme-toggle-icon]").forEach((icon) => {
+        icon.textContent = theme === "dark" ? "☀️" : "🌙";
+      });
 
-      if (icon && text) {
-        if (theme === "dark") {
-          icon.textContent = "☀️";
-          
-        } else {
-          icon.textContent = "🌙";
-          
-        }
-      }
+      document.querySelectorAll("[data-theme-toggle-text]").forEach((text) => {
+        text.textContent = "Cambiar tema";
+      });
     }
 
     function getSavedTheme() {
@@ -177,12 +173,12 @@
     document.addEventListener("DOMContentLoaded", function () {
       applyTheme(getSavedTheme());
 
-      const toggleBtn = document.getElementById("themeToggle");
-      if (toggleBtn) {
-        toggleBtn.addEventListener("click", toggleTheme);
-      }
+      document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
+        btn.addEventListener("click", toggleTheme);
+      });
     });
   })();
+
 </script>
     {% block extra_js %}{% endblock %}
 

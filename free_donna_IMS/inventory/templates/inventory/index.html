@@ -35,28 +35,30 @@
           <span class="btn-icon">🛒</span>
           Abrir carrito
         </a>
+        <button
+          type="button"
+          class="btn-pos theme-toggle-btn"
+          data-theme-toggle
+          aria-label="Cambiar tema"
+          title="Cambiar tema"
+        >
+          <span class="btn-icon" data-theme-toggle-icon>🌙</span>
+          <span data-theme-toggle-text>Cambiar tema</span>
+        </button>
 
-        <a class="btn-ghost" href="{% url 'inventory:movimientos' %}">
-          Ver historial de movimientos
-        </a>
       </div>
 
       
     </div>
 
     <div class="hero-right">
-      <div class="mini-card">
-        <div class="mini-title">Hoy</div>
-        <div class="mini-big mono">{{ now|date:"Y-m-d" }}</div>
-        <div class="mini-sub">Operando en tu zona horaria</div>
-      </div>
 
       <div class="mini-card">
         <div class="mini-title">Atajos</div>
         <div class="mini-links">
-          <a href="{% url 'inventory:producto_list' %}">Productos</a>
-          <a href="{% url 'inventory:articulo_list' %}">Artículos</a>
-          <a href="{% url 'inventory:movimientos' %}">Kardex</a>
+          <a href="{% url 'inventory:producto_list' %}">🏷️ Productos</a>
+          <a href="{% url 'inventory:articulo_list' %}">📦 Artículos</a>
+          <a href="{% url 'inventory:movimientos' %}">📈 Historial </a>
         </div>
       </div>
     </div>
@@ -64,14 +66,13 @@
 
   <!-- GRID -->
   <section class="grid">
-
     <!-- KPIs -->
     <div class="card kpis">
       <div class="card-head">
         <h2>Resumen del día</h2>
         <span class="chip">
           <span class="chip-dot"></span>
-          <b>{{ now|date:"d/m" }}</b>
+          <b>{{ now|date:"d/m/y" }}</b>
         </span>
       </div>
 
@@ -87,18 +88,17 @@
           <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
           <div class="kpi-foot subtle">Sumatoria del día</div>
         </div>
+        <a class="kpi kpi-action" href="{% url 'inventory:promocion_list' %}">
+          <div class="kpi-label">Promociones activas</div>
+          <div class="kpi-value mono">{{ promociones_activas|default:"0" }}</div>
+          <div class="kpi-foot subtle">Ver promociones</div>
+        </a>
+      <a class="kpi kpi-action" href="{% url 'inventory:pos_caja' %}">
+          <div class="kpi-label">Caja</div>
+          <div class="kpi-value mono">$ {{ efectivo_en_caja|default:"0.00" }}</div>
+          <div class="kpi-foot subtle"> Administrar caja</div>
+      </a>
 
-        <div class="kpi">
-          <div class="kpi-label">Ganancia</div>
-          <div class="kpi-value mono">$ {{ ventas_hoy_profit|default:"0.00" }}</div>
-          <div class="kpi-foot subtle">Profit estimado</div>
-        </div>
-
-        <div class="kpi">
-          <div class="kpi-label">Movimientos</div>
-          <div class="kpi-value mono">{{ movs_hoy|default:"0" }}</div>
-          <div class="kpi-foot subtle">Entradas / salidas / transferencias</div>
-        </div>
       </div>
     </div>
 
@@ -106,85 +106,51 @@
     <div class="card activity">
       <div class="card-head">
         <h2>Actividad reciente</h2>
-        <a class="link" href="{% url 'inventory:movimientos' %}">Ver todo →</a>
+        <a class="link" href="{% url 'inventory:movimientos' %}">Ver todo </a>
       </div>
-
-      {% if activity %}
+    
+      {% if ventas_hoy or movimientos_caja %}
         <div class="activity-list">
-          {% for a in activity %}
-            <a class="act-row" href="{{ a.url }}">
+        
+          {% for v in ventas_hoy %}
+            <a class="act-row" href="{% url 'inventory:venta_detail' v.venta_id %}">
               <div class="act-left">
-                <div class="act-title">{{ a.title }}</div>
-                <div class="act-sub mono">{{ a.when }}</div>
+                <div class="act-title">Venta #{{ v.venta_id }}</div>
+                <div class="act-sub mono">
+                  {{ v.fecha|date:"H:i" }}
+                  {% if v.metodo_de_pago %} · {{ v.metodo_de_pago }}{% endif %}
+                </div>
               </div>
-              <div class="act-right mono">{{ a.amount }}</div>
+              <div class="act-right mono">$ {{ v.total|default:"0.00" }}</div>
             </a>
           {% endfor %}
+          
+          {% for m in movimientos_caja %}
+            <a class="act-row" href="{% url 'inventory:pos_caja' %}">
+              <div class="act-left">
+                <div class="act-title">Movimiento de caja</div>
+                <div class="act-sub mono">
+                  {{ m.creado_en|date:"H:i" }}
+                  {% if m.usuario %} · {{ m.usuario.username }}{% endif %}
+                </div>
+              </div>
+              <div class="act-right mono">
+                $ {{ m.monto|default:"0.00" }}
+              </div>
+            </a>
+          {% endfor %}
+          
         </div>
       {% else %}
         <div class="empty-box">
           <div class="empty-title">Sin actividad reciente</div>
-          <div class="empty-sub">Cuando registres ventas, ingresos o transferencias, aparecen acá.</div>
+          <div class="empty-sub">
+            Cuando registres ventas o movimientos de caja, aparecen acá.
+          </div>
         </div>
       {% endif %}
     </div>
-
-    <!-- ACCESOS -->
-    <div class="card quick">
-      <div class="card-head">
-        <h2>Accesos rápidos</h2>
-        <span class="subtle">Operación</span>
-      </div>
-
-      <div class="quick-grid">
-        <a class="quick-card" href="{% url 'inventory:producto_list' %}">
-          <div class="q-icon">🏷️</div>
-          <div class="q-title">Productos</div>
-          
-        </a>
-
-        <a class="quick-card" href="{% url 'inventory:articulo_list' %}">
-          <div class="q-icon">📦</div>
-          <div class="q-title">Artículos</div>
-          
-        </a>
-
-        <a class="quick-card" href="{% url 'inventory:movimientos' %}">
-          <div class="q-icon">📈</div>
-          <div class="q-title">Historial</div>
-          
-        </a>
-
-        <a class="quick-card" href="{% url 'inventory:pos' %}">
-          <div class="q-icon">🛒</div>
-          <div class="q-title">Carrito</div>
-          
-        </a>
-      </div>
-    </div>
-
-    <!-- AYUDA / ESTADO -->
-    <div class="card status">
-      <div class="card-head">
-        <h2>Estado del sistema</h2>
-        
-      </div>
-
-      <ul class="status-list">
-        <li>
-          <span class="bullet ok"></span>
-          Local activo seleccionado
-          <span class="mono subtle">{% if local_activo_id %}#{{ local_activo_id }}{% else %}—{% endif %}</span>
-        </li>
-        <li>
-          <span class="bullet ok"></span>
-          Usuario autenticado
-          <span class="mono subtle">{{ request.user.username }}</span>
-        </li>
-
-      </ul>
-    </div>
-
   </section>
 </div>
+
 {% endblock %}

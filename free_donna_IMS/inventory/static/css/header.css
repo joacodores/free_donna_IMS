@@ -9,7 +9,7 @@
   gap:12px;
   padding: 14px 18px;
 
-  background: rgba(81, 114, 151, 0.856);
+  background: rgba(10, 27, 61, 0.72);
   border-bottom: 1px solid rgba(76,96,140,0.10);
   box-shadow: 0 6px 20px rgba(32, 42, 66, 0.05);
   backdrop-filter: blur(14px);
@@ -39,7 +39,7 @@ body[data-theme="dark"] .app-header{
 }
 
 .brand{
-  color: var(--text-strong);
+  color: white;
   text-decoration:none;
   font-size:22px;
   font-weight:950;
@@ -109,7 +109,7 @@ body[data-theme="dark"] .app-header{
 
 body[data-theme="dark"] .icon-btn,
 body[data-theme="dark"] .select-dark{
-  background: rgba(255,255,255,0.06);
+  
   color: var(--text);
   box-shadow: none;
 }
