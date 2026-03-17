@@ -9,7 +9,7 @@
 <div class="page-header">
   <div>
     <h2>Ingresar artículos</h2>
-    <p class="subtle">Carga rápida por barcode o manual.</p>
+    <p class="subtle">Carga rápida por Código de barras o manual.</p>
   </div>
   <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
   <a class="btn-secondary" href="{% url 'inventory:articulo_import_excel' %}">Importar Excel</a>
@@ -25,7 +25,7 @@
   <!-- BLOQUE: Barcode (principal) -->
   <div class="scan-block">
     <div class="scan-head">
-      <div class="scan-title">Barcode</div>
+      <div class="scan-title">Código de barras</div>
       <div class="scan-status" id="scanStatus" aria-live="polite"></div>
     </div>
 
@@ -42,6 +42,9 @@
       </div>
 
       <button class="btn-primary" type="submit">Guardar</button>
+    </div>
+    <div class="scan-help" id="scanHelp">
+      Si el código de barras ya existe, Producto, Talle y Color se completan automáticamente y no se pueden modificar.
     </div>
   </div>
 
@@ -113,7 +116,12 @@
     if (!barcodeEl || !prodSel || !colorEl || !talleEl) return;
 
     const barcode = norm(barcodeEl.value);
-    if (!barcode) { setStatus("", ""); return; }
+    if (!barcode) {
+      lockIdentityFields(false);
+      setStatus("", "");
+      setHelp("Si el código de barras ya existe, Producto, Talle y Color se completan automáticamente y no se pueden modificar.");
+      return;
+    }
 
     setStatus("Buscando…", "loading");
 
@@ -130,7 +138,9 @@
       const data = await res.json();
 
       if (!data.found){
-        setStatus("Nuevo barcode", "idle");
+        lockIdentityFields(false);
+        setStatus("Barcode Código", "idle");
+        setHelp("Código nuevo. Completá Producto, Talle y Color.");
         computeSkuPreview();
         return;
       }
@@ -147,8 +157,10 @@
       talleEl.value = data.talle ?? "";
       colorEl.value = data.color ?? "";
 
+      lockIdentityFields(true);
       computeSkuPreview();
-      setStatus("Autocompletado", "ok");
+      setStatus("Barcode existente", "ok");
+      setHelp("Este Código ya está asociado a un artículo existente. Producto, Talle y Color están bloqueados.");
     } catch(e){
       console.error(e);
       setStatus("", "");
@@ -180,6 +192,38 @@
     if (talleEl) talleEl.addEventListener("input", computeSkuPreview);
 
     computeSkuPreview();
+    const formEl = document.querySelector(".articulo-form");
+    if (formEl){
+      formEl.addEventListener("submit", function(){
+        const prodSel = document.getElementById("id_product_id");
+        if (prodSel && prodSel.disabled) {
+          prodSel.disabled = false;
+        }
+      });
+    }
   });
+  function lockIdentityFields(locked){
+    const prodSel = document.getElementById("id_product_id");
+    const colorEl = document.getElementById("id_color");
+    const talleEl = document.getElementById("id_talle");
+
+    if (prodSel) {
+      prodSel.disabled = locked;
+      prodSel.dataset.locked = locked ? "1" : "0";
+    }
+    if (colorEl) {
+      colorEl.readOnly = locked;
+      colorEl.dataset.locked = locked ? "1" : "0";
+    }
+    if (talleEl) {
+      talleEl.readOnly = locked;
+      talleEl.dataset.locked = locked ? "1" : "0";
+    }
+    function setHelp(msg){
+      const el = document.getElementById("scanHelp");
+      if (!el) return;
+      el.textContent = msg || "";
+    }
+}
 </script>
 {% endblock %}

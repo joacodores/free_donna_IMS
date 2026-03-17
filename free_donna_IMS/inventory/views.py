@@ -685,19 +685,37 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
         producto = form.cleaned_data['product_id']
         barcode = form.cleaned_data['barcode']
         talle = form.cleaned_data['talle']
-        color = form.cleaned_data['color']
+        color = (form.cleaned_data['color'] or "").strip()
         cantidad = form.cleaned_data['cantidad']
         local = _get_local_activo(self.request)
         referencia = (form.cleaned_data.get('referencia') or "").strip()
         costo_unitario = Decimal(getattr(producto, "costo", 0) or 0)
         sku = build_sku(producto, color, talle)
-        
+
+        existente = (
+            Articulo.objects
+            .select_for_update()
+            .filter(local=local, barcode=barcode)
+            .order_by("-articulo_id")
+            .first()
+        )
+
+        if existente:
+            if (
+                existente.product_id_id != producto.pk
+                or existente.talle != talle
+                or (existente.color or "").strip().lower() != color.lower()
+            ):
+                form.add_error("barcode", "Ese barcode ya existe y pertenece a otro artículo.")
+                return self.form_invalid(form)
+
         ingreso = Ingreso.objects.create(
             usuario=self.request.user,
             local=local,
             referencia=referencia,
             nota="Ingreso por carga de artículos"
         )
+
         total_linea = costo_unitario * cantidad
         item = IngresoItem.objects.create(
             ingreso=ingreso,
@@ -707,10 +725,10 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
             talle=talle,
             color=color,
             cantidad=cantidad,
-            costo_unitario=costo_unitario,  
+            costo_unitario=costo_unitario,
             total_linea=total_linea
         )
-        
+
         articulos = [
             Articulo(
                 product_id=producto,
@@ -725,10 +743,13 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
             for _ in range(cantidad)
         ]
         Articulo.objects.bulk_create(articulos)
-        creados = list(Articulo.objects
-                    .filter(ingreso_item=item, local=local)
-                    .order_by("articulo_id")[:cantidad]
+
+        creados = list(
+            Articulo.objects
+            .filter(ingreso_item=item, local=local)
+            .order_by("articulo_id")[:cantidad]
         )
+
         movs = [
             MovimientoStock(
                 tipo=MovimientoStock.Tipo.INGRESO,
@@ -751,8 +772,17 @@ class ArticuloCreateView(LoginRequiredMixin, FormView):
             for a in creados
         ]
         MovimientoStock.objects.bulk_create(movs)
-        messages.success(self.request, f"Ingreso #{ingreso.ingreso_id} registrado: {cantidad} unidad(es) de {producto}.")
+
+        messages.success(
+            self.request,
+            f"Ingreso #{ingreso.ingreso_id} registrado: {cantidad} unidad(es) de {producto}."
+        )
         return super().form_valid(form)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["local"] = _get_local_activo(self.request)
+        return kwargs
 
 
 def _articulos_visibles_qs(request):
@@ -837,6 +867,12 @@ class ArticuloImportXlsxView(FormView):
         errores = []
 
         # Procesar filas
+        ingreso = Ingreso.objects.create(
+                usuario=self.request.user,
+                local=local,
+                referencia="IMPORT_XLSX",
+                nota="Ingreso por importación Excel"
+            )
         for row_num in range(2, ws.max_row + 1):
             row = [ws.cell(row=row_num, column=col).value for col in range(1, ws.max_column + 1)]
 
@@ -864,16 +900,19 @@ class ArticuloImportXlsxView(FormView):
                 errores.append(f"Fila {row_num}: cantidad inválida")
                 continue
             
+            conflicto = _barcode_conflict(local, barcode, producto, talle, color)
+            if conflicto:
+                errores.append(
+                    f"Fila {row_num}: el barcode '{barcode}' ya existe y está asociado a "
+                    f"'{conflicto.product_id}' / Color: '{conflicto.color}' / Talle: '{conflicto.talle}'"
+                )
+                continue
+            
             # ---- MISMA LÓGICA QUE TU form_valid ----
             costo_unitario = Decimal(getattr(producto, "costo", 0) or 0)
             sku = build_sku(producto, color, talle)
 
-            ingreso = Ingreso.objects.create( 
-                usuario=self.request.user,
-                local=local,
-                referencia=referencia,
-                nota="Ingreso por importación Excel"
-            )
+            
 
             total_linea = costo_unitario * Decimal(cantidad)
             item = IngresoItem.objects.create(
@@ -944,6 +983,37 @@ class ArticuloImportXlsxView(FormView):
             messages.warning(self.request, f"Hubo errores en algunas filas:\n{preview}")
 
         return super().form_valid(form)
+
+def _norm_text(value):
+    return " ".join(str(value or "").strip().split())
+
+def _barcode_conflict(local, barcode, producto, talle, color):
+    color_norm = _norm_text(color).lower()
+
+    existente = (
+        Articulo.objects
+        .select_related("product_id")
+        .filter(local=local, barcode=barcode)
+        .order_by("-articulo_id")
+        .first()
+    )
+
+    if not existente:
+        return None
+
+    mismo_producto = existente.product_id_id == producto.pk
+    mismo_talle = existente.talle == talle
+    mismo_color = _norm_text(existente.color).lower() == color_norm
+
+    if mismo_producto and mismo_talle and mismo_color:
+        return None
+
+    return existente
+
+
+
+
+
 
 
 

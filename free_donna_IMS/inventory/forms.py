@@ -2,7 +2,7 @@ from decimal import Decimal
 from django import forms 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Local, Producto, Promocion, Venta
+from .models import Local, Producto, Promocion, Venta, Articulo, RetiroCaja
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
@@ -45,15 +45,57 @@ class ArticuloCreateForm(forms.Form):
     cantidad = forms.IntegerField(min_value=1, max_value=500, initial=1, label="Cantidad")
     referencia = forms.CharField(max_length=80, required=False, label="Referencia")
 
+    def __init__(self, *args, **kwargs):
+        self.local = kwargs.pop("local", None)
+        super().__init__(*args, **kwargs)
+
     def clean_barcode(self):
         barcode = (self.cleaned_data["barcode"] or "").strip()
         if not barcode:
             raise forms.ValidationError("El código de barras es obligatorio.")
         return barcode
 
-# inventory/forms.py
-from django import forms
-from .models import Articulo
+    def clean_color(self):
+        color = (self.cleaned_data["color"] or "").strip()
+        if not color:
+            raise forms.ValidationError("El color es obligatorio.")
+        return color
+
+    def clean(self):
+        cleaned = super().clean()
+
+        barcode = (cleaned.get("barcode") or "").strip()
+        producto = cleaned.get("product_id")
+        talle = cleaned.get("talle")
+        color = (cleaned.get("color") or "").strip()
+
+        if not barcode or not producto or talle is None or not color:
+            return cleaned
+
+        qs = Articulo.objects.select_related("product_id").filter(barcode=barcode)
+
+        if self.local:
+            qs = qs.filter(local=self.local)
+
+        existente = qs.order_by("-articulo_id").first()
+
+        if existente:
+            errores = {}
+
+            if existente.product_id_id != producto.pk:
+                errores["product_id"] = "Ese barcode ya está asociado a otro producto."
+
+            if existente.talle != talle:
+                errores["talle"] = "Ese barcode ya está asociado a otro talle."
+
+            if (existente.color or "").strip().lower() != color.lower():
+                errores["color"] = "Ese barcode ya está asociado a otro color."
+
+            if errores:
+                raise forms.ValidationError(errores)
+
+        return cleaned
+
 
 class ArticuloEditForm(forms.ModelForm):
     bulk = False
