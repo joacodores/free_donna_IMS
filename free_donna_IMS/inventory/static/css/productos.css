@@ -475,3 +475,9 @@ body[data-theme="dark"] .kv dd{
   padding: 10px 12px;
   font-size: 14px;
 }
+.search-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}

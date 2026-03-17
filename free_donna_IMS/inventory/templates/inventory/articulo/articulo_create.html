@@ -11,8 +11,10 @@
     <h2>Ingresar artículos</h2>
     <p class="subtle">Carga rápida por Código de barras o manual.</p>
   </div>
+  <div class="header-actions">
   <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
-  <a class="btn-secondary" href="{% url 'inventory:articulo_import_excel' %}">Importar Excel</a>
+  <a class="btn-primary" href="{% url 'inventory:articulo_import_excel' %}">Importar por Excel</a>
+  </div>
 </div>
 
 <form method="post" class="form-card articulo-form" autocomplete="off">

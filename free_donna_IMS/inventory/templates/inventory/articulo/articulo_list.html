@@ -12,7 +12,7 @@
   <div>
     <h2>Artículos</h2>
     <p class="subtle">
-      Vista por defecto por cantidad (agrupado). Podés cambiar a vista por unidad.
+      Articulos disponibles de local activo agrupados por cantidad. Podés cambiar a vista por unidad.
     </p>
   </div>
 
@@ -55,7 +55,7 @@
     autofocus
   />
   <button class="btn-primary" type="submit">OK</button>
-
+  
   {% if scan %}
     <a class="btn-secondary"
        href="{% url 'inventory:articulo_list' %}?{% if all_locals_active %}all_locals=1&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}">
@@ -63,6 +63,12 @@
     </a>
   {% endif %}
 </form>
+<div>
+    <p class="subtle">
+      Busqueda por filtros.
+    </p>
+</div>
+
 
 <form method="get" class="search-row">
   {% if all_locals_active %}
@@ -101,7 +107,7 @@
     <option value="unit" {% if mode == "unit" %}selected{% endif %}>Por unidad</option>
   </select>
 
-  <button class="btn-secondary" type="submit">Buscar</button>
+  <button class="btn-secondary search-button" type="submit">Buscar</button>
 
   {% if q or field != "all" or estado != "DISP" or mode != "qty" %}
     <a class="btn-secondary"

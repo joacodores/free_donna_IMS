@@ -142,8 +142,9 @@
   width:100%;
   max-width:100%;
   margin-top:12px;
-  background:#ffffffd9;
-  border:1px solid #d9e1ee;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  
   border-radius:18px;
   overflow-x:auto;
   overflow-y:auto;
@@ -164,12 +165,14 @@
 
 /* encabezado */
 .table thead th{
-  background:#f6f8fc;
+  background: var(--card2);
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--stroke);
   color:#24324a;
   font-weight:900;
   text-align:left;
   padding:14px 14px;
-  border-bottom:1px solid #dfe6f2;
+  
   position:sticky;
   top:0;
   z-index:1;
@@ -187,10 +190,11 @@
 /* celdas */
 .table tbody td{
   padding:14px 14px;
-  border-bottom:1px solid #e9eef7;
-  color:#172033;
+  color: var(--text);
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+  background: transparent;
   vertical-align:middle;
-  background:transparent;
+
 }
 
 .table tbody tr{
@@ -198,15 +202,15 @@
 }
 
 .table tbody tr:hover{
-  background:#f7faff;
+  background: var(--hover-soft)
 }
 
 .table tbody tr:nth-child(even){
-  background:rgba(248, 250, 252, 0.42);
+  background: color-mix(in srgb, var(--card2) 60%, transparent);
 }
 
 .table tbody tr:nth-child(even):hover{
-  background:#f7faff;
+  background: var(--hover)
 }
 
 .mono{

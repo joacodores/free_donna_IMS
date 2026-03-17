@@ -238,3 +238,18 @@ class PromocionForm(forms.ModelForm):
             self.add_error("fecha_fin", "La fecha de fin no puede ser anterior a la fecha de inicio.")
 
         return cleaned
+    
+    
+    
+
+class ProductoImportXlsxForm(forms.Form):
+    file = forms.FileField(
+        label="Archivo Excel",
+        help_text="Subí un archivo .xlsx con columnas: nombre, tipo_producto, material, marca, precio, costo"
+    )
+
+    def clean_file(self):
+        f = self.cleaned_data["file"]
+        if not f.name.lower().endswith(".xlsx"):
+            raise forms.ValidationError("El archivo debe ser .xlsx")
+        return f

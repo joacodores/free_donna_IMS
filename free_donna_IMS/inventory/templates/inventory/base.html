@@ -32,7 +32,7 @@
       <div class="right-section">
         <form method="post" action="{% url 'inventory:set_local' %}" class="local-form">
           {% csrf_token %}
-          <select name="local_id" class="select select-dark" onchange="this.form.submit()">
+          <select name="local_id" class=" select-dark" onchange="this.form.submit()">
             {% for l in locales %}
               <option value="{{ l.local_id }}" {% if l.local_id == local_activo_id %}selected{% endif %}>
                 {{ l.nombre }}
@@ -41,10 +41,10 @@
           </select>
         </form>
 
-        <a class="icon-btn" href="{% url 'inventory:pos' %}" aria-label="POS / Carrito">🛒</a>
+        <a class="icon-btn-header" href="{% url 'inventory:pos' %}" aria-label="POS / Carrito">🛒</a>
 
         <div class="hamburger-menu">
-          <button id="hamburger-button" class="icon-btn" type="button" aria-label="Menú">☰</button>
+          <button id="hamburger-button" class="icon-btn-header" type="button" aria-label="Menú">☰</button>
           <div id="hamburger-dropdown" class="menu-dropdown">
             <a href="{% url 'inventory:producto_list' %}">Productos</a>
             <a href="{% url 'inventory:articulo_list' %}">Artículos</a>

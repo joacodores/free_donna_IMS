@@ -73,7 +73,7 @@ body[data-theme="dark"] .app-header{
 
 /* Buttons */
 
-.icon-btn{
+.icon-btn-header{
   height:42px;
   min-width:42px;
   padding:0 12px;
@@ -94,7 +94,7 @@ body[data-theme="dark"] .app-header{
   transition: background .15s ease, transform .15s ease;
 }
 
-.icon-btn,
+.icon-btn-header,
 .select-dark{
   border: 1px solid var(--stroke);
   background: rgba(255,255,255,0.46);
@@ -102,7 +102,7 @@ body[data-theme="dark"] .app-header{
   box-shadow: 0 4px 14px rgba(25, 35, 60, 0.04);
 }
 
-.icon-btn:hover{
+.icon-btn-header:hover{
   background: rgba(255,255,255,0.72);
   transform: translateY(-1px);
 }

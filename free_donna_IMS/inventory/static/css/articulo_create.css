@@ -1,71 +1,86 @@
+/* --- CONTENEDOR GENERAL --- */
 .articulo-form{
-  padding:16px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--glass-blur);
 }
 
+/* --- HEADER --- */
 .page-header{
   display:flex;
   align-items:center;
-  justify-content:center;
-  margin-bottom:16px;
+  justify-content:space-between;
+  margin-bottom: 20px;
 }
 
-/* Scan block */
+.page-header h2{
+  margin:0;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text-strong);
+}
 
+.page-header .subtle{
+  margin-top: 4px;
+}
+
+/* --- SCAN BLOCK --- */
 .scan-block{
   border:1px solid var(--stroke);
-  border-radius:14px;
-  padding:14px;
-  margin-bottom:14px;
+  border-radius: var(--radius-sm);
+  padding:18px;
+  margin-bottom:20px;
 
   background: var(--card2);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
 }
 
 .scan-head{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:12px;
-  margin-bottom:10px;
+  margin-bottom:12px;
 }
 
 .scan-title{
   font-weight:900;
-  letter-spacing:.2px;
+  font-size: 16px;
   color: var(--text-strong);
 }
 
-/* Status */
-
+/* Estado del barcode */
 .scan-status{
   font-size:12px;
   font-weight:800;
-
-  padding:6px 10px;
-
+  padding:6px 12px;
   border-radius:999px;
   border:1px solid var(--stroke);
   background: var(--card);
-
   color: var(--text);
 }
 
 .scan-status[data-kind="ok"]{
-  border-color: color-mix(in srgb, var(--success) 30%, var(--stroke));
-  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.scan-status[data-kind="loading"]{
+  border-color: var(--stroke2);
+  background: color-mix(in srgb, var(--info) 12%, transparent);
 }
 
 .scan-status[data-kind="idle"]{
-  border-color: var(--stroke);
   background: var(--card2);
 }
 
-/* layout */
-
+/* Layout del scan */
 .scan-row{
   display:flex;
-  align-items:end;
-  gap:10px;
+  align-items:flex-end;
+  gap:12px;
 }
 
 .scan-row .grow{
@@ -73,74 +88,79 @@
 }
 
 .field.qty{
-  width:140px;
+  width:150px;
 }
 
-/* grid */
+/* Ayuda */
+.scan-help{
+  margin-top:10px;
+  font-size:13px;
+  color: var(--muted);
+}
 
+/* --- GRID DE CAMPOS --- */
 .articulo-grid{
   display:grid;
   grid-template-columns: 1.4fr 0.7fr 0.9fr;
-  gap:12px;
+  gap:16px;
+  margin-top: 10px;
 }
 
 .articulo-grid .col-2{
   grid-column: span 2;
 }
 
-/* labels */
-
+/* Labels */
 .articulo-grid label,
 .field.qty label{
   display:block;
-  font-size:12px;
+  font-size:13px;
   font-weight:800;
   margin-bottom:6px;
   color: var(--muted);
 }
 
-/* inputs */
-
+/* Inputs */
 .articulo-grid input,
 .articulo-grid select,
 .scan-block input{
   width:100%;
-
   border-radius:12px;
-
-  padding:10px 12px;
-
+  padding:12px 14px;
   border:1px solid var(--stroke);
-
   background: var(--input-bg);
-
   color: var(--text);
-
-  outline:none;
+  transition: border-color .18s ease, background .18s ease;
 }
 
 .articulo-grid input:focus,
-.articulo-grid select:focus{
+.articulo-grid select:focus,
+.scan-block input:focus{
   background: var(--input-bg-focus);
   border-color: var(--stroke2);
+  box-shadow: 0 0 0 3px rgba(111,124,255,0.16);
 }
 
-/* barcode */
-
+/* Barcode destacado */
 #id_barcode{
   font-size:18px;
   font-weight:900;
-  letter-spacing:.2px;
-  padding:12px 12px;
+  letter-spacing:.3px;
+  padding:14px;
 }
 
+/* SKU preview */
 #id_sku_preview{
-  opacity:.9;
+  opacity:.85;
 }
 
-/* errors */
-
+/* Errores */
 .form-errors{
-  margin-bottom:12px;
+  margin-bottom:14px;
+  padding:10px 14px;
+  border-radius:12px;
+  background: rgba(225,85,102,0.12);
+  border: 1px solid rgba(225,85,102,0.30);
   color: var(--danger);
+  font-weight:900;
 }

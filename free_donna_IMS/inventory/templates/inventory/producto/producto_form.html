@@ -1,15 +1,81 @@
 {% extends "inventory/base.html" %}
-
+{% load static %}
 {% block title %}
   {% if object %}Editar{% else %}Nuevo{% endif %} producto
 {% endblock %}
 
 {% block content %}
-  <h2>{% if object %}Editar{% else %}Nuevo{% endif %} producto</h2>
+  
+  <link rel="stylesheet" href="{% static 'css/product_form.css' %}">
+  <div class="product-form-page">
+  <div class="product-form-shell">
+    
+    <div class="page-header product-header">
+      <div>
+        <h2>{% if object %}Editar{% else %}Nuevo{% endif %} producto</h2>
+        <p class="subtle">Completá los datos o importalos desde Excel.</p>
+      </div>
 
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar</button>
-  </form>
+      <div class="header-actions">
+        <a class="btn-primary" href="{% url 'inventory:producto_import_excel' %}">
+          Importar por Excel
+        </a>
+        <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">
+          Volver
+        </a>
+      </div>
+    </div>
+
+    <form method="post" class="form-card product-form">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid product-grid">
+        <div class="field col-2">
+          <label for="{{ form.nombre.id_for_label }}">Nombre</label>
+          {{ form.nombre }}
+          {{ form.nombre.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.tipo_producto.id_for_label }}">Tipo producto</label>
+          {{ form.tipo_producto }}
+          {{ form.tipo_producto.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.material.id_for_label }}">Material</label>
+          {{ form.material }}
+          {{ form.material.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.marca.id_for_label }}">Marca</label>
+          {{ form.marca }}
+          {{ form.marca.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.precio.id_for_label }}">Precio</label>
+          {{ form.precio }}
+          {{ form.precio.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.costo.id_for_label }}">Costo</label>
+          {{ form.costo }}
+          {{ form.costo.errors }}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+
+  </div>
+</div>
 {% endblock %}

@@ -52,4 +52,5 @@ urlpatterns = [
     path("promociones/<int:promocion_id>/toggle/", views.PromocionToggleEstadoView.as_view(), name="promocion_toggle"),
     path("promociones/<int:promocion_id>/delete/", views.PromocionDeleteView.as_view(), name="promocion_delete"),
     path("pos/resumen-dia/pdf/", views.pos_resumen_dia_pdf, name="pos_resumen_dia_pdf"),
+    path("productos/importar-excel/", views.ProductoImportXlsxView.as_view(),name="producto_import_excel"),
 ]

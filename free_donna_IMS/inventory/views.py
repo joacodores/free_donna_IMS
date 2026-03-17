@@ -12,7 +12,7 @@ from django.shortcuts import redirect
 from httpcore import request
 from sqlalchemy import Cast
 from .models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, Promocion, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
-from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
+from .forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, ProductoImportXlsxForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -981,6 +981,128 @@ class ArticuloImportXlsxView(FormView):
             # no lo hagas eterno; mostramos las primeras 10
             preview = "\n".join(errores[:10])
             messages.warning(self.request, f"Hubo errores en algunas filas:\n{preview}")
+
+        return super().form_valid(form)
+
+def _norm(value):
+    return " ".join(str(value or "").strip().split())
+
+
+def _to_decimal(value):
+    if value is None or value == "":
+        return None
+    try:
+        txt = str(value).strip().replace("$", "").replace(" ", "")
+        txt = txt.replace(".", "").replace(",", ".") if "," in txt and "." in txt else txt.replace(",", ".")
+        return Decimal(txt)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+class ProductoImportXlsxView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+    template_name = "inventory/producto/producto_import_xlsx.html"
+    form_class = ProductoImportXlsxForm
+    success_url = reverse_lazy("inventory:producto_list")
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def form_valid(self, form):
+        f = form.cleaned_data["file"]
+
+        try:
+            wb = load_workbook(filename=f, data_only=True)
+            ws = wb.active
+        except Exception:
+            messages.error(self.request, "No se pudo leer el Excel. Verificá que sea un .xlsx válido.")
+            return self.form_invalid(form)
+
+        header = [_norm(cell.value).lower() for cell in ws[1]]
+
+        required = ["nombre", "tipo_producto", "material", "marca", "precio", "costo"]
+        missing = [col for col in required if col not in header]
+        if missing:
+            messages.error(self.request, f"Faltan columnas obligatorias: {', '.join(missing)}")
+            return self.form_invalid(form)
+
+        idx = {name: header.index(name) for name in header if name}
+
+        creados = 0
+        actualizados = 0
+        errores = []
+
+        for row_num in range(2, ws.max_row + 1):
+            row = [ws.cell(row=row_num, column=col).value for col in range(1, ws.max_column + 1)]
+
+            nombre = _norm(row[idx["nombre"]])
+            tipo_producto = _norm(row[idx["tipo_producto"]])
+            material = _norm(row[idx["material"]])
+            marca_nombre = _norm(row[idx["marca"]])
+            precio = _to_decimal(row[idx["precio"]])
+            costo = _to_decimal(row[idx["costo"]])
+
+            if not any([nombre, tipo_producto, material, marca_nombre, precio, costo]):
+                continue
+
+            if not nombre:
+                errores.append(f"Fila {row_num}: nombre vacío")
+                continue
+
+            if not tipo_producto:
+                errores.append(f"Fila {row_num}: tipo_producto vacío")
+                continue
+
+            if not material:
+                errores.append(f"Fila {row_num}: material vacío")
+                continue
+
+            if not marca_nombre:
+                errores.append(f"Fila {row_num}: marca vacía")
+                continue
+
+            if precio is None:
+                errores.append(f"Fila {row_num}: precio inválido")
+                continue
+
+            if costo is None:
+                errores.append(f"Fila {row_num}: costo inválido")
+                continue
+
+            marca = Marca.objects.filter(nombre__iexact=marca_nombre).first()
+            if not marca:
+                errores.append(f"Fila {row_num}: no existe la marca '{marca_nombre}'")
+                continue
+
+            producto = Producto.objects.filter(nombre__iexact=nombre).first()
+
+            if producto:
+                producto.tipo_producto = tipo_producto
+                producto.material = material
+                producto.marca = marca
+                producto.precio = precio
+                producto.costo = costo
+                producto.save()
+                actualizados += 1
+            else:
+                Producto.objects.create(
+                    nombre=nombre,
+                    tipo_producto=tipo_producto,
+                    material=material,
+                    marca=marca,
+                    precio=precio,
+                    costo=costo,
+                )
+                creados += 1
+
+        if creados or actualizados:
+            messages.success(
+                self.request,
+                f"Importación completada. Creados: {creados}. Actualizados: {actualizados}."
+            )
+
+        if errores:
+            preview = " | ".join(errores[:10])
+            messages.warning(self.request, f"Se encontraron errores: {preview}")
 
         return super().form_valid(form)
 

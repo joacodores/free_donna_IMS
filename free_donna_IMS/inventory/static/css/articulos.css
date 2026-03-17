@@ -69,13 +69,13 @@ body[data-theme="dark"] .search-card{
    SCAN + SEARCH LAYOUT
    ========================= */
 
-.scan-row,
-.search-row{
-  display:grid;
-  grid-template-columns: 1fr auto;
-  gap:10px;
+form.search-row,
+form.scan-row{
+  display:flex;
   align-items:center;
-  margin: 0 0 12px 0;
+  gap:10px;
+  flex-wrap:nowrap;
+  margin-bottom:12px;
 }
 
 .search-row--triple,
@@ -92,7 +92,14 @@ body[data-theme="dark"] .search-card{
   justify-content:flex-start;
   margin-top: 2px;
 }
-
+.search-button{
+  background-color: rgb(96, 109, 165);
+  color: white;
+  max-width: 10%;
+}
+.search-button:hover{
+  background-color: rgb(96, 109, 165, 0.8);
+}
 /* =========================
    INPUTS
    ========================= */
@@ -100,7 +107,6 @@ body[data-theme="dark"] .search-card{
 .scan-input,
 .search-input,
 .select{
-  width:100%;
   min-height: 46px;
   padding: 12px 14px;
   border-radius: 14px;
@@ -116,7 +122,9 @@ body[data-theme="dark"] .search-card{
     background .15s ease,
     transform .12s ease;
 }
-
+.select, .search-input{
+  max-width:40%
+}
 body[data-theme="dark"] .scan-input,
 body[data-theme="dark"] .search-input,
 body[data-theme="dark"] .select{
