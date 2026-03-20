@@ -1,7 +1,7 @@
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %} Artículos {% endblock %}
+{% block title %} Productos {% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/articulos.css' %}" />
@@ -10,9 +10,9 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h2>Artículos</h2>
+    <h2>Productos</h2>
     <p class="subtle">
-      Articulos disponibles de local activo agrupados por cantidad. Podés cambiar a vista por unidad.
+      Productos disponibles de local activo agrupados por cantidad. Podés cambiar a vista por unidad.
     </p>
   </div>
 
@@ -31,8 +31,8 @@
       {% endif %}
     {% endif %}
 
-    <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Productos</a>
-    <a class="btn-primary" href="{% url 'inventory:articulo_create' %}">+ Cargar artículos</a>
+    <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Artículos</a>
+    <a class="btn-primary" href="{% url 'inventory:articulo_create' %}">+ Cargar productos</a>
   </div>
 </div>
 
@@ -89,7 +89,7 @@
     <option value="all" {% if field == "all" %}selected{% endif %}>Todos</option>
     <option value="sku" {% if field == "sku" %}selected{% endif %}>SKU</option>
     <option value="barcode" {% if field == "barcode" %}selected{% endif %}>Barcode</option>
-    <option value="producto" {% if field == "producto" %}selected{% endif %}>Producto</option>
+    <option value="producto" {% if field == "producto" %}selected{% endif %}>Artículo</option>
     <option value="marca" {% if field == "marca" %}selected{% endif %}>Marca</option>
     <option value="color" {% if field == "color" %}selected{% endif %}>Color</option>
     <option value="talle" {% if field == "talle" %}selected{% endif %}>Talle</option>
@@ -127,7 +127,7 @@
             <th class="col-id">ID</th>
             <th>SKU</th>
             <th>Código de barras</th>
-            <th>Producto</th>
+            <th>Artículo</th>
             <th>Marca</th>
             <th class="col-talle">Talle</th>
             <th>Color</th>
@@ -181,7 +181,7 @@
             <th class="num">Cant</th>
             <th>SKU</th>
             <th>Código de barras</th>
-            <th>Producto</th>
+            <th>Artículo</th>
             <th>Marca</th>
             <th class="col-talle">Talle</th>
             <th>Color</th>
@@ -260,14 +260,14 @@
 {% else %}
   <div class="empty">
     {% if not request.user.is_staff and not q and not scan %}
-      <p style="margin: 0; font-weight: 900">Para ver artículos tenés que buscar o escanear.</p>
+      <p style="margin: 0; font-weight: 900">Para ver productos tenés que buscar o escanear.</p>
       <p class="subtle" style="margin-bottom: 0">
-        Usá el escáner o la búsqueda por SKU / producto / marca.
+        Usá el escáner o la búsqueda por SKU / articulo / marca.
       </p>
     {% else %}
-      <p style="margin: 0; font-weight: 900">No hay artículos cargados.</p>
+      <p style="margin: 0; font-weight: 900">No hay productos cargados.</p>
       <p class="subtle" style="margin-bottom: 0">
-        Usá el botón “Cargar artículos” para ingresar unidades (podés hacerlo por cantidad).
+        Usá el botón “Cargar productos” para ingresar unidades (podés hacerlo por cantidad).
       </p>
     {% endif %}
   </div>
@@ -286,7 +286,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articuloModalTitle">
     <div class="modal-header">
       <div>
-        <h3 id="articuloModalTitle">Detalle de artículo</h3>
+        <h3 id="articuloModalTitle">Detalle de producto</h3>
         <p class="subtle" id="articuloModalSubtitle" style="margin: 6px 0 0 0"></p>
       </div>
       <button class="modal-close" type="button" onclick="closeArticuloModal()">×</button>
@@ -299,7 +299,7 @@
         <dt>Barcode</dt><dd id="m_barcode">—</dd>
         <dt>Estado</dt><dd id="m_estado">—</dd>
         <dt>Ingreso</dt><dd id="m_created">—</dd>
-        <dt>Producto</dt><dd id="m_producto">—</dd>
+        <dt>Artículo</dt><dd id="m_producto">—</dd>
         <dt>Marca</dt><dd id="m_marca">—</dd>
         <dt>Talle</dt><dd id="m_talle">—</dd>
         <dt>Color</dt><dd id="m_color">—</dd>
@@ -308,7 +308,7 @@
     </div>
 
     <div class="modal-actions">
-      <a id="m_ver_producto" class="btn-secondary" href="javascript:void(0)">Ver producto</a>
+      <a id="m_ver_producto" class="btn-secondary" href="javascript:void(0)">Ver articulo</a>
       <button id="m_transfer_open" class="btn-secondary" type="button">Transferir</button>
 
       {% if request.user.is_staff %}
@@ -487,7 +487,7 @@
 
   function openBulkDeleteModal(group){
     const sub = document.getElementById("bulkDeleteModalSubtitle");
-    if (sub) sub.textContent = group.sku ? ("SKU: " + group.sku) : ("Barcode: " + group.barcode);
+    if (sub) sub.textContent = group.sku ? ("SKU: " + group.sku) : ("Código: " + group.barcode);
 
     document.getElementById("bd_product_id").value = group.productId || "";
     document.getElementById("bd_barcode").value = group.barcode || "";
@@ -550,9 +550,9 @@
 
     const $ = (x) => document.getElementById(x);
 
-    if ($("articuloModalTitle")) $("articuloModalTitle").textContent = sku ? ("Artículo " + sku) : "Detalle de artículo";
+    if ($("articuloModalTitle")) $("articuloModalTitle").textContent = sku ? ("Producto " + sku) : "Detalle de producto";
     if ($("articuloModalSubtitle")) $("articuloModalSubtitle").textContent =
-      producto ? ("Producto: " + producto + (marca ? " — " + marca : "")) : (marca ? ("Marca: " + marca) : "");
+      producto ? ("Artículo: " + producto + (marca ? " — " + marca : "")) : (marca ? ("Marca: " + marca) : "");
 
     if ($("m_qty")) $("m_qty").textContent = qty || "—";
     if ($("m_id")) $("m_id").textContent = id || "—";
@@ -585,7 +585,7 @@
       const canTransfer = (estado === "DISP");
       transferOpen.disabled = !canTransfer;
       transferOpen.style.opacity = canTransfer ? "1" : "0.55";
-      transferOpen.title = canTransfer ? "" : "Solo podés transferir artículos DISPONIBLES.";
+      transferOpen.title = canTransfer ? "" : "Solo podés transferir productos DISPONIBLES.";
       transferOpen.onclick = function(e){
         e.preventDefault();
         e.stopPropagation();

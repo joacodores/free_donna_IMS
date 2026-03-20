@@ -1,14 +1,14 @@
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %}Importar productos{% endblock %}
+{% block title %}Importar artículos{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/producto_form_xlsx.css' %}">
 
-<div class="page-header">
+<div class="page-header"style="justify-content: flex-start; gap:200px;">
   <div>
-    <h2>Importar productos</h2>
+    <h2>Importar artículos</h2>
     
   </div>
   <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Volver</a>
@@ -23,10 +23,10 @@
 
   <div class="import-help">
     <h3>Columnas requeridas:</h3>
-    <h4>"nombre", "tipo_producto", "material", "marca", "precio", "costo"</h4>
+    <h4>nombre, tipo_producto, material, marca, precio, costo</h4>
   </div>
   <div class="field">
-    <label for="{{ form.file.id_for_label }}">Archivo</label>
+    
     {{ form.file }}
     {{ form.file.errors }}
     

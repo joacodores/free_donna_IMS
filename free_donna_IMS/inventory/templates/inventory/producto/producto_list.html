@@ -1,7 +1,7 @@
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %}Productos{% endblock %}
+{% block title %}Artículos{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/productos.css' %}">
@@ -10,15 +10,15 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h2>Productos</h2>
-    <p class="subtle">Click en un producto para ver el detalle.</p>
+    <h2>Articulos</h2>
+    <p class="subtle">Click en un articulo para ver el detalle.</p>
   </div>
 
   {% if request.user.is_staff %}
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button type="button" class="btn-secondary" id="btnBulkMarca">Ajuste por marca</button>
       <a class="btn-primary" href="{% url 'inventory:producto_create' %}">
-        + Nuevo producto
+        + Nuevo artículo
       </a>
     </div>
   {% endif %}
@@ -88,8 +88,8 @@
   </div>
 {% else %}
   <div class="empty">
-    <p style="margin:0; font-weight:800;">No hay productos cargados.</p>
-    <p class="subtle" style="margin-bottom:0;">Usá el botón “Nuevo producto” para agregar el primero.</p>
+    <p style="margin:0; font-weight:800;">No hay artículos cargados.</p>
+    <p class="subtle" style="margin-bottom:0;">Usá el botón “Nuevo artículo” para agregar el primero.</p>
   </div>
 {% endif %}
 
@@ -98,7 +98,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productoModalTitle">
     <div class="modal-header">
       <div>
-        <h3 id="productoModalTitle">Detalle de producto</h3>
+        <h3 id="productoModalTitle">Detalle de artículo</h3>
         <p class="subtle" id="productoModalSubtitle" style="margin:6px 0 0 0;"></p>
       </div>
       <button class="modal-close" type="button" onclick="closeProductoModal()">×</button>
@@ -172,7 +172,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Producto</th>
+                  <th>Artículo</th>
                   <th class="num">Precio</th>
                   <th class="num">Nuevo</th>
                   <th class="num">Costo</th>
@@ -219,7 +219,7 @@
     var precio = cardEl.dataset.precio || "";
     var costo = cardEl.dataset.costo || "";
 
-    document.getElementById("productoModalTitle").textContent = nombre || "Detalle de producto";
+    document.getElementById("productoModalTitle").textContent = nombre || "Detalle de artículo";
     document.getElementById("productoModalSubtitle").textContent = marca ? ("Marca: " + marca) : "";
 
     document.getElementById("m_id").textContent = id || "—";
@@ -351,7 +351,7 @@
       // si el preview está visible, intentamos leer el total
       const meta = (previewMeta?.textContent || "").trim();
       const totalMatch = meta.match(/·\s*(\d+)\s*productos?/);
-      const totalTxt = totalMatch ? `${totalMatch[1]} productos` : "varios productos";
+      const totalTxt = totalMatch ? `${totalMatch[1]} articulos` : "varios artículos";
     
       const parts = [];
       if (p1) parts.push(`Precio ${p1}%`);
@@ -404,7 +404,7 @@
         }
 
         previewMeta.textContent =
-          `${data.marca.nombre} · ${data.total} productos afectados`
+          `${data.marca.nombre} · ${data.total} artículos afectados`
           + (data.pct_precio ? ` · Precio ${data.pct_precio}%` : "")
           + (data.pct_costo ? ` · Costo ${data.pct_costo}%` : "");
 

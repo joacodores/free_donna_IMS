@@ -1,0 +1,137 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Resumen del día{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/export_caja.css' %}">
+
+<div class="day-summary-page">
+  <div class="day-summary-shell">
+
+    <div class="day-summary-header">
+      <div>
+        <h2>Resumen del día</h2>
+        <p class="day-summary-subtitle">
+          Vista operativa del cierre diario.
+        </p>
+      </div>
+
+      <div class="day-summary-header-actions">
+        <a href="{% url 'inventory:pos' %}" class="btn-secondary">Volver</a>
+      </div>
+    </div>
+
+    <section class="summary-grid">
+      <article class="summary-card stat-card">
+        <span class="stat-label">Ventas</span>
+        <strong class="stat-value">{{ resumen.cantidad_ventas }}</strong>
+      </article>
+
+      <article class="summary-card stat-card">
+        <span class="stat-label">Total vendido</span>
+        <strong class="stat-value mono">$ {{ resumen.total_vendido|floatformat:2 }}</strong>
+      </article>
+
+      <article class="summary-card stat-card">
+        <span class="stat-label">Caja</span>
+        <strong class="stat-value mono">$ {{ resumen.caja_efectivo|floatformat:2 }}</strong>
+      </article>
+
+      <article class="summary-card stat-card">
+        <span class="stat-label">Mov. caja netos</span>
+        <strong class="stat-value mono">$ {{ resumen.neto_caja|floatformat:2 }}</strong>
+      </article>
+    </section>
+
+    <section class="summary-card summary-block">
+      <div class="block-head">
+        <h3>Ventas del día</h3>
+      </div>
+
+      <div class="table-wrap-lite">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Empleado</th>
+              <th>Método de pago</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for venta in ventas %}
+              <tr>
+                <td>{{ venta.fecha|date:"H:i" }}</td>
+                <td>{{ venta.usuario }}</td>
+                <td>{{ venta.metodo_de_pago }}</td>
+                <td class="num mono">$ {{ venta.total|floatformat:2 }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="empty-cell">No hay ventas registradas hoy.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="summary-card summary-block">
+      <div class="block-head">
+        <h3>Movimientos de caja</h3>
+      </div>
+
+      <div class="table-wrap-lite">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Tipo</th>
+              <th>Motivo</th>
+              <th>Usuario</th>
+              <th class="num">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mov in movimientos_caja %}
+              <tr>
+                <td>{{ mov.creado_en | date:"H:i" }}</td>
+                <td>{{ mov.tipo }}</td>
+                <td>{{ mov.motivo|default:"—" }}</td>
+                <td>{{ mov.usuario|default:"—" }}</td>
+                <td class="num mono">$ {{ mov.monto|floatformat:2 }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="empty-cell">No hubo movimientos de caja hoy.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="summary-card summary-footer">
+      <div class="mail-info">
+        <h3>Envíar resumen del día</h3>
+        <p>
+          Este envío genera un PDF completo y lo manda al siguiente email:
+        </p>
+        <p class="mail-destination">
+          
+          <strong>{{ email_destino|default:"No configurado" }}</strong>
+        </p>
+      </div>
+
+     <form method="post" action="{% url 'inventory:pos_resumen_dia_enviar' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-primary" {% if not email_destino %}disabled{% endif %}>
+            Enviar resumen 
+          </button>
+        </form>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

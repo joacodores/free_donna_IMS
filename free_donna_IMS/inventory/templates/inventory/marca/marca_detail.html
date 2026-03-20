@@ -10,7 +10,7 @@
   <div>
     <h2>{{ marca.nombre }}</h2>
     <p class="subtle">
-      Productos: <b>{{ stats.productos_count }}</b> ·
+      Artículos: <b>{{ stats.productos_count }}</b> ·
       Unidades vendidas: <b>{{ stats.unidades_vendidas }}</b> ·
       Total vendido: <b>$ {{ stats.vendido_total }}</b> ·
       Profit: <b>$ {{ stats.profit_total }}</b>
@@ -29,7 +29,7 @@
     <thead>
       <tr>
         <th>ID</th>
-        <th>Producto</th>
+        <th>Artículo</th>
         <th>Tipo</th>
         <th>Material</th>
         <th class="num">Precio</th>
@@ -47,7 +47,7 @@
           <td class="num mono">$ {{ p.costo }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="subtle">No hay productos asociados a esta marca.</td></tr>
+        <tr><td colspan="6" class="subtle">No hay artículos asociados a esta marca.</td></tr>
       {% endfor %}
     </tbody>
   </table>

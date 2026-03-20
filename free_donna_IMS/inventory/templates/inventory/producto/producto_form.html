@@ -12,7 +12,7 @@
     
     <div class="page-header product-header">
       <div>
-        <h2>{% if object %}Editar{% else %}Nuevo{% endif %} producto</h2>
+        <h2>{% if object %}Editar{% else %}Nuevo{% endif %} artículo</h2>
         <p class="subtle">Completá los datos o importalos desde Excel.</p>
       </div>
 
@@ -41,7 +41,7 @@
         </div>
 
         <div class="field">
-          <label for="{{ form.tipo_producto.id_for_label }}">Tipo producto</label>
+          <label for="{{ form.tipo_producto.id_for_label }}">Tipo de artículo</label>
           {{ form.tipo_producto }}
           {{ form.tipo_producto.errors }}
         </div>

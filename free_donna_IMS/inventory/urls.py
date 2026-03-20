@@ -51,6 +51,7 @@ urlpatterns = [
     path("promociones/<int:promocion_id>/editar/", views.PromocionUpdateView.as_view(), name="promocion_edit"),
     path("promociones/<int:promocion_id>/toggle/", views.PromocionToggleEstadoView.as_view(), name="promocion_toggle"),
     path("promociones/<int:promocion_id>/delete/", views.PromocionDeleteView.as_view(), name="promocion_delete"),
-    path("pos/resumen-dia/pdf/", views.pos_resumen_dia_pdf, name="pos_resumen_dia_pdf"),
     path("productos/importar-excel/", views.ProductoImportXlsxView.as_view(),name="producto_import_excel"),
+    path("pos/resumen-dia/pdf/", views.pos_resumen_dia_view, name="pos_resumen_dia"),
+    path("pos/resumen-dia/pdf/enviar/", views.pos_resumen_dia_enviar_view, name="pos_resumen_dia_enviar"),
 ]

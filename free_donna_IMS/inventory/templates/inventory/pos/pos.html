@@ -24,13 +24,13 @@
             <h3>Carrito</h3 >
           </div>
           <p class="panel-subtext">
-          Escaneá el código de barras para agregar al carrito. Si no lo tenés, buscá el artículo desde su listado.
+          Escaneá el código de barras para agregar al carrito. Si no lo tenés, buscá el producto desde su listado.
           </p>
         </div>
 
         <div class="panel-meta">
           
-          <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Buscar artículos</a>
+          <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Buscar productos</a>
         </div>
       
       </div>
@@ -209,8 +209,8 @@
         </div>
       {% endif %}
       <div class="sales-actions">
-        <a href="{% url 'inventory:pos_resumen_dia_pdf' %}" class="btn-primary" target="_blank">
-          Exportar resumen del día</a>
+        <a href="{% url 'inventory:pos_resumen_dia' %}" class="btn-primary" target="_blank">
+          Ver resumen del día</a>
       </div>
     </section>
 

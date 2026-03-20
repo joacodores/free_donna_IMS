@@ -1,5 +1,4 @@
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-from email.mime import base
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from zoneinfo import ZoneInfo
 from django.http import Http404, HttpResponseForbidden, JsonResponse
@@ -19,13 +18,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic.edit import FormView
 from django.db import transaction
 from django.contrib import messages
-from datetime import datetime as Datetime, time, timezone, datetime
+from datetime import datetime as Datetime, time, timedelta, timezone, datetime
 from django.db.models.functions import TruncDate, Coalesce, TruncMinute, Concat
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from django.utils import timezone
 from openpyxl import load_workbook
+from django.core.mail import EmailMessage
 
 
 
@@ -2344,6 +2344,152 @@ def pos_resumen_dia_pdf(request):
         caja_fecha=hoy,
         caja_usuario=request.user,
     )
+    
+def _get_resumen_dia_base(request):
+    local = _get_local_activo(request)
+    if not local:
+        return None, None, None
+
+    hoy = timezone.localdate()
+
+    ventas_qs = (
+        Venta.objects
+        .select_related("usuario", "local")
+        .filter(
+            usuario=request.user,
+            local=local,
+            estado=Venta.Estado.CERRADA,
+            fecha__date=hoy,
+        )
+        .order_by("-fecha", "-venta_id")
+    )
+
+    return local, hoy, ventas_qs
+
+
+def _build_pos_resumen_dia_context(request):
+    local, hoy, ventas_qs = _get_resumen_dia_base(request)
+    if not local:
+        return None
+
+    ventas = list(ventas_qs)
+    efectivo=_saldo_caja_local(local)
+    ventas_agg = ventas_qs.aggregate(
+        cantidad_ventas=Coalesce(Count("venta_id"), 0),
+        total_vendido=Coalesce(Sum("total"), Value(0, output_field=DecimalField())),
+    )
+
+    movimientos_caja_qs = (
+        RetiroCaja.objects
+        .select_related("usuario", "local")
+        .filter(
+            usuario=request.user,
+            local=local,
+            fecha=hoy,
+        )
+        .order_by("-fecha", "-retiro_id")
+    )
+
+    movimientos_caja = list(movimientos_caja_qs)
+
+    total_mov_caja = movimientos_caja_qs.aggregate(
+        total=Coalesce(Sum("monto"), Value(0, output_field=DecimalField()))
+    )["total"]
+
+    resumen = {
+        "cantidad_ventas": ventas_agg["cantidad_ventas"] or 0,
+        "total_vendido": ventas_agg["total_vendido"] or 0,
+        "caja_efectivo": efectivo,
+        "neto_caja": total_mov_caja or 0,
+    }
+    email = "joaquindores@gmail.com"
+    return {
+        "local": local,
+        "hoy": hoy,
+        "ventas": ventas,
+        "movimientos_caja": movimientos_caja,
+        "resumen": resumen,
+        "email_destino": email,
+    }
+
+
+def _generar_pdf_resumen_dia_response(request):
+    local, hoy, ventas_qs = _get_resumen_dia_base(request)
+    if not local:
+        return HttpResponse("No hay local activo.", status=400)
+
+    return _render_ventas_pdf(
+        request,
+        local,
+        ventas_qs,
+        include_caja=True,
+        caja_fecha=hoy,
+        caja_usuario=request.user,
+    )
+
+
+@login_required
+def pos_resumen_dia_view(request):
+    ctx = _build_pos_resumen_dia_context(request)
+    if ctx is None:
+        messages.error(request, "No hay local activo.")
+        return redirect("inventory:pos")
+
+    return render(request, "inventory/pos/export_caja.html", ctx)
+
+
+@login_required
+def pos_resumen_dia_enviar_view(request):
+    if request.method != "POST":
+        return redirect("inventory:pos_resumen_dia")
+
+    ctx = _build_pos_resumen_dia_context(request)
+    if ctx is None:
+        messages.error(request, "No hay local activo.")
+        return redirect("inventory:pos")
+
+    local = ctx["local"]
+    email_destino = ctx["email_destino"]
+
+    if not email_destino:
+        messages.error(request, "Este local no tiene configurado un email de destino.")
+        return redirect("inventory:pos_resumen_dia")
+
+    try:
+        pdf_response = _generar_pdf_resumen_dia_response(request)
+        if pdf_response.status_code != 200:
+            messages.error(request, "No se pudo generar el PDF del resumen.")
+            return redirect("inventory:pos_resumen_dia")
+
+        pdf_bytes = pdf_response.content
+
+        fecha_txt = timezone.localtime().strftime("%d-%m-%Y")
+        nombre_local = getattr(local, "nombre", "local")
+
+        email = EmailMessage(
+            subject=f"Resumen del día - {nombre_local} - {fecha_txt}",
+            body=(
+                f"Se adjunta el resumen del día.\n\n"
+                f"Local: {nombre_local}\n"
+                f"Empleado: {request.user.get_username()}\n"
+                f"Fecha: {fecha_txt}\n"
+            ),
+            to=[email_destino],
+        )
+
+        email.attach(
+            f"resumen_dia_{nombre_local}_{fecha_txt}.pdf",
+            pdf_bytes,
+            "application/pdf"
+        )
+        email.send(fail_silently=False)
+
+        messages.success(request, f"Resumen enviado a {email_destino}.")
+    except Exception as e:
+        messages.error(request, f"No se pudo enviar el resumen: {e}")
+
+    return redirect("inventory:pos_resumen_dia")
+
 class VentaDetailView(LoginRequiredMixin, DetailView):
     model = Venta
     template_name = "inventory/movimientos/venta_detail.html"

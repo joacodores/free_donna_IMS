@@ -46,8 +46,8 @@
         <div class="hamburger-menu">
           <button id="hamburger-button" class="icon-btn-header" type="button" aria-label="Menú">☰</button>
           <div id="hamburger-dropdown" class="menu-dropdown">
-            <a href="{% url 'inventory:producto_list' %}">Productos</a>
-            <a href="{% url 'inventory:articulo_list' %}">Artículos</a>
+            <a href="{% url 'inventory:producto_list' %}">Artículos</a>
+            <a href="{% url 'inventory:articulo_list' %}">Productos</a>
             <a href="{% url 'inventory:movimientos' %}">Movimientos</a>
             {% if request.user.is_staff %}
               <a class="nav-link" href="{% url 'inventory:marca_list' %}">Marcas</a>

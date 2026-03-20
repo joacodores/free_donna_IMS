@@ -1,14 +1,14 @@
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %}Cargar artículos{% endblock %}
+{% block title %}Cargar productos{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/articulo_create.css' %}">
 
 <div class="page-header">
   <div>
-    <h2>Ingresar artículos</h2>
+    <h2>Ingresar productos</h2>
     <p class="subtle">Carga rápida por Código de barras o manual.</p>
   </div>
   <div class="header-actions">
@@ -46,14 +46,14 @@
       <button class="btn-primary" type="submit">Guardar</button>
     </div>
     <div class="scan-help" id="scanHelp">
-      Si el código de barras ya existe, Producto, Talle y Color se completan automáticamente y no se pueden modificar.
+      Si el código de barras ya existe, Artículo, Talle y Color se completan automáticamente y no se pueden modificar.
     </div>
   </div>
 
   <!-- BLOQUE: Datos -->
   <div class="form-grid articulo-grid">
     <div class="field col-2">
-      <label for="id_product_id">Producto</label>
+      <label for="id_product_id">Artículo</label>
       {{ form.product_id }}
       {{ form.product_id.errors }}
     </div>
@@ -121,7 +121,7 @@
     if (!barcode) {
       lockIdentityFields(false);
       setStatus("", "");
-      setHelp("Si el código de barras ya existe, Producto, Talle y Color se completan automáticamente y no se pueden modificar.");
+      setHelp("Si el código de barras ya existe, Artículo, Talle y Color se completan automáticamente y no se pueden modificar.");
       return;
     }
 
@@ -142,7 +142,7 @@
       if (!data.found){
         lockIdentityFields(false);
         setStatus("Barcode Código", "idle");
-        setHelp("Código nuevo. Completá Producto, Talle y Color.");
+        setHelp("Código nuevo. Completá Artículo, Talle y Color.");
         computeSkuPreview();
         return;
       }
@@ -162,7 +162,7 @@
       lockIdentityFields(true);
       computeSkuPreview();
       setStatus("Barcode existente", "ok");
-      setHelp("Este Código ya está asociado a un artículo existente. Producto, Talle y Color están bloqueados.");
+      setHelp("Este Código ya está asociado a un producto existente. Artículo, Talle y Color están bloqueados.");
     } catch(e){
       console.error(e);
       setStatus("", "");
