@@ -31,13 +31,13 @@
       
 
       <div class="hero-actions">
-        <a class="btn-pos" href="{% url 'inventory:pos' %}">
+        <a class="btn-primary btn-pos" href="{% url 'inventory:pos' %}">
           <span class="btn-icon">🛒</span>
           Abrir carrito
         </a>
         <button
           type="button"
-          class="btn-pos theme-toggle-btn"
+          class="btn-primary "
           data-theme-toggle
           aria-label="Cambiar tema"
           title="Cambiar tema"
@@ -56,8 +56,8 @@
       <div class="mini-card">
         <div class="mini-title">Atajos</div>
         <div class="mini-links">
-          <a href="{% url 'inventory:producto_list' %}">🏷️ Productos</a>
-          <a href="{% url 'inventory:articulo_list' %}">📦 Artículos</a>
+          <a href="{% url 'inventory:producto_list' %}">🏷️ Artículos</a>
+          <a href="{% url 'inventory:articulo_list' %}">📦 Productos</a>
           <a href="{% url 'inventory:movimientos' %}">📈 Historial </a>
         </div>
       </div>

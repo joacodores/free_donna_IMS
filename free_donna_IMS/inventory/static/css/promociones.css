@@ -1,0 +1,346 @@
+/* BARRA DE BÚSQUEDA Y FILTROS */
+.search-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 24px rgba(99, 117, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+}
+
+body[data-theme="dark"] .search-row {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.search-row input[type="text"],
+.search-row select {
+  min-width: 180px;
+  flex: 1 1 auto;
+}
+
+.search-row .btn-secondary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-row a {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .search-row {
+    flex-direction: column;
+    padding: 12px 14px;
+  }
+
+  .search-row input[type="text"],
+  .search-row select,
+  .search-row .btn-secondary,
+  .search-row a {
+    width: 100%;
+  }
+}
+
+/* TABLA MEJORADA */
+.table-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(
+    to right,
+    rgba(99, 117, 255, 0.08) 0%,
+    rgba(236, 72, 153, 0.06) 50%,
+    rgba(16, 185, 129, 0.05) 100%
+  );
+}
+
+body[data-theme="dark"] .table thead {
+  background: linear-gradient(
+    to right,
+    rgba(167, 139, 250, 0.08) 0%,
+    rgba(244, 114, 182, 0.06) 50%,
+    rgba(52, 211, 153, 0.05) 100%
+  );
+}
+
+.table thead th {
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  border-bottom: 2px solid var(--stroke);
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--stroke);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.table tbody tr:hover {
+  background: var(--hover-soft);
+  box-shadow: inset 0 0 24px rgba(99, 117, 255, 0.08);
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table tbody td {
+  padding: 14px 12px;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.table tbody td.mono {
+  font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Links en tabla */
+.table tbody td a {
+  color: var(--accent1-strong);
+  text-decoration: none;
+  font-weight: 700;
+  transition: color 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.table tbody td a:hover {
+  color: var(--accent2);
+  border-bottom-color: var(--accent2);
+}
+
+/* Descripción en tabla */
+.table tbody td .subtle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* Vigencia con arrow */
+.table tbody td > div.subtle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+/* TAGS ESPECIALIZADOS */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+/* Tag descuento - Gradient vibrante */
+.table tbody td:nth-child(3) .tag {
+  background: linear-gradient(135deg, rgba(99, 117, 255, 0.18), rgba(236, 72, 153, 0.12));
+  border: 1px solid rgba(99, 117, 255, 0.28);
+  color: var(--text-strong);
+}
+
+.table tbody td:nth-child(3) .tag:hover {
+  transform: scale(1.08);
+  background: linear-gradient(135deg, rgba(99, 117, 255, 0.25), rgba(236, 72, 153, 0.18));
+}
+
+/* ACCIONES EN TABLA */
+.table tbody td:last-child {
+  text-align: right;
+  padding: 12px;
+}
+
+.table tbody td:last-child > div {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.table tbody td:last-child .btn-secondary,
+.table tbody td:last-child .btn-danger {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.table tbody td:last-child .btn-secondary:hover,
+.table tbody td:last-child .btn-danger:hover {
+  transform: translateY(-1px);
+}
+
+/* EMPTY STATE */
+.empty {
+  border-radius: 16px;
+  padding: 48px 32px;
+  text-align: center;
+  border: 2px dashed var(--stroke);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: var(--glass-blur);
+  animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.empty p:first-child {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-strong);
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--text-strong), var(--accent1));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.empty p.subtle {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .table {
+    font-size: 13px;
+  }
+
+  .table thead th {
+    padding: 12px 10px;
+    font-size: 10px;
+  }
+
+  .table tbody td {
+    padding: 12px 10px;
+  }
+
+  .table tbody td:last-child > div {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .table tbody td:last-child .btn-secondary,
+  .table tbody td:last-child .btn-danger {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .search-row {
+    flex-direction: column;
+  }
+
+  .search-row input[type="text"],
+  .search-row select,
+  .search-row .btn-secondary,
+  .search-row a {
+    width: 100%;
+  }
+
+  .table {
+    font-size: 12px;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .table thead {
+    display: table;
+  }
+
+  .table thead th {
+    padding: 10px 8px;
+    font-size: 9px;
+  }
+
+  .table tbody td {
+    padding: 10px 8px;
+  }
+
+  .table tbody td:last-child {
+    padding: 8px;
+  }
+
+  .table tbody td:last-child > div {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .table tbody td:last-child .btn-secondary,
+  .table tbody td:last-child .btn-danger {
+    padding: 7px 10px;
+    font-size: 10px;
+    width: 100%;
+  }
+
+  .empty {
+    padding: 32px 20px;
+  }
+
+  .empty p:first-child {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .table {
+    font-size: 11px;
+  }
+
+  .table thead th {
+    padding: 8px 6px;
+  }
+
+  .table tbody td {
+    padding: 8px 6px;
+  }
+
+  .table tbody td:nth-child(n+4) {
+    display: none;
+  }
+
+  .empty {
+    padding: 24px 16px;
+  }
+}

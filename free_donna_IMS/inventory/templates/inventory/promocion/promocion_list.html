@@ -2,7 +2,9 @@
 {% load static %}
 
 {% block title %}Promociones{% endblock %}
-
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/promociones.css' %}">
+{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -124,7 +126,7 @@
                       onsubmit="return confirm('¿Eliminar la promoción {{ p.nombre|escapejs }}?');"
                       style="margin:0;">
                   {% csrf_token %}
-                  <button type="submit" class="btn-secondary">
+                  <button type="submit" class="btn-secondary btn-danger">
                     Borrar
                   </button>
                 </form>
