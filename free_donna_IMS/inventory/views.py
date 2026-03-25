@@ -307,7 +307,7 @@ class SetLocalView(LoginRequiredMixin, View):
         return redirect(request.META.get("HTTP_REFERER", "/"))
     
 def _should_show_all_locals(request):
-    return _is_admin(request.user) and (request.GET.get("all_locals") == "1")
+    return (request.GET.get("all_locals") == "1")
 
 class ArticuloUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     model = Articulo
@@ -522,10 +522,6 @@ class ArticulosBulkBajaView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         messages.success(request, f"Baja aplicada a {len(ids)} artículo(s).")
         return redirect("inventory:articulo_list")
-    
-from django.db.models import Q, Count, Max
-from django.views.generic import ListView, View
-from django.http import JsonResponse
 
 class ArticuloListView(LoginRequiredMixin, ListView):
     model = Articulo
@@ -534,7 +530,11 @@ class ArticuloListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = _articulos_visibles_qs(self.request)
+        qs = _articulos_visibles_qs(self.request).select_related(
+            "product_id",
+            "product_id__marca",
+            "local",
+        )
 
         estado = (self.request.GET.get("estado") or "DISP").strip().upper()
         if estado in ["DISP", "VEND", "BAJA"]:
@@ -604,7 +604,7 @@ class ArticuloListView(LoginRequiredMixin, ListView):
         if _should_show_all_locals(self.request):
             values_fields.extend([
                 "local_id",
-                "local_id__nombre",
+                "local__nombre",
             ])
 
         return (
@@ -618,7 +618,11 @@ class ArticuloListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        local_activo = _get_local_activo(self.request)
+
         ctx["locales"] = Local.objects.all().order_by("nombre")
+        ctx["local_activo"] = local_activo
+        ctx["local_activo_nombre"] = local_activo.nombre if local_activo else "—"
         ctx["all_locals_active"] = _should_show_all_locals(self.request)
         ctx["scan"] = (self.request.GET.get("scan") or "").strip()
         ctx["q"] = (self.request.GET.get("q") or "").strip()
@@ -639,7 +643,7 @@ class ArticuloListView(LoginRequiredMixin, ListView):
 
         ctx["auto_open_first"] = bool(ctx["scan"] and ctx["mode"] == "unit" and ctx["articulos"])
         return ctx
-    
+
 def build_sku(producto, color: str, talle) -> str:
     nombre = (getattr(producto, "nombre", "") or "").strip()
     color = (color or "").strip()

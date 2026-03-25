@@ -50,7 +50,7 @@
     0 6px 18px rgba(99, 117, 255, 0.07);
 
   --shadow-soft: 0 10px 26px rgba(99, 117, 255, 0.08);
-
+  caret-color: transparent;
   /* Glass blur */
   --glass-blur: blur(18px);
 }
@@ -58,6 +58,7 @@
 /* DARK MODE */
 body[data-theme="dark"] {
   color-scheme: dark;
+  caret-color: transparent;
 
   /* Fondos degradados más vibrantes */
   --bg0: #0f0f1e;
@@ -171,7 +172,11 @@ textarea {
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
-
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: var(--text-strong); /* o white */
+}
 /* BOTONES MEJORADOS */
 .btn-primary,
 .btn-secondary,
