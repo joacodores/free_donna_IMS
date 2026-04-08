@@ -110,7 +110,7 @@
                   <td>{{ r.local__nombre|default:"—" }}</td>
                 {% endif %}
         
-                <td class="strong">{{ r.tipo }}</td>
+                <td class="strong">{% if r.tipo == "OUT" %}VEN{% else %}{{ r.tipo }}{% endif %}</td>
         
                 <td>
                   {% if r.tipo == "OUT" %}
@@ -177,8 +177,8 @@
             {% if all_locals_active %}
               <th>Local</th>
             {% endif %}
-            <th class="num">Unidades OUT</th>
-            <th class="num">Unidades IN</th>
+            <th class="num">Unidades Vendidas</th>
+            <th class="num">Unidades Ingresadas</th>
             <th class="num">Venta</th>
             <th class="num">Ganancia</th>
           </tr>

@@ -54,4 +54,7 @@ urlpatterns = [
     path("productos/importar-excel/", views.ProductoImportXlsxView.as_view(),name="producto_import_excel"),
     path("pos/resumen-dia/pdf/", views.pos_resumen_dia_view, name="pos_resumen_dia"),
     path("pos/resumen-dia/pdf/enviar/", views.pos_resumen_dia_enviar_view, name="pos_resumen_dia_enviar"),
+    path("pos/devolucion/start/", views.POSDevolucionStartView.as_view(), name="pos_devolucion_start"),
+    path("pos/devolucion/cancel/", views.POSDevolucionCancelView.as_view(), name="pos_devolucion_cancel"),
+    path("pos/devolucion/set-returned/", views.POSDevolucionSetReturnedView.as_view(), name="pos_devolucion_set_returned"),
 ]

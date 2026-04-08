@@ -1212,30 +1212,92 @@ def _saldo_caja_local(local):
 
     saldo = ventas_efectivo + entradas - salidas
     return saldo if saldo > 0 else Decimal("0.00")
+DEV_KEY = "pos_devolucion"
+
+
+def _get_devolucion(session):
+    return session.get(DEV_KEY)
+
+
+def _save_devolucion(session, data):
+    session[DEV_KEY] = data
+    session.modified = True
+
+
+def _clear_devolucion(session):
+    session.pop(DEV_KEY, None)
+    session.modified = True
+
+
+def _devolucion_activa(session):
+    dev = _get_devolucion(session)
+    return bool(dev and dev.get("articulo_devuelto_id"))
+
+
+def _articulo_ya_devuelto(articulo):
+    return MovimientoStock.objects.filter(
+        articulo=articulo,
+        tipo=MovimientoStock.Tipo.DEVOLUCION,
+    ).exists()
+
+
+def _get_credito_devolucion(articulo):
+    mov = (
+        MovimientoStock.objects
+        .filter(
+            articulo=articulo,
+            tipo=MovimientoStock.Tipo.VENTA,
+            venta__isnull=False,
+        )
+        .select_related("venta")
+        .order_by("-fecha", "-movimiento_id")
+        .first()
+    )
+
+    if mov and mov.precio_unitario is not None:
+        return Decimal(mov.precio_unitario), mov.venta
+
+    precio = Decimal(getattr(articulo.product_id, "precio", 0) or 0)
+    return precio, None
 
 class POSView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos.html"
+
     def get(self, request):
         cart = _get_cart(request.session)
-        local=_get_local_activo(request)
+        local = _get_local_activo(request)
+        dev = _get_devolucion(request.session)
+
         barcodes = [it["barcode"] for it in cart.values()]
         stock_map = {}
         if barcodes and local:
-            rows = (Articulo.objects
-                    .filter(local=local, barcode__in=barcodes, estado=Articulo.Estado.DISPONIBLE)
-                    .values("barcode")
-                    .annotate(disponibles=Count("articulo_id"))
-                    )
+            rows = (
+                Articulo.objects
+                .filter(local=local, barcode__in=barcodes, estado=Articulo.Estado.DISPONIBLE)
+                .values("barcode")
+                .annotate(disponibles=Count("articulo_id"))
+            )
             stock_map = {r["barcode"]: r["disponibles"] for r in rows}
+
         totals = _cart_totals(cart)
-        hoy = timezone.localdate()  
+
+        credito_total = Decimal("0.00")
+        diferencia_cobrar = totals["subtotal_final"]
+
+        if dev and dev.get("articulo_devuelto_id"):
+            credito_total = Decimal(dev.get("credito_total", "0") or "0")
+            diferencia_cobrar = totals["subtotal_final"] - credito_total
+            if diferencia_cobrar < 0:
+                diferencia_cobrar = Decimal("0.00")
+
+        hoy = timezone.localdate()
         ventas_qs = (
             Venta.objects
             .filter(
                 usuario=request.user,
                 local=local if local else None,
                 estado=Venta.Estado.CERRADA,
-                fecha__date=hoy,   
+                fecha__date=hoy,
             )
             .order_by("-venta_id")
         )
@@ -1245,7 +1307,77 @@ class POSView(LoginRequiredMixin, View):
         )
         ventas_hoy = ventas_qs.values("venta_id", "fecha", "metodo_de_pago", "total")[:50]
         total_en_efectivo = _saldo_caja_local(local)
+
+        devolucion_q = (request.GET.get("dq") or "").strip()
+        vendidos = []
+        if dev is not None and devolucion_q:
+            # Buscar artículos vendidos que coincidan con la búsqueda
+            articulos_vendidos = (
+                Articulo.objects
+                .select_related("product_id", "product_id__marca", "local")
+                .filter(
+                    Q(estado=Articulo.Estado.VENDIDO),
+                    Q(barcode__icontains=devolucion_q)
+                    | Q(sku__icontains=devolucion_q)
+                    | Q(product_id__nombre__icontains=devolucion_q)
+                )
+                .order_by("-articulo_id")[:100]
+            )
             
+            # Obtener los precios de venta de cada artículo
+            articulos_ids = [a.articulo_id for a in articulos_vendidos]
+            venta_articulos = VentaArticulo.objects.filter(
+                articulo_id__in=articulos_ids
+            ).select_related('venta')
+            
+            # Mapear articulo_id -> venta_id
+            articulo_venta_map = {va.articulo_id: va.venta_id for va in venta_articulos}
+            
+            # Obtener los items de venta para saber el precio unitario
+            venta_ids = list(set(articulo_venta_map.values()))
+            venta_items = VentaItem.objects.filter(venta_id__in=venta_ids)
+            
+            # Mapear (venta_id, barcode, talle, color) -> precio_unitario
+            precio_map = {}
+            for vi in venta_items:
+                key = (vi.venta_id, vi.barcode, vi.talle, vi.color)
+                precio_map[key] = vi.precio_unitario
+            
+            # Agrupar artículos por (producto, barcode, talle, color, marca, precio)
+            grupos = {}
+            for a in articulos_vendidos:
+                venta_id = articulo_venta_map.get(a.articulo_id)
+                precio = precio_map.get((venta_id, a.barcode, a.talle, a.color), Decimal("0.00"))
+                
+                key = (
+                    a.product_id.nombre,
+                    a.barcode,
+                    a.sku,
+                    a.talle,
+                    a.color,
+                    a.product_id.marca.nombre if a.product_id.marca else None,
+                    precio
+                )
+                
+                if key not in grupos:
+                    grupos[key] = {
+                        'articulos': [],
+                        'nombre': a.product_id.nombre,
+                        'barcode': a.barcode,
+                        'sku': a.sku,
+                        'talle': a.talle,
+                        'color': a.color,
+                        'marca': a.product_id.marca.nombre if a.product_id.marca else None,
+                        'precio': precio,
+                        'cantidad': 0
+                    }
+                
+                grupos[key]['articulos'].append(a.articulo_id)
+                grupos[key]['cantidad'] += 1
+            
+            # Convertir a lista y tomar los primeros 30 grupos
+            vendidos = sorted(grupos.values(), key=lambda x: -x['cantidad'])[:30]
+
         return render(request, self.template_name, {
             "cart": cart,
             "stock_map": stock_map,
@@ -1253,14 +1385,21 @@ class POSView(LoginRequiredMixin, View):
             "subtotal": totals["subtotal_final"],
             "total": totals["subtotal_final"],
             "total_descuento": totals["total_descuento"],
+
+            "devolucion_data": dev,
+            "devolucion_activa": bool(dev),
+            "credito_total": credito_total,
+            "diferencia_cobrar": diferencia_cobrar,
+            "devolucion_q": devolucion_q,
+            "vendidos": vendidos,
+
             "total_en_efectivo": total_en_efectivo,
             "local_activo": local,
             "hoy": hoy,
             "ventas_hoy": list(ventas_hoy),
             "ventas_hoy_count": agg["ventas_hoy_count"] or 0,
             "ventas_hoy_total": agg["ventas_hoy_total"] or Decimal("0.00"),
-            
-        })    
+        })  
 
 class POSCajaView(LoginRequiredMixin, View):
     template_name = "inventory/pos/pos_caja.html"
@@ -1370,6 +1509,11 @@ class POSCajaView(LoginRequiredMixin, View):
 
 class POSAddItemByBarcodeView(LoginRequiredMixin, View):
     def post(self, request):
+        dev = _get_devolucion(request.session)
+        if dev is not None and not dev.get("articulo_devuelto_id"):
+            messages.error(request, "Primero seleccioná el producto que trae el cliente para la devolución.")
+            return redirect("inventory:pos")
+
         barcode = (request.POST.get("barcode") or "").strip()
         if not barcode:
             messages.error(request, "Escaneá un código de barras.")
@@ -1430,7 +1574,7 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
             "qty": new_qty,
 
             "precio_base": str(precio_base),
-            "precio_final_unit": str(precio_final_unit),   # útil para mostrar promos normales
+            "precio_final_unit": str(precio_final_unit),
             "descuento_total_linea": str(descuento_total_linea),
             "subtotal_bruto": str(subtotal_bruto),
             "total_linea": str(total_linea),
@@ -1441,7 +1585,6 @@ class POSAddItemByBarcodeView(LoginRequiredMixin, View):
 
         _save_cart(request.session, cart)
         return redirect("inventory:pos")
-
 class POSRemoveItemView(LoginRequiredMixin, View):
     def post(self, request):
         key = request.POST.get("key") or ""
@@ -1471,6 +1614,15 @@ class POSCheckoutView(LoginRequiredMixin, View):
             return redirect("inventory:pos")
 
         totals = _cart_totals(cart)
+        dev = _get_devolucion(request.session)
+
+        credito_total = Decimal("0.00")
+        diferencia_cobrar = totals["subtotal_final"]
+        if dev and dev.get("articulo_devuelto_id"):
+            credito_total = Decimal(dev.get("credito_total", "0") or "0")
+            diferencia_cobrar = totals["subtotal_final"] - credito_total
+            if diferencia_cobrar < 0:
+                diferencia_cobrar = Decimal("0.00")
 
         return render(request, self.template_name, {
             "form": form,
@@ -1478,10 +1630,44 @@ class POSCheckoutView(LoginRequiredMixin, View):
             "subtotal_base": totals["subtotal_base"],
             "total_descuento": totals["total_descuento"],
             "total": totals["subtotal_final"],
+            "devolucion_data": dev,
+            "devolucion_activa": bool(dev),
+            "credito_total": credito_total,
+            "diferencia_cobrar": diferencia_cobrar,
         })
 
     @transaction.atomic
     def post(self, request):
+        dev = _get_devolucion(request.session)
+        if dev and dev.get("articulo_devuelto_id"):
+            return self._post_devolucion(request)
+        return self._post_normal(request)
+
+    def _render_checkout_with_form(self, request, form, cart):
+        totals = _cart_totals(cart)
+        dev = _get_devolucion(request.session)
+
+        credito_total = Decimal("0.00")
+        diferencia_cobrar = totals["subtotal_final"]
+        if dev and dev.get("articulo_devuelto_id"):
+            credito_total = Decimal(dev.get("credito_total", "0") or "0")
+            diferencia_cobrar = totals["subtotal_final"] - credito_total
+            if diferencia_cobrar < 0:
+                diferencia_cobrar = Decimal("0.00")
+
+        return render(request, self.template_name, {
+            "form": form,
+            "cart": cart,
+            "subtotal_base": totals["subtotal_base"],
+            "total_descuento": totals["total_descuento"],
+            "total": totals["subtotal_final"],
+            "devolucion_data": dev,
+            "devolucion_activa": bool(dev),
+            "credito_total": credito_total,
+            "diferencia_cobrar": diferencia_cobrar,
+        })
+
+    def _post_normal(self, request):
         cart = _get_cart(request.session)
         if not cart:
             messages.error(request, "El carrito está vacío.")
@@ -1494,14 +1680,7 @@ class POSCheckoutView(LoginRequiredMixin, View):
 
         form = CheckoutForm(request.POST)
         if not form.is_valid():
-            totals = _cart_totals(cart)
-            return render(request, self.template_name, {
-                "form": form,
-                "cart": cart,
-                "subtotal_base": totals["subtotal_base"],
-                "total_descuento": totals["total_descuento"],
-                "total": totals["subtotal_final"],
-            })
+            return self._render_checkout_with_form(request, form, cart)
 
         metodo_de_pago = form.cleaned_data["metodo_pago"]
 
@@ -1523,7 +1702,6 @@ class POSCheckoutView(LoginRequiredMixin, View):
             qty_d = Decimal(qty)
 
             precio_base = Decimal(it["precio_base"])
-            precio_final_unit = Decimal(it.get("precio_final_unit", it["precio_base"]))
             descuento_total_linea = Decimal(it.get("descuento_total_linea", "0"))
             promocion_id = it.get("promocion_id")
             promocion_nombre = it.get("promocion_nombre", "")
@@ -1571,15 +1749,12 @@ class POSCheckoutView(LoginRequiredMixin, View):
                 talle=int(it["talle"]),
                 color=it["color"],
                 cantidad=qty,
-
                 precio_base_unitario=precio_base,
                 descuento_unitario=descuento_unitario_prom,
                 precio_unitario=precio_unitario_real,
-
                 costo_unitario=costo_unitario_prom,
                 profit_linea=profit_linea,
                 total_linea=total_linea,
-
                 promocion=promo_obj,
                 promocion_nombre=promocion_nombre,
             )
@@ -1635,8 +1810,299 @@ class POSCheckoutView(LoginRequiredMixin, View):
         _save_cart(request.session, {})
 
         messages.success(request, f"Venta #{venta.venta_id} cerrada. Total: $ {venta.total}")
-        return redirect("inventory:pos")  
-    
+        return redirect("inventory:pos")
+
+    def _post_devolucion(self, request):
+        cart = _get_cart(request.session)
+        dev = _get_devolucion(request.session)
+
+        if not cart:
+            messages.error(request, "El carrito está vacío.")
+            return redirect("inventory:pos")
+
+        if not dev or not dev.get("articulo_devuelto_id"):
+            messages.error(request, "No hay devolución activa.")
+            return redirect("inventory:pos")
+
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:pos")
+
+        form = CheckoutForm(request.POST)
+        if not form.is_valid():
+            return self._render_checkout_with_form(request, form, cart)
+
+        metodo_de_pago = form.cleaned_data["metodo_pago"]
+
+        articulo_devuelto = (
+            Articulo.objects
+            .select_for_update()
+            .get(articulo_id=dev["articulo_devuelto_id"])
+        )
+
+        if articulo_devuelto.estado != Articulo.Estado.VENDIDO:
+            messages.error(request, "El producto devuelto ya no está en estado vendido.")
+            return redirect("inventory:pos")
+
+        if _articulo_ya_devuelto(articulo_devuelto):
+            messages.error(request, "Ese producto ya fue devuelto anteriormente.")
+            return redirect("inventory:pos")
+
+        totals = _cart_totals(cart)
+        subtotal_base = totals["subtotal_base"]
+        subtotal_final = totals["subtotal_final"]
+        descuento_total = totals["total_descuento"]
+
+        credito_total = Decimal(dev.get("credito_total", "0") or "0")
+        diferencia = subtotal_final - credito_total
+
+        if diferencia < 0:
+            messages.error(request, "La devolución no puede quedar a favor del cliente.")
+            return redirect("inventory:pos")
+
+        venta = Venta.objects.create(
+            usuario=request.user,
+            local=local,
+            estado=Venta.Estado.ABIERTA,
+            metodo_de_pago=metodo_de_pago
+        )
+
+        profit_total = Decimal("0.00")
+        credito_restante = credito_total
+
+        # 1) entra el producto devuelto
+        articulo_devuelto.estado = Articulo.Estado.DISPONIBLE
+        articulo_devuelto.local = local
+        articulo_devuelto.save(update_fields=["estado", "local"])
+
+        costo_devuelto = Decimal(
+            getattr(articulo_devuelto.ingreso_item, "costo_unitario", 0) or 0
+        )
+
+        MovimientoStock.objects.create(
+            tipo=MovimientoStock.Tipo.DEVOLUCION,
+            local=local,
+            usuario=request.user,
+            articulo=articulo_devuelto,
+            producto=articulo_devuelto.product_id,
+            barcode=articulo_devuelto.barcode,
+            sku=articulo_devuelto.sku,
+            talle=articulo_devuelto.talle,
+            color=articulo_devuelto.color,
+            cantidad=1,
+            costo_unitario=costo_devuelto,
+            precio_unitario=credito_total,
+            profit_unitario=Decimal("0.00"),
+            ingreso=None,
+            venta=venta,
+            nota=f"Devolución / cambio asociada a Venta #{venta.venta_id}",
+        )
+
+        # 2) salen los productos nuevos
+        for it in cart.values():
+            barcode = it["barcode"]
+            qty = int(it["qty"])
+            qty_d = Decimal(qty)
+
+            precio_base = Decimal(it["precio_base"])
+            descuento_total_linea = Decimal(it.get("descuento_total_linea", "0"))
+            promocion_id = it.get("promocion_id")
+            promocion_nombre = it.get("promocion_nombre", "")
+
+            disponibles_qs = (
+                Articulo.objects
+                .select_for_update()
+                .filter(local=local, barcode=barcode, estado=Articulo.Estado.DISPONIBLE)
+                .order_by("articulo_id")
+            )
+
+            articulos = list(disponibles_qs[:qty])
+            if len(articulos) < qty:
+                raise ValueError(
+                    f"Stock insuficiente para barcode {barcode}. Pediste {qty}, hay {len(articulos)}."
+                )
+
+            costo_total = sum(
+                Decimal(getattr(a.ingreso_item, "costo_unitario", 0) or 0)
+                for a in articulos
+            )
+            costo_unitario_prom = (costo_total / qty_d) if qty else Decimal("0.00")
+
+            total_linea_base = precio_base * qty_d
+            total_linea_con_promo = total_linea_base - descuento_total_linea
+
+            # Crédito por devolución repartido como descuento adicional
+            credito_aplicado_linea = min(credito_restante, total_linea_con_promo)
+            credito_restante -= credito_aplicado_linea
+
+            descuento_total_linea_final = descuento_total_linea + credito_aplicado_linea
+            total_linea = total_linea_con_promo - credito_aplicado_linea
+
+            precio_unitario_real = (total_linea / qty_d) if qty else Decimal("0.00")
+            profit_linea = total_linea - costo_total
+            profit_total += profit_linea
+
+            promo_obj = None
+            if promocion_id:
+                promo_obj = Promocion.objects.filter(pk=promocion_id).first()
+
+            descuento_unitario_prom = (descuento_total_linea_final / qty_d) if qty else Decimal("0.00")
+
+            VentaItem.objects.create(
+                venta=venta,
+                producto_id=it["producto_id"],
+                sku=it["sku"],
+                barcode=barcode,
+                talle=int(it["talle"]),
+                color=it["color"],
+                cantidad=qty,
+                precio_base_unitario=precio_base,
+                descuento_unitario=descuento_unitario_prom,
+                precio_unitario=precio_unitario_real,
+                costo_unitario=costo_unitario_prom,
+                profit_linea=profit_linea,
+                total_linea=total_linea,
+                promocion=promo_obj,
+                promocion_nombre=promocion_nombre,
+            )
+
+            movs = []
+            venta_articulos = []
+
+            for a in articulos:
+                costo_u = Decimal(a.ingreso_item.costo_unitario) if a.ingreso_item else Decimal("0.00")
+                profit_u = precio_unitario_real - costo_u
+
+                movs.append(MovimientoStock(
+                    tipo=MovimientoStock.Tipo.VENTA,
+                    local=local,
+                    usuario=request.user,
+                    articulo=a,
+                    producto=a.product_id,
+                    barcode=a.barcode,
+                    sku=a.sku,
+                    talle=a.talle,
+                    color=a.color,
+                    cantidad=-1,
+                    costo_unitario=costo_u,
+                    precio_unitario=precio_unitario_real,
+                    profit_unitario=profit_u,
+                    ingreso=None,
+                    venta=venta,
+                    nota=f"Salida por devolución / cambio en Venta #{venta.venta_id}",
+                ))
+
+                venta_articulos.append(VentaArticulo(venta=venta, articulo=a))
+
+            Articulo.objects.filter(
+                articulo_id__in=[a.articulo_id for a in articulos]
+            ).update(estado=Articulo.Estado.VENDIDO)
+
+            VentaArticulo.objects.bulk_create(venta_articulos)
+            MovimientoStock.objects.bulk_create(movs)
+
+        venta.subtotal = subtotal_base
+        venta.total_descuento = descuento_total + credito_total
+        venta.total = diferencia
+        venta.profit_total = profit_total
+        venta.estado = Venta.Estado.CERRADA
+        venta.save(update_fields=[
+            "subtotal",
+            "total_descuento",
+            "total",
+            "profit_total",
+            "estado",
+        ])
+
+        _save_cart(request.session, {})
+        _clear_devolucion(request.session)
+
+        messages.success(
+            request,
+            f"Devolución / cambio registrada. Diferencia cobrada: $ {venta.total}"
+        )
+        return redirect("inventory:pos")
+
+class POSDevolucionStartView(LoginRequiredMixin, View):
+    def post(self, request):
+        local = _get_local_activo(request)
+        if not local:
+            messages.error(request, "No hay un local activo seleccionado.")
+            return redirect("inventory:pos")
+
+        _save_cart(request.session, {})
+        _save_devolucion(request.session, {
+            "local_id": local.local_id,
+            "articulo_devuelto_id": None,
+            "venta_origen_id": None,
+            "credito_total": "0.00",
+            "barcode": "",
+            "sku": "",
+            "producto_nombre": "",
+            "marca": "",
+            "talle": "",
+            "color": "",
+        })
+
+        messages.success(request, "Modo devolución activado.")
+        return redirect("inventory:pos")
+
+
+class POSDevolucionCancelView(LoginRequiredMixin, View):
+    def post(self, request):
+        _clear_devolucion(request.session)
+        _save_cart(request.session, {})
+        messages.success(request, "Devolución cancelada.")
+        return redirect("inventory:pos")
+
+
+class POSDevolucionSetReturnedView(LoginRequiredMixin, View):
+    def post(self, request):
+        dev = _get_devolucion(request.session)
+        if dev is None:
+            messages.error(request, "Primero iniciá una devolución.")
+            return redirect("inventory:pos")
+
+        articulo_id = request.POST.get("articulo_id")
+        if not articulo_id:
+            messages.error(request, "No se seleccionó el producto devuelto.")
+            return redirect("inventory:pos")
+
+        articulo = get_object_or_404(
+            Articulo.objects.select_related("product_id", "product_id__marca", "local"),
+            articulo_id=articulo_id,
+        )
+
+        if articulo.estado != Articulo.Estado.VENDIDO:
+            messages.error(request, "Solo se pueden devolver productos vendidos.")
+            return redirect("inventory:pos")
+
+        if _articulo_ya_devuelto(articulo):
+            messages.error(request, "Ese producto ya fue devuelto anteriormente.")
+            return redirect("inventory:pos")
+
+        credito, venta_origen = _get_credito_devolucion(articulo)
+
+        marca_obj = getattr(articulo.product_id, "marca", None)
+        marca_nombre = getattr(marca_obj, "nombre", "") if marca_obj else ""
+
+        dev.update({
+            "articulo_devuelto_id": articulo.articulo_id,
+            "venta_origen_id": venta_origen.venta_id if venta_origen else None,
+            "credito_total": str(credito),
+            "barcode": articulo.barcode or "",
+            "sku": articulo.sku or "",
+            "producto_nombre": articulo.product_id.nombre if articulo.product_id else "",
+            "marca": marca_nombre,
+            "talle": articulo.talle,
+            "color": articulo.color or "",
+        })
+        _save_devolucion(request.session, dev)
+
+        messages.success(request, f"Producto devuelto seleccionado. Crédito: $ {credito}")
+        return redirect("inventory:pos")
+
 class MovimientoStockView(LoginRequiredMixin, ListView):
     template_name = "inventory/movimientos/movimientos_list.html"
 

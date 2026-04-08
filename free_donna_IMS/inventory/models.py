@@ -215,7 +215,51 @@ class MovimientoStock(models.Model):
         ]
     def __str__(self):
         return f"{self.get_tipo_display()} {self.movimiento_id}"
+
+
+class Devolucion(models.Model):
+    class Estado(models.TextChoices):
+        ABIERTA = "ABI", "Abierta"
+        CERRADA = "CER", "Cerrada"
+        ANULADA = "ANU", "Anulada"
+
+    devolucion_id = models.BigAutoField(primary_key=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    local = models.ForeignKey(Local, on_delete=models.PROTECT)
+    venta_origen = models.ForeignKey(
+        Venta, null=True, blank=True, on_delete=models.SET_NULL, related_name="devoluciones"
+    )
+
+    estado = models.CharField(max_length=3, choices=Estado.choices, default=Estado.ABIERTA)
+    credito_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_nuevo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    diferencia_cobrada = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    nota = models.TextField(blank=True, default="")   
     
+class DevolucionItem(models.Model):
+    devolucion = models.ForeignKey(Devolucion, related_name="items_devueltos", on_delete=models.CASCADE)
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT)
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    venta_item = models.ForeignKey(VentaItem, null=True, blank=True, on_delete=models.SET_NULL)
+
+    sku = models.CharField(max_length=120)
+    barcode = models.CharField(max_length=120)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=80)
+    precio_reconocido = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+class DevolucionSalidaItem(models.Model):
+    devolucion = models.ForeignKey(Devolucion, related_name="items_entregados", on_delete=models.CASCADE)
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT)
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+
+    sku = models.CharField(max_length=120)
+    barcode = models.CharField(max_length=120)
+    talle = models.IntegerField()
+    color = models.CharField(max_length=80)
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
 class RetiroCaja(models.Model):
     class Tipo(models.TextChoices):

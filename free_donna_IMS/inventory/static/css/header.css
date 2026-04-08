@@ -11,17 +11,17 @@
   padding: 14px 22px;
 
   background: linear-gradient(
-    to right,
-    rgba(99, 117, 255, 0.06) 0%,
-    rgba(236, 72, 153, 0.04) 50%,
-    rgba(16, 185, 129, 0.03) 100%
+    135deg,
+    rgba(167, 139, 250, 0.15) 0%,
+    rgba(244, 114, 182, 0.12) 50%,
+    rgba(167, 139, 250, 0.10) 100%
   );
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.25);
   box-shadow:
-    0 8px 24px rgba(99, 117, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+    0 8px 24px rgba(167, 139, 250, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   transition: all 0.3s ease;
 }
 

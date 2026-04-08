@@ -97,6 +97,15 @@
   padding: 22px;
 }
 
+.checkout-card--return{
+  border-color: color-mix(in srgb, var(--accent1) 18%, var(--stroke));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent1) 6%, var(--card)),
+    color-mix(in srgb, var(--card2) 98%, transparent)
+  );
+}
+
 /* ========== SECTION HEAD ========== */
 
 .section-head {
@@ -117,6 +126,39 @@
   line-height: 1.45;
   color: var(--muted);
   font-weight: 700;
+}
+
+/* ========== RETURN BLOCK ========== */
+
+.checkout-return-grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:12px;
+}
+
+.checkout-return-item{
+  padding:14px 14px;
+  border-radius:16px;
+  border:1px solid var(--stroke);
+  background: color-mix(in srgb, var(--card-solid) 88%, transparent);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.checkout-return-item span{
+  color:var(--muted);
+  font-size:.8rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+
+.checkout-return-item strong{
+  color:var(--text-strong);
+  font-size:.98rem;
+  font-weight:900;
+  word-break:break-word;
 }
 
 /* ========== PAYMENT ========== */
@@ -502,6 +544,10 @@ body[data-theme="dark"] .checkout-row-discount {
     right: 16px;
   }
 
+  .checkout-return-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .checkout-actions {
     margin-top: 16px;
   }
@@ -602,6 +648,15 @@ body[data-theme="dark"] .checkout-row-discount {
   .discount-chip {
     padding: 4px 8px;
     font-size: 0.8rem;
+  }
+
+  .checkout-return-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-return-item{
+    padding:12px;
+    border-radius:14px;
   }
 
   .checkout-row {

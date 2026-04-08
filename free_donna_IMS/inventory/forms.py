@@ -130,9 +130,10 @@ class ArticuloEditForm(forms.ModelForm):
 
 class CheckoutForm(forms.Form):
     metodo_pago = forms.ChoiceField(
-        choices=Venta.MetodoPago.choices,
-        initial=Venta.MetodoPago.EFECTIVO,
+        choices=[("", "Seleccionar método de pago")] + list(Venta.MetodoPago.choices),
+        initial="",
         label="Método de pago",
+        required=True,
         widget=forms.Select(attrs={"class": "select"})
     )
 
