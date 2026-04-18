@@ -1,0 +1,166 @@
+/* --- CONTENEDOR GENERAL --- */
+.articulo-form{
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* --- HEADER --- */
+.page-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 20px;
+}
+
+.page-header h2{
+  margin:0;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text-strong);
+}
+
+.page-header .subtle{
+  margin-top: 4px;
+}
+
+/* --- SCAN BLOCK --- */
+.scan-block{
+  border:1px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  padding:18px;
+  margin-bottom:20px;
+
+  background: var(--card2);
+  backdrop-filter: blur(8px);
+}
+
+.scan-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+
+.scan-title{
+  font-weight:900;
+  font-size: 16px;
+  color: var(--text-strong);
+}
+
+/* Estado del barcode */
+.scan-status{
+  font-size:12px;
+  font-weight:800;
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background: var(--card);
+  color: var(--text);
+}
+
+.scan-status[data-kind="ok"]{
+  border-color: color-mix(in srgb, var(--success) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.scan-status[data-kind="loading"]{
+  border-color: var(--stroke2);
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+}
+
+.scan-status[data-kind="idle"]{
+  background: var(--card2);
+}
+
+/* Layout del scan */
+.scan-row{
+  display:flex;
+  align-items:flex-end;
+  gap:12px;
+}
+
+.scan-row .grow{
+  flex:1;
+}
+
+.field.qty{
+  width:150px;
+}
+
+/* Ayuda */
+.scan-help{
+  margin-top:10px;
+  font-size:13px;
+  color: var(--muted);
+}
+
+/* --- GRID DE CAMPOS --- */
+.articulo-grid{
+  display:grid;
+  grid-template-columns: 1.4fr 0.7fr 0.9fr;
+  gap:16px;
+  margin-top: 10px;
+}
+
+.articulo-grid .col-2{
+  grid-column: span 2;
+}
+
+/* Labels */
+.articulo-grid label,
+.field.qty label{
+  display:block;
+  font-size:13px;
+  font-weight:800;
+  margin-bottom:6px;
+  color: var(--muted);
+}
+
+/* Inputs */
+.articulo-grid input,
+.articulo-grid select,
+.scan-block input{
+  width:100%;
+  border-radius:12px;
+  padding:12px 14px;
+  border:1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.articulo-grid input:focus,
+.articulo-grid select:focus,
+.scan-block input:focus{
+  background: var(--input-bg-focus);
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 3px rgba(111,124,255,0.16);
+}
+
+/* Barcode destacado */
+#id_barcode{
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.3px;
+  padding:14px;
+}
+
+/* SKU preview */
+#id_sku_preview{
+  opacity:.85;
+}
+
+/* Errores */
+.form-errors{
+  margin-bottom:14px;
+  padding:10px 14px;
+  border-radius:12px;
+  background: rgba(225,85,102,0.12);
+  border: 1px solid rgba(225,85,102,0.30);
+  color: var(--danger);
+  font-weight:900;
+}

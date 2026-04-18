@@ -1,0 +1,231 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Cargar productos{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/articulo_create.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Ingresar productos</h2>
+    <p class="subtle">Carga rápida por Código de barras o manual.</p>
+  </div>
+  <div class="header-actions">
+  <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
+  <a class="btn-primary" href="{% url 'inventory:articulo_import_excel' %}">Importar por Excel</a>
+  </div>
+</div>
+
+<form method="post" class="form-card articulo-form" autocomplete="off">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <!-- BLOQUE: Barcode (principal) -->
+  <div class="scan-block">
+    <div class="scan-head">
+      <div class="scan-title">Código de barras</div>
+      <div class="scan-status" id="scanStatus" aria-live="polite"></div>
+    </div>
+
+    <div class="scan-row">
+      <div class="field grow">
+        {{ form.barcode }}
+        {{ form.barcode.errors }}
+      </div>
+
+      <div class="field qty">
+        <label for="id_cantidad">Cantidad</label>
+        {{ form.cantidad }}
+        {{ form.cantidad.errors }}
+      </div>
+
+      <button class="btn-primary" type="submit">Guardar</button>
+    </div>
+    <div class="scan-help" id="scanHelp">
+      Si el código de barras ya existe, Artículo, Talle y Color se completan automáticamente y no se pueden modificar.
+    </div>
+  </div>
+
+  <!-- BLOQUE: Datos -->
+  <div class="form-grid articulo-grid">
+    <div class="field col-2">
+      <label for="id_product_id">Artículo</label>
+      {{ form.product_id }}
+      {{ form.product_id.errors }}
+    </div>
+
+    <div class="field">
+      <label for="id_talle">Talle</label>
+      {{ form.talle }}
+      {{ form.talle.errors }}
+    </div>
+
+    <div class="field">
+      <label for="id_color">Color</label>
+      {{ form.color }}
+      {{ form.color.errors }}
+    </div>
+
+    <div class="field col-2">
+      <label for="id_sku_preview">SKU</label>
+      {{ form.sku_preview }}
+      {{ form.sku_preview.errors }}
+    </div>
+
+    <div class="field col-2">
+      <label for="id_referencia">Referencia</label>
+      {{ form.referencia }}
+      {{ form.referencia.errors }}
+    </div>
+  </div>
+</form>
+
+<script>
+  const LOOKUP_URL = "{% url 'inventory:articulo_lookup' %}";
+
+  function norm(s){ return (s || "").trim().replace(/\s+/g, " "); }
+
+  function setStatus(msg, kind){
+    const el = document.getElementById("scanStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.dataset.kind = kind || "";
+  }
+
+  function computeSkuPreview(){
+    const prodSel = document.getElementById("id_product_id");
+    const colorEl = document.getElementById("id_color");
+    const talleEl = document.getElementById("id_talle");
+    const skuEl = document.getElementById("id_sku_preview");
+    if (!prodSel || !colorEl || !talleEl || !skuEl) return;
+
+    const prodName = norm(prodSel.options[prodSel.selectedIndex]?.text || "");
+    const color = norm(colorEl.value);
+    const talle = norm(talleEl.value);
+
+    skuEl.value = norm([prodName, color, talle].filter(Boolean).join(" ")).slice(0, 80);
+  }
+
+  async function lookupByBarcode(){
+    const barcodeEl = document.getElementById("id_barcode");
+    const prodSel = document.getElementById("id_product_id");
+    const colorEl = document.getElementById("id_color");
+    const talleEl = document.getElementById("id_talle");
+    if (!barcodeEl || !prodSel || !colorEl || !talleEl) return;
+
+    const barcode = norm(barcodeEl.value);
+    if (!barcode) {
+      lockIdentityFields(false);
+      setStatus("", "");
+      setHelp("Si el código de barras ya existe, Artículo, Talle y Color se completan automáticamente y no se pueden modificar.");
+      return;
+    }
+
+    setStatus("Buscando…", "loading");
+
+    try{
+      const res = await fetch(LOOKUP_URL + "?barcode=" + encodeURIComponent(barcode), {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+
+      if (!res.ok){
+        setStatus("", "");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.found){
+        lockIdentityFields(false);
+        setStatus("Barcode Código", "idle");
+        setHelp("Código nuevo. Completá Artículo, Talle y Color.");
+        computeSkuPreview();
+        return;
+      }
+
+      // seleccionar producto
+      const target = String(data.product_id);
+      for (let i=0; i<prodSel.options.length; i++){
+        if (String(prodSel.options[i].value) === target){
+          prodSel.selectedIndex = i;
+          break;
+        }
+      }
+
+      talleEl.value = data.talle ?? "";
+      colorEl.value = data.color ?? "";
+
+      lockIdentityFields(true);
+      computeSkuPreview();
+      setStatus("Barcode existente", "ok");
+      setHelp("Este Código ya está asociado a un producto existente. Artículo, Talle y Color están bloqueados.");
+    } catch(e){
+      console.error(e);
+      setStatus("", "");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    const barcodeEl = document.getElementById("id_barcode");
+    const prodSel = document.getElementById("id_product_id");
+    const colorEl = document.getElementById("id_color");
+    const talleEl = document.getElementById("id_talle");
+
+    if (barcodeEl){
+      barcodeEl.setAttribute("placeholder", "Escaneá o pegá el código");
+      barcodeEl.focus();
+
+      barcodeEl.addEventListener("keydown", function(e){
+        if (e.key === "Enter"){
+          e.preventDefault();
+          lookupByBarcode();
+        }
+      });
+
+      barcodeEl.addEventListener("blur", lookupByBarcode);
+    }
+
+    if (prodSel) prodSel.addEventListener("change", computeSkuPreview);
+    if (colorEl) colorEl.addEventListener("input", computeSkuPreview);
+    if (talleEl) talleEl.addEventListener("input", computeSkuPreview);
+
+    computeSkuPreview();
+    const formEl = document.querySelector(".articulo-form");
+    if (formEl){
+      formEl.addEventListener("submit", function(){
+        const prodSel = document.getElementById("id_product_id");
+        if (prodSel && prodSel.disabled) {
+          prodSel.disabled = false;
+        }
+      });
+    }
+  });
+  function lockIdentityFields(locked){
+    const prodSel = document.getElementById("id_product_id");
+    const colorEl = document.getElementById("id_color");
+    const talleEl = document.getElementById("id_talle");
+
+    if (prodSel) {
+      prodSel.disabled = locked;
+      prodSel.dataset.locked = locked ? "1" : "0";
+    }
+    if (colorEl) {
+      colorEl.readOnly = locked;
+      colorEl.dataset.locked = locked ? "1" : "0";
+    }
+    if (talleEl) {
+      talleEl.readOnly = locked;
+      talleEl.dataset.locked = locked ? "1" : "0";
+    }
+    function setHelp(msg){
+      const el = document.getElementById("scanHelp");
+      if (!el) return;
+      el.textContent = msg || "";
+    }
+}
+</script>
+{% endblock %}

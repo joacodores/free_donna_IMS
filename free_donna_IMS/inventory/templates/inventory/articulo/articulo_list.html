@@ -1,0 +1,355 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %} Productos {% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/articulos.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Productos</h2>
+    <p class="subtle">
+      Productos disponibles de local activo agrupados por cantidad. Podés cambiar a vista por unidad.
+    </p>
+  </div>
+
+  <div class="header-actions">
+    {% if all_locals_active %}
+      <a class="btn-secondary"
+         href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if scan %}scan={{ scan|urlencode }}&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}">
+        Ver stock de local
+      </a>
+    {% else %}
+      <a class="btn-secondary"
+         href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if scan %}scan={{ scan|urlencode }}&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}&all_locals=1">
+        Ver stock general
+      </a>
+    {% endif %}
+
+    <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Artículos</a>
+    <a class="btn-primary" href="{% url 'inventory:articulo_create' %}">+ Cargar productos</a>
+  </div>
+</div>
+
+<form method="get" class="scan-row" id="scanForm" autocomplete="off">
+  {% if all_locals_active %}
+    <input type="hidden" name="all_locals" value="1" />
+  {% endif %}
+  <input type="hidden" name="field" value="{{ field }}" />
+  <input type="hidden" name="estado" value="{{ estado }}" />
+  <input type="hidden" name="mode" value="unit" />
+
+  <input
+    name="scan"
+    value="{{ scan }}"
+    class="scan-input"
+    type="text"
+    inputmode="numeric"
+    placeholder="Escanear código de barras…"
+    id="scanInput"
+    autofocus
+  />
+  <button class="btn-primary" type="submit">OK</button>
+
+  {% if scan %}
+    <a class="btn-secondary"
+       href="{% url 'inventory:articulo_list' %}?{% if all_locals_active %}all_locals=1&{% endif %}field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}">
+      Limpiar
+    </a>
+  {% endif %}
+</form>
+
+<div>
+  <p class="subtle">Busqueda por filtros.</p>
+</div>
+
+<form method="get" class="search-row">
+  {% if all_locals_active %}
+    <input type="hidden" name="all_locals" value="1" />
+  {% endif %}
+  <input type="hidden" name="scan" value="" />
+
+  <input
+    name="q"
+    value="{{ q }}"
+    class="search-input"
+    type="text"
+    placeholder="Buscar (SKU, producto, color, talle, etc.)"
+    autocomplete="off"
+  />
+
+  <select name="field" class="select">
+    <option value="all" {% if field == "all" %}selected{% endif %}>Todos</option>
+    <option value="sku" {% if field == "sku" %}selected{% endif %}>SKU</option>
+    <option value="barcode" {% if field == "barcode" %}selected{% endif %}>Código</option>
+    <option value="producto" {% if field == "producto" %}selected{% endif %}>Artículo</option>
+    <option value="marca" {% if field == "marca" %}selected{% endif %}>Marca</option>
+    <option value="color" {% if field == "color" %}selected{% endif %}>Color</option>
+    <option value="talle" {% if field == "talle" %}selected{% endif %}>Talle</option>
+  </select>
+
+  <select name="estado" class="select">
+    <option value="DISP" {% if estado == "DISP" %}selected{% endif %}>Disponibles</option>
+    <option value="VEND" {% if estado == "VEND" %}selected{% endif %}>Vendidos</option>
+    <option value="BAJA" {% if estado == "BAJA" %}selected{% endif %}>Baja</option>
+  </select>
+
+  <select name="mode" class="select">
+    <option value="qty" {% if mode == "qty" %}selected{% endif %}>Por cantidad</option>
+    <option value="unit" {% if mode == "unit" %}selected{% endif %}>Por unidad</option>
+  </select>
+
+  <button class="btn-secondary search-button" type="submit">Buscar</button>
+
+  {% if q or field != "all" or estado != "DISP" or mode != "qty" %}
+    <a class="btn-secondary"
+       href="{% url 'inventory:articulo_list' %}{% if all_locals_active %}?all_locals=1{% endif %}">
+      Limpiar
+    </a>
+  {% endif %}
+</form>
+
+{% if articulos %}
+  <div class="table-wrap">
+    <table class="table">
+
+      {% if mode == "unit" %}
+        <thead>
+          <tr>
+            
+            <th>SKU</th>
+            <th>Código de barras</th>
+            <th>Artículo</th>
+            <th>Marca</th>
+            <th>Local</th>
+            <th class="col-talle">Talle</th>
+            <th>Color</th>
+            <th>Estado</th>
+            <th class="col-fecha">Ingreso</th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for a in articulos %}
+          <tr
+            class="row-click js-articulo-row"
+            role="button"
+            tabindex="0"
+            data-mode="unit"
+            data-id="{{ a.articulo_id }}"
+            data-sku="{{ a.sku|escapejs }}"
+            data-barcode="{{ a.barcode|escapejs }}"
+            data-talle="{{ a.talle }}"
+            data-color="{{ a.color|escapejs }}"
+            data-estado="{{ a.estado|escapejs }}"
+            data-created="{{ a.created_at|date:'Y-m-d H:i' }}"
+            data-producto="{{ a.product_id.nombre|default_if_none:''|escapejs }}"
+            data-marca="{{ a.product_id.marca.nombre|default_if_none:''|escapejs }}"
+            data-local="{{ a.local.nombre|default_if_none:''|escapejs }}"
+            data-qty="1"
+          >
+            
+            <td class="strong">{{ a.sku }}</td>
+            <td class="mono">{{ a.barcode }}</td>
+            <td>{{ a.product_id.nombre|default:"—" }}</td>
+            <td>{{ a.product_id.marca.nombre|default:"—" }}</td>
+            <td>{{ a.local.nombre|default:"—" }}</td>
+            <td class="num">{{ a.talle }}</td>
+            <td><span class="tag">{{ a.color }}</span></td>
+            <td><span class="pill pill-{{ a.estado|lower }}">{{ a.get_estado_display }}</span></td>
+            <td class="mono">{{ a.created_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+      {% else %}
+        <thead>
+          <tr>
+            <th class="num">Cant</th>
+            <th>SKU</th>
+            <th>Código de barras</th>
+            <th>Artículo</th>
+            <th>Marca</th>
+            <th>Local</th>
+            <th class="col-talle">Talle</th>
+            <th>Color</th>
+            <th>Estado</th>
+            <th class="col-fecha">Último ingreso</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for a in articulos %}
+            <tr
+              class="row-click js-articulo-row"
+              role="button"
+              tabindex="0"
+              data-mode="qty"
+              data-sku="{{ a.sku|default_if_none:''|escapejs }}"
+              data-barcode="{{ a.barcode|default_if_none:''|escapejs }}"
+              data-talle="{{ a.talle }}"
+              data-color="{{ a.color|default_if_none:''|escapejs }}"
+              data-estado="{{ a.estado|default_if_none:''|escapejs }}"
+              data-created="{{ a.last_created|date:'Y-m-d H:i' }}"
+              data-producto="{{ a.product_id__nombre|default_if_none:''|escapejs }}"
+              data-marca="{{ a.product_id__marca__nombre|default_if_none:''|escapejs }}"
+              data-local="{% if all_locals_active %}{{ a.local__nombre|default_if_none:''|escapejs }}{% else %}{{ local_activo_nombre|escapejs }}{% endif %}"
+              data-product-id="{{ a.product_id }}"
+              data-qty="{{ a.qty }}"
+            >
+              <td class="num">{{ a.qty }}</td>
+              <td class="strong">{{ a.sku|default:"—" }}</td>
+              <td class="mono">{{ a.barcode|default:"—" }}</td>
+              <td>{{ a.product_id__nombre|default:"—" }}</td>
+              <td>{{ a.product_id__marca__nombre|default:"—" }}</td>
+              <td>
+                {% if all_locals_active %}
+                  {{ a.local__nombre|default:"—" }}
+                {% else %}
+                  {{ local_activo_nombre }}
+                {% endif %}
+              </td>
+              <td class="num">{{ a.talle }}</td>
+              <td><span class="tag">{{ a.color }}</span></td>
+              <td>
+                <span class="pill pill-{{ a.estado|lower }}">
+                  {{ a.estado }}
+                </span>
+              </td>
+              <td class="mono">{{ a.last_created|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <div class="pagination-wrap">
+      <div class="pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn-secondary"
+             href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if scan %}&scan={{ scan|urlencode }}{% endif %}&field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}{% if all_locals_active %}&all_locals=1{% endif %}">
+            ← Anterior
+          </a>
+        {% endif %}
+
+        <span class="subtle">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+          <a class="btn-secondary"
+             href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if scan %}&scan={{ scan|urlencode }}{% endif %}&field={{ field|urlencode }}&estado={{ estado|urlencode }}&mode={{ mode|urlencode }}{% if all_locals_active %}&all_locals=1{% endif %}">
+            Siguiente →
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+{% else %}
+  <div class="empty">
+    {% if not request.user.is_staff and not q and not scan %}
+      <p style="margin: 0; font-weight: 900">Para buscar productos podés escanear su código o utilizar la búsqueda por nombre o más filtros.</p>
+      <p class="subtle" style="margin-bottom: 0">
+        Usá el escáner o la búsqueda por SKU / articulo / marca.
+      </p>
+    {% else %}
+      <p style="margin: 0; font-weight: 900">No hay productos cargados.</p>
+      <p class="subtle" style="margin-bottom: 0">
+        Usá el botón “Cargar productos” para ingresar unidades (podés hacerlo por cantidad).
+      </p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if auto_open_first %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var first = document.querySelector("tr.row-click");
+    if (first) openArticuloModal(first);
+  });
+</script>
+{% endif %}
+
+<div id="articuloModalOverlay" class="modal-overlay" onclick="closeArticuloModal(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articuloModalTitle">
+    <div class="modal-header">
+      <div>
+        <h3 id="articuloModalTitle">Detalle de producto</h3>
+        <p class="subtle" id="articuloModalSubtitle" style="margin: 6px 0 0 0"></p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeArticuloModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <dl class="kv">
+        <dt>Cantidad</dt><dd id="m_qty">—</dd>
+        <dt>SKU</dt><dd id="m_sku">—</dd>
+        <dt>Código</dt><dd id="m_barcode">—</dd>
+        <dt>Estado</dt><dd id="m_estado">—</dd>
+        <dt>Local</dt><dd id="m_local">—</dd>
+        <dt>Ingreso</dt><dd id="m_created">—</dd>
+        <dt>Artículo</dt><dd id="m_producto">—</dd>
+        <dt>Marca</dt><dd id="m_marca">—</dd>
+        <dt>Talle</dt><dd id="m_talle">—</dd>
+        <dt>Color</dt><dd id="m_color">—</dd>
+        
+      </dl>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" type="button" onclick="closeArticuloModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openArticuloModal(row) {
+    document.getElementById("m_qty").textContent = row.dataset.qty || "—";
+    document.getElementById("m_sku").textContent = row.dataset.sku || "—";
+    document.getElementById("m_barcode").textContent = row.dataset.barcode || "—";
+    document.getElementById("m_estado").textContent = row.dataset.estado || "—";
+    document.getElementById("m_local").textContent = row.dataset.local || "—";
+    document.getElementById("m_created").textContent = row.dataset.created || "—";
+    document.getElementById("m_producto").textContent = row.dataset.producto || "—";
+    document.getElementById("m_marca").textContent = row.dataset.marca || "—";
+    document.getElementById("m_talle").textContent = row.dataset.talle || "—";
+    document.getElementById("m_color").textContent = row.dataset.color || "—";
+    
+
+    const subtitle = [];
+    if (row.dataset.producto) subtitle.push(row.dataset.producto);
+    if (row.dataset.marca) subtitle.push(row.dataset.marca);
+    if (row.dataset.local) subtitle.push("Local: " + row.dataset.local);
+
+    document.getElementById("articuloModalSubtitle").textContent = subtitle.join(" · ");
+    document.getElementById("articuloModalOverlay").classList.add("open");
+  }
+
+  function closeArticuloModal(ev) {
+    if (ev && ev.target !== ev.currentTarget) return;
+    document.getElementById("articuloModalOverlay").classList.remove("open");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".js-articulo-row").forEach(function(row) {
+      row.addEventListener("click", function(e) {
+        if (e.target.closest("a, button, form")) return;
+        openArticuloModal(row);
+      });
+
+      row.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openArticuloModal(row);
+        }
+      });
+    });
+
+
+  });
+</script>
+{% endblock %}

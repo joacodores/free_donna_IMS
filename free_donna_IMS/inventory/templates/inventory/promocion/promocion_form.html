@@ -1,0 +1,246 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}
+  {% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/promocion_form.css' %}">
+
+<div class="page-header ">
+  <div>
+    <h2>{% if form.instance.pk %}Editar promoción{% else %}Nueva promoción{% endif %}</h2>
+    <p class="subtle">Configurá el descuento, vigencia y alcance.</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Volver</a>
+  </div>
+</div>
+
+<form method="post" class="promocion-form-wrap promocion-card">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="empty" style="margin-top:0; margin-bottom:16px;">
+      {% for err in form.non_field_errors %}
+        <p style="margin:0;">{{ err }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="promocion-grid">
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
+      {{ form.nombre }}
+      {% if form.nombre.errors %}<div class="promocion-errors">{{ form.nombre.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.estado.id_for_label }}">Estado</label>
+      {{ form.estado }}
+      {% if form.estado.errors %}<div class="promocion-errors">{{ form.estado.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field full">
+      <label class="promocion-label" for="{{ form.descripcion.id_for_label }}">Descripción</label>
+      {{ form.descripcion }}
+      {% if form.descripcion.errors %}<div class="promocion-errors">{{ form.descripcion.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.tipo_descuento.id_for_label }}">Tipo de descuento</label>
+      {{ form.tipo_descuento }}
+      {% if form.tipo_descuento.errors %}<div class="promocion-errors">{{ form.tipo_descuento.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field" id="row-valor">
+      <label class="promocion-label" id="label-valor" for="{{ form.valor.id_for_label }}">Valor</label>
+      {{ form.valor }}
+      {% if form.valor.errors %}<div class="promocion-errors">{{ form.valor.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field" id="row-descuento-porcentaje">
+      <label class="promocion-label" for="{{ form.descuento_porcentaje.id_for_label }}">Descuento (%)</label>
+      {{ form.descuento_porcentaje }}
+      {% if form.descuento_porcentaje.errors %}<div class="promocion-errors">{{ form.descuento_porcentaje.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field" id="row-unidad-objetivo">
+      <label class="promocion-label" for="{{ form.unidad_objetivo.id_for_label }}">Unidad objetivo</label>
+      {{ form.unidad_objetivo }}
+      {% if form.unidad_objetivo.errors %}<div class="promocion-errors">{{ form.unidad_objetivo.errors }}</div>{% endif %}
+    </div>
+    
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.prioridad.id_for_label }}">Prioridad</label>
+      {{ form.prioridad }}
+      {% if form.prioridad.errors %}<div class="promocion-errors">{{ form.prioridad.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.fecha_inicio.id_for_label }}">Fecha inicio</label>
+      {{ form.fecha_inicio }}
+      {% if form.fecha_inicio.errors %}<div class="promocion-errors">{{ form.fecha_inicio.errors }}</div>{% endif %}
+    </div>
+
+    <div class="promocion-field">
+      <label class="promocion-label" for="{{ form.fecha_fin.id_for_label }}">Fecha fin</label>
+      {{ form.fecha_fin }}
+      {% if form.fecha_fin.errors %}<div class="promocion-errors">{{ form.fecha_fin.errors }}</div>{% endif %}
+    </div>
+
+    <!-- MARCAS: Solo búsqueda, sin dropdown -->
+    <div class="promocion-field" id="row-marcas">
+      <label class="promocion-label">Marcas</label>
+      <div class="search-filter">
+        <input 
+          type="text" 
+          class="search-input" 
+          id="search-marcas" 
+          placeholder="Buscar marca..."
+          autocomplete="off"
+        >
+        <div class="search-results" id="results-marcas"></div>
+      </div>
+      {{ form.marcas }}
+      {% if form.marcas.errors %}<div class="promocion-errors">{{ form.marcas.errors }}</div>{% endif %}
+    </div>
+
+    <!-- ARTICULOS: Solo búsqueda, sin dropdown -->
+    <div class="promocion-field" id="row-productos">
+      <label class="promocion-label">Artículos</label>
+      <div class="search-filter">
+        <input 
+          type="text" 
+          class="search-input" 
+          id="search-productos" 
+          placeholder="Buscar artículo..."
+          autocomplete="off"
+        >
+        <div class="search-results" id="results-productos"></div>
+      </div>
+      {{ form.productos }}
+      {% if form.productos.errors %}<div class="promocion-errors">{{ form.productos.errors }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="promocion-inline-check">
+    {{ form.aplica_a_todos }}
+    <label for="{{ form.aplica_a_todos.id_for_label }}">Aplica a todo el catálogo</label>
+    {% if form.aplica_a_todos.errors %}<div class="promocion-errors">{{ form.aplica_a_todos.errors }}</div>{% endif %}
+  </div>
+  
+  <div class="promocion-actions">
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Cancelar</a>
+    <button class="btn-primary" type="submit">Guardar</button>
+  </div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const tipo = document.getElementById("id_tipo_descuento");
+  const aplicaATodos = document.getElementById("id_aplica_a_todos");
+
+  const rowValor = document.getElementById("row-valor");
+  const rowDescuentoPorcentaje = document.getElementById("row-descuento-porcentaje");
+  const rowUnidadObjetivo = document.getElementById("row-unidad-objetivo");
+  const rowMarcas = document.getElementById("row-marcas");
+  const rowProductos = document.getElementById("row-productos");
+  const labelValor = document.getElementById("label-valor");
+
+  function updateTipo() {
+    const t = tipo ? tipo.value : "";
+    rowValor.style.display = "none";
+    rowDescuentoPorcentaje.style.display = "none";
+    rowUnidadObjetivo.style.display = "none";
+
+    if (t === "PCT") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Porcentaje (%)";
+    } else if (t === "FIX") {
+      rowValor.style.display = "flex";
+      labelValor.textContent = "Monto fijo";
+    } else if (t === "ESC") {
+      rowDescuentoPorcentaje.style.display = "flex";
+      rowUnidadObjetivo.style.display = "flex";
+    }
+  }
+
+  function updateAlcance() {
+    const ocultar = aplicaATodos && aplicaATodos.checked;
+    rowMarcas.style.display = ocultar ? "none" : "flex";
+    rowProductos.style.display = ocultar ? "none" : "flex";
+  }
+
+  // ===== BUSCADOR SIMPLE =====
+  function setupSearchFilter(searchId, resultsId, selectId) {
+    const searchInput = document.getElementById(searchId);
+    const resultsDiv = document.getElementById(resultsId);
+    const select = document.getElementById(selectId);
+
+    if (!searchInput || !select) return;
+
+    searchInput.addEventListener("input", function () {
+      const query = this.value.trim().toLowerCase();
+      resultsDiv.innerHTML = "";
+
+      if (!query) {
+        resultsDiv.style.display = "none";
+        return;
+      }
+
+      const options = Array.from(select.options).filter(opt => 
+        opt.text.toLowerCase().includes(query) && opt.value
+      );
+
+      if (!options.length) {
+        resultsDiv.innerHTML = '<div class="result-empty">No hay resultados</div>';
+        resultsDiv.style.display = "block";
+        return;
+      }
+
+      options.forEach(opt => {
+        const result = document.createElement("div");
+        result.className = "result-item" + (opt.selected ? " selected" : "");
+        result.textContent = opt.text;
+
+        result.addEventListener("click", function () {
+          opt.selected = !opt.selected;
+          result.classList.toggle("selected");
+          searchInput.value = "";
+          resultsDiv.innerHTML = "";
+          resultsDiv.style.display = "none";
+        });
+
+        resultsDiv.appendChild(result);
+      });
+
+      resultsDiv.style.display = "block";
+    });
+
+    // Cerrar resultados al hacer click afuera
+    document.addEventListener("click", function (e) {
+      if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+        resultsDiv.style.display = "none";
+      }
+    });
+  }
+
+  setupSearchFilter("search-marcas", "results-marcas", "id_marcas");
+  setupSearchFilter("search-productos", "results-productos", "id_productos");
+
+  updateTipo();
+  updateAlcance();
+
+  if (tipo) tipo.addEventListener("change", updateTipo);
+  if (aplicaATodos) {
+    aplicaATodos.addEventListener("change", function () {
+      updateAlcance();
+    });
+  }
+});
+</script>
+{% endblock %}

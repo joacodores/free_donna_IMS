@@ -1,0 +1,98 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Promoción {{ promocion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{{ promocion.nombre }}</h2>
+    <p class="subtle">{{ promocion.descripcion }}</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Volver</a>
+    <a class="btn-primary" href="{% url 'inventory:promocion_edit' promocion.promocion_id %}">Editar</a>
+  </div>
+</div>
+
+<div class="table-wrap" style="padding:18px;">
+  <table class="table detail-table">
+    <tbody>
+
+      <tr>
+        <th>Tipo de descuento</th>
+        <td>
+          {% if promocion.tipo_descuento == "PCT" %}
+            Porcentaje ({{ promocion.valor }}%)
+          {% elif promocion.tipo_descuento == "FIX" %}
+            Monto fijo (${{ promocion.valor }})
+          {% elif promocion.tipo_descuento == "ESC" %}
+            {{ promocion.unidad_objetivo }}º unidad -{{ promocion.descuento_porcentaje }}%
+          {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <th>Estado</th>
+        <td>
+          {% if promocion.estado == "ACT" %}
+            <span class="tag">Activa</span>
+          {% else %}
+            <span class="tag">Pausada</span>
+          {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <th>Prioridad</th>
+        <td>{{ promocion.prioridad }}</td>
+      </tr>
+
+      <tr>
+        <th>Vigencia</th>
+        <td>
+          {% if promocion.fecha_inicio or promocion.fecha_fin %}
+            {{ promocion.fecha_inicio|date:"d/m/Y H:i"|default:"—" }}
+            →
+            {{ promocion.fecha_fin|date:"d/m/Y H:i"|default:"—" }}
+          {% else %}
+            Sin límite
+          {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <th>Alcance</th>
+        <td>{{ promocion.alcance_resumen }}</td>
+      </tr>
+
+      <tr>
+        <th>Marcas</th>
+        <td>
+          {% if promocion.marcas.all %}
+            {% for m in promocion.marcas.all %}
+              <span class="tag">{{ m.nombre }}</span>
+            {% empty %}
+              <span class="subtle">—</span>
+            {% endfor %}
+          {% endif %}
+        </td>
+      </tr>
+
+      <tr>
+        <th>Artículos</th>
+        <td>
+          {% if promocion.productos.all %}
+            {% for pr in promocion.productos.all %}
+              <div>{{ pr.nombre }}</div>
+            {% empty %}
+              <span class="subtle">—</span>
+            {% endfor %}
+          {% endif %}
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+{% endblock %}

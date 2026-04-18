@@ -1,0 +1,210 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Caja{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
+
+<div class="pos-shell">
+
+  <header class="pos-topbar">
+    <div>
+      <h2 class="pos-title">Administración de Caja</h2>
+      <p class="pos-subtitle">
+        Gestioná el saldo de caja del local y revisá los movimientos del día.
+      </p>
+    </div>
+
+    <div class="pos-actions">
+      <a class="btn-secondary" href="{% url 'inventory:pos' %}">Volver</a>
+    </div>
+  </header>
+
+  <section class="panel panel--sales">
+
+    <div class="panel-head">
+      <div class="panel-title">
+        <span class="dot dot-blue"></span>
+        <h3>Caja</h3>
+      </div>
+
+      <div class="panel-meta">
+        <span class="chip">Fecha: <b>{{ hoy|date:"Y-m-d" }}</b></span>
+        {% if local_activo %}
+          <span class="chip">Local: <b>{{ local_activo.nombre }}</b></span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-label">Saldo actual</div>
+        <div class="kpi-value mono">$ {{ saldo_actual|floatformat:2 }}</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">Entradas de hoy</div>
+        <div class="kpi-value mono">$ {{ entradas_hoy|floatformat:2 }}</div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">Salidas de hoy</div>
+        <div class="kpi-value mono">- $ {{ salidas_hoy|floatformat:2 }}</div>
+      </div>
+    </div>
+
+    <div class="pos-grid" style="margin-top:16px;">
+
+      <section class="panel--cart">
+        <div class="empty-state" style="margin:0;">
+          <div class="empty-title">Retirar efectivo</div>
+
+          <form method="post" action="{% url 'inventory:pos_caja' %}" class="form-stack">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="salida">
+
+            <div class="form-row">
+              <label>Monto</label>
+              <input
+                name="monto"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                class="input"
+                placeholder="0.00"
+              >
+            </div>
+
+            <div class="form-row">
+              <label>Motivo</label>
+              <select name="motivo" class="input" required>
+                <option value="GUARDAR">Guardar</option>
+                <option value="GASTO">Gasto del día</option>
+                <option value="AJUSTE">Ajuste</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label>Nota (opcional)</label>
+              <input
+                name="nota"
+                type="text"
+                maxlength="140"
+                class="input"
+                placeholder="Ej: retiro para gastos"
+              >
+            </div>
+
+            <div class="modal-actions">
+              <button type="submit" class="btn-primary">Registrar salida</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel panel--sales">
+        <div class="empty-state" style="margin:0;">
+          <div class="empty-title">Agregar efectivo</div>
+
+          {% if puede_agregar_efectivo %}
+            <form method="post" action="{% url 'inventory:pos_caja' %}" class="form-stack">
+              {% csrf_token %}
+              <input type="hidden" name="accion" value="entrada">
+
+              <div class="form-row">
+                <label>Monto</label>
+                <input
+                  name="monto"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  class="input"
+                  placeholder="0.00"
+                >
+              </div>
+
+              <div class="form-row">
+                <label>Motivo</label>
+                <select name="motivo" class="input" required>
+                  <option value="APORTE">Aporte de caja</option>
+                  <option value="AJUSTE">Ajuste</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <label>Nota (opcional)</label>
+                <input
+                  name="nota"
+                  type="text"
+                  maxlength="140"
+                  class="input"
+                  placeholder="Ej: cambio inicial o reposición"
+                >
+              </div>
+
+              <div class="modal-actions">
+                <button type="submit" class="btn-primary">Registrar entrada</button>
+              </div>
+            </form>
+          {% else %}
+            <div class="empty-sub">
+              Solo un administrador puede agregar efectivo a la caja.
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+    </div>
+
+    <div class="sales-list" style="padding-top:16px;">
+      <div class="kpi-label" style="margin-bottom:8px;">
+        Movimientos de hoy
+      </div>
+
+      {% if movimientos_hoy %}
+        {% for m in movimientos_hoy %}
+          <div class="sale-row" style="cursor:default;">
+            <div class="sale-left">
+              <div class="sale-title">
+                {% if m.tipo == "ENTRADA" %}
+                  Entrada · {{ m.get_motivo_display }}
+                {% else %}
+                  Salida · {{ m.get_motivo_display }}
+                {% endif %}
+              </div>
+              <div class="sale-sub mono">
+                {{ m.creado_en|date:"H:i" }}
+                {% if m.usuario %} · {{ m.usuario.username }}{% endif %}
+                {% if m.nota %} · {{ m.nota }}{% endif %}
+              </div>
+            </div>
+
+            <div class="sale-right">
+              <div class="sale-total mono">
+                {% if m.tipo == "ENTRADA" %}
+                  $ {{ m.monto|floatformat:2 }}
+                {% else %}
+                  - $ {{ m.monto|floatformat:2 }}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="margin:0;">
+          <div class="empty-sub">
+            Todavía no hay movimientos registrados hoy.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+  </section>
+
+</div>
+{% endblock %}

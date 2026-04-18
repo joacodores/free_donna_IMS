@@ -1,0 +1,110 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Baja #{{ baja.baja_id }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/movimientos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Baja #{{ baja.baja_id }}</h2>
+    <p class="subtle">
+      {{ baja.fecha|date:"Y-m-d H:i" }} · 
+      Local: {{ baja.local }} · 
+      Usuario: {{ baja.usuario.username }}
+    </p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-secondary" href="{% url 'inventory:movimientos' %}?mode=doc&tipo=BAJ">
+      Volver
+    </a>
+  </div>
+</div>
+
+{% if baja.nota %}
+  <div class="empty" style="border-style:solid;">
+    <div class="subtle">{{ baja.nota }}</div>
+  </div>
+{% endif %}
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Código de barras</th>
+        <th class="num">Cantidad</th>
+        {% if request.user.is_staff %}
+          <th class="num">Costo u.</th>
+          <th class="num">Total</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+        <tr>
+          <td class="mono">{{ it.sku }}</td>
+          <td class="mono">{{ it.barcode }}</td>
+          
+          <td class="num">{{ it.cantidad }}</td>
+          {% if request.user.is_staff %}
+            <td class="num mono">$ {{ it.costo_unitario }}</td>
+            <td class="num mono">$ {{ it.total_linea }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" style="margin-top:16px;">
+  <div class="subtle">
+    Unidades dadas de baja: <b>{{ ms_totals.unidades }}</b>
+  </div>
+
+  {% if request.user.is_staff %}
+    <div class="subtle">
+      Costo total: <b>$ {{ ms_totals.costo_total }}</b>
+    </div>
+  {% endif %}
+</div>
+
+<details style="margin-top:14px;">
+  <summary style="cursor:pointer; font-weight:900;">
+    Detalle por unidad
+  </summary>
+
+  <div class="table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Art ID</th>
+          <th>Código de barras</th>
+          <th>SKU</th>
+          
+          {% if request.user.is_staff %}
+            <th class="num">Costo u.</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in unidades %}
+          <tr>
+            <td class="mono">{{ m.articulo_id }}</td>
+            <td class="mono">{{ m.barcode }}</td>
+            <td class="mono">{{ m.sku }}</td>
+            
+
+            {% if request.user.is_staff %}
+              <td class="num mono">$ {{ m.costo_unitario }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+
+{% endblock %}

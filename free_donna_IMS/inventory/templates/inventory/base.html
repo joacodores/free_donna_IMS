@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    {% load static %}
+    <meta charset="UTF-8" />
+    <title>{% block title %}Free Donna IMS{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+      })();
+    </script>
+    <link rel="icon" type="image/x-icon" href="{% static 'img/header.jpg' %}">
+
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/header.css' %}">
+  
+
+    {% block extra_css %}{% endblock %}
+  </head>
+
+ <body data-theme="light">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="logo-container">
+        <img src="{% static 'img/header.jpg' %}" alt="Free Donna Logo" />
+        <a class="brand" href="{% url 'inventory:index' %}">Free Donna</a>
+      </div>
+
+      {% if request.user.is_authenticated %}
+      <div class="right-section">
+        <form method="post" action="{% url 'inventory:set_local' %}" class="local-form">
+          {% csrf_token %}
+          <select name="local_id" class=" select-dark" onchange="this.form.submit()">
+            {% for l in locales %}
+              <option value="{{ l.local_id }}" {% if l.local_id == local_activo_id %}selected{% endif %}>
+                {{ l.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+
+        <a class="icon-btn-header" href="{% url 'inventory:pos' %}" aria-label="POS / Carrito">🛒</a>
+
+        <div class="hamburger-menu">
+          <button id="hamburger-button" class="icon-btn-header" type="button" aria-label="Menú">☰</button>
+          <div id="hamburger-dropdown" class="menu-dropdown">
+            <a href="{% url 'inventory:producto_list' %}">Artículos</a>
+            <a href="{% url 'inventory:articulo_list' %}">Productos</a>
+            <a href="{% url 'inventory:movimientos' %}">Movimientos</a>
+            {% if request.user.is_staff %}
+              <a class="nav-link" href="{% url 'inventory:marca_list' %}">Marcas</a>
+              <a class="nav-link" href="{% url 'inventory:promocion_list' %}">Promociones</a>
+            {% endif %}
+          <a
+            class="theme-toggle-btn"
+            type="button"
+            data-theme-toggle
+            style="cursor: pointer;"
+            aria-label="Cambiar tema"
+            title="Cambiar tema"
+          >
+            <span class="nav-link" data-theme-toggle-text>Cambiar tema</span>
+            <span class="nav-link" data-theme-toggle-icon>🌙</span>
+          </a>
+        
+
+            <div class="sep"></div>
+            <a href="{% url 'inventory:logout' %}">Salir</a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </header>
+    {% if messages %}
+      <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true">
+        {% for message in messages %}
+          {# message.tags suele ser: success, error, warning, info #}
+          <div class="toast toast-{{ message.tags|default:'info' }}">
+            <div class="toast-icon" aria-hidden="true"></div>
+            <div class="toast-content">
+              <div class="toast-text">{{ message }}</div>
+            </div>
+            <button class="toast-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <main class="app-main">
+      <div class="app-container">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <span>Free Donna IMS · Sistema de Gestión de Inventario</span>
+        <span class="subtle">© {{ now|default:"2026" }} · v1.0</span>
+      </div>
+    </footer>
+
+    <script>
+      const hamburgerButton = document.getElementById('hamburger-button');
+      const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+
+      if (hamburgerButton && hamburgerDropdown){
+        hamburgerButton.addEventListener('click', (e) => {
+          e.stopPropagation();
+          hamburgerDropdown.classList.toggle('open');
+        });
+
+        document.addEventListener('click', () => {
+          hamburgerDropdown.classList.remove('open');
+        });
+      }
+      
+      (function(){
+        const wrap = document.getElementById("toastWrap");
+        if (!wrap) return;
+      
+        function closeToast(toast){
+          if (!toast) return;
+          toast.classList.add("hide");
+          setTimeout(() => toast.remove(), 180);
+        }
+      
+        wrap.addEventListener("click", (e) => {
+          const btn = e.target.closest(".toast-close");
+          if (btn) closeToast(btn.closest(".toast"));
+        });
+      
+        // auto-hide: success/info 4s, warning 6s, error 8s
+        wrap.querySelectorAll(".toast").forEach((t) => {
+          let ms = 10500;
+          if (t.classList.contains("toast-warning")) ms = 10500;
+          if (t.classList.contains("toast-error")) ms = 10500;
+        
+          setTimeout(() => closeToast(t), ms);
+        });
+      })();
+
+
+  (function () {
+    const STORAGE_KEY = "theme";
+    const DEFAULT_THEME = "light";
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      document.body.setAttribute("data-theme", theme);
+
+      document.querySelectorAll("[data-theme-toggle-icon]").forEach((icon) => {
+        icon.textContent = theme === "dark" ? "☀️" : "🌙";
+      });
+
+      document.querySelectorAll("[data-theme-toggle-text]").forEach((text) => {
+        text.textContent = "Cambiar tema";
+      });
+    }
+
+    function getSavedTheme() {
+      return localStorage.getItem(STORAGE_KEY) || DEFAULT_THEME;
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme") || DEFAULT_THEME;
+      const next = current === "light" ? "dark" : "light";
+      localStorage.setItem(STORAGE_KEY, next);
+      applyTheme(next);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      applyTheme(getSavedTheme());
+
+      document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
+        btn.addEventListener("click", toggleTheme);
+      });
+    });
+  })();
+
+</script>
+    {% block extra_js %}{% endblock %}
+
+  </body>
+</html>

@@ -1,0 +1,46 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Iniciar sesión{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h2 class="auth-title">Iniciar sesión</h2>
+    <p class="auth-subtitle">Ingresá con tus credenciales</p>
+
+    {% if form.non_field_errors %}
+      <div class="auth-errors">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="auth-form">
+      {% csrf_token %}
+      
+      <div>
+        <label for="{{ form.username.id_for_label }}">Usuario</label>
+        {{ form.username }}
+        {% if form.username.errors %}<div class="auth-errors" style="margin-top:4px; margin-bottom:0;">{{ form.username.errors }}</div>{% endif %}
+      </div>
+
+      <div>
+        <label for="{{ form.password.id_for_label }}">Contraseña</label>
+        {{ form.password }}
+        {% if form.password.errors %}<div class="auth-errors" style="margin-top:4px; margin-bottom:0;">{{ form.password.errors }}</div>{% endif %}
+      </div>
+
+      <button type="submit" class="btn-auth">Entrar</button>
+    </form>
+
+    <div class="auth-footer">
+      <p>¿No tenés cuenta? <a href="{% url 'inventory:signup' %}">Registrate aquí</a></p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

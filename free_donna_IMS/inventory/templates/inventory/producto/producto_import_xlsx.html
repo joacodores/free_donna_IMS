@@ -1,0 +1,36 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Importar artículos{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/producto_form_xlsx.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Importar artículos</h2>
+    
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Volver</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-card">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="import-help">
+    <h3>Columnas requeridas:</h3>
+    <h4>nombre, tipo_producto, material, marca, precio, costo</h4>
+  </div>
+  <div class="field">
+    
+    {{ form.file }}
+    {{ form.file.errors }}
+    
+    <button type="submit" class="btn-primary">Importar</button>
+</div>
+</form>
+{% endblock %}

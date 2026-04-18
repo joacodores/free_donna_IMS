@@ -24,9 +24,15 @@ SECRET_KEY = 'django-insecure-ix+-fdc^#uky#o_7r!ekhjvg%1a#g!#2a&6qwf94hduefpym4v
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 ALLOWED_HOSTS = []
 
+#SECURITY LOGIN/MIDDLEWARE SETTINGS
+PUBLIC_URL_NAMES = [
+    "inventory:login",
+        "inventory:signup",
+    "inventory:logout",
+]
+LOGIN_URL = '/login/'
 
 # Application definition
 
@@ -48,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'free_donna_IMS.middleware.LoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'free_donna_IMS.urls'
@@ -65,6 +72,9 @@ TEMPLATES = [
             ],
         },
     },
+]
+TEMPLATES[0]["OPTIONS"]["context_processors"] += [
+    "inventory.context_processors.locales_context",
 ]
 
 WSGI_APPLICATION = 'free_donna_IMS.wsgi.application'
@@ -109,7 +119,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Argentina/Buenos_Aires'
+
+USE_TZ = True
 
 USE_I18N = True
 
@@ -120,3 +132,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / "free_donna_IMS" / "static",
+    BASE_DIR / "inventory" / "static",
+]

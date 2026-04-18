@@ -1,0 +1,72 @@
+/* Contenedor principal del formulario */
+.form-card{
+  max-width: 520px;
+  padding: 22px 26px;
+  margin-top: 18px;
+
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Títulos */
+.import-help h3{
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-strong);
+}
+
+.import-help h4{
+  margin: 0 0 18px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* Campo */
+.field{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.field label{
+  font-weight: 900;
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+/* Input file */
+.field input[type="file"]{
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--input-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.field input[type="file"]:hover{
+  background: var(--input-bg-focus);
+}
+
+/* Errores */
+.form-errors{
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(225,85,102,0.12);
+  border: 1px solid rgba(225,85,102,0.30);
+  color: var(--danger);
+  font-weight: 900;
+  margin-bottom: 14px;
+}
+
+/* Botón importar */
+.btn-primary{
+  margin-top: 12px;
+  width: fit-content;
+}

@@ -1,0 +1,477 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Artículos{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/productos.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Articulos</h2>
+    <p class="subtle">Click en un articulo para ver el detalle.</p>
+  </div>
+
+  {% if request.user.is_staff %}
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="button" class="btn-secondary" id="btnBulkMarca">Ajuste por marca</button>
+      <a class="btn-primary" href="{% url 'inventory:producto_create' %}">
+        + Nuevo artículo
+      </a>
+    </div>
+  {% endif %}
+</div>
+<form method="get" class="search-row">
+  <input
+    name="q"
+    value="{{ q }}"
+    class="search-input"
+    type="text"
+    placeholder="Buscar por nombre..."
+    autocomplete="off"
+  />
+  <button class="btn-primary" type="submit">Buscar</button>
+
+  {% if q %}
+    <a class="btn-secondary" href="{% url 'inventory:producto_list' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if productos %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="col-id">ID</th>
+          <th>Nombre</th>
+          <th>Marca</th>
+          <th>Tipo</th>
+          <th>Material</th>
+          <th class="col-precio">Precio</th>
+          {% if request.user.is_staff %}
+            <th class="col-precio">Costo</th>
+          {% endif %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for producto in productos %}
+          <tr
+            class="row-click"
+            role="button"
+            tabindex="0"
+            onclick="openProductoModal(this)"
+            onkeydown="if(event.key==='Enter'||event.key===' '){ event.preventDefault(); openProductoModal(this); }"
+            data-id="{{ producto.product_id }}"
+            data-nombre="{{ producto.nombre|escapejs }}"
+            data-marca="{{ producto.marca.nombre|escapejs }}"
+            data-tipo="{{ producto.tipo_producto|escapejs }}"
+            data-material="{{ producto.material|escapejs }}"
+            data-precio="{{ producto.precio }}"
+            data-costo="{{ producto.costo }}"
+          >
+            <td class="mono">{{ producto.product_id }}</td>
+            <td class="strong">{{ producto.nombre }}</td>
+            <td>{{ producto.marca.nombre }}</td>
+            <td><span class="tag">{{ producto.tipo_producto }}</span></td>
+            <td><span class="tag">{{ producto.material }}</span></td>
+            <td class="price-cell">$ {{ producto.precio }}</td>
+            {% if request.user.is_staff %}
+              <td class="price-cell">$ {{ producto.costo }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:800;">No hay artículos cargados.</p>
+    <p class="subtle" style="margin-bottom:0;">Usá el botón “Nuevo artículo” para agregar el primero.</p>
+  </div>
+{% endif %}
+
+<!-- Modal -->
+<div id="productoModalOverlay" class="modal-overlay" style="display:none;" onclick="closeProductoModal(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productoModalTitle">
+    <div class="modal-header">
+      <div>
+        <h3 id="productoModalTitle">Detalle de artículo</h3>
+        <p class="subtle" id="productoModalSubtitle" style="margin:6px 0 0 0;"></p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeProductoModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <dl class="kv">
+        <dt>ID</dt><dd id="m_id">—</dd>
+        <dt>Nombre</dt><dd id="m_nombre">—</dd>
+        <dt>Marca</dt><dd id="m_marca">—</dd>
+        <dt>Tipo</dt><dd id="m_tipo">—</dd>
+        <dt>Material</dt><dd id="m_material">—</dd>
+        <dt>Precio</dt><dd id="m_precio">—</dd>
+        {% if request.user.is_staff %}
+          <dt>Costo</dt><dd id="m_costo">—</dd>
+        {% endif %}
+      </dl>
+    </div>
+
+    <div class="modal-actions">
+      {% if request.user.is_staff %}
+        <a id="m_editar" class="btn-secondary" href="javascript:void(0)">Editar</a>
+    
+        <form id="m_borrar_form" method="post" action="" style="margin:0;">
+          {% csrf_token %}
+          <button id="m_borrar_btn" class="btn-danger" type="submit">Borrar</button>
+        </form>
+      {% endif %}
+      
+      <button class="btn-primary" type="button" onclick="closeProductoModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+{% if request.user.is_staff %}
+  <div class="modal-overlay" id="bulkMarcaOverlay" style="display:none;">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 style="margin:0;">Ajuste masivo por marca</h3>
+        <button type="button" class="icon-btn" id="bulkMarcaClose" aria-label="Cerrar">✕</button>
+      </div>
+
+      <form method="post" action="{% url 'inventory:producto_bulk_marca_apply' %}" id="bulkMarcaForm">
+        {% csrf_token %}
+      
+        <div class="form-grid" style="margin-top:10px;">
+          <div class="field">
+            <label>Marca</label>
+            <select name="marca_id" id="bulkMarcaSelect" required>
+              <option value="" selected disabled>Seleccioná una marca…</option>
+              {% for m in marcas %}
+                <option value="{{ m.pk }}">{{ m.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        
+          <div class="field">
+            <label>% Precio</label>
+            <input name="pct_precio" id="bulkPctPrecio" inputmode="decimal" placeholder="Ej: 10 o -5" />
+          </div>
+        
+          <div class="field">
+            <label>% Costo</label>
+            <input name="pct_costo" id="bulkPctCosto" inputmode="decimal" placeholder="Ej: 8.5 o -3" />
+          </div>
+        </div>
+      
+        <div id="bulkPreview" style="margin-top:12px; display:none;">
+          <div class="subtle" id="bulkPreviewMeta" style="margin-bottom:8px;"></div>
+        
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Artículo</th>
+                  <th class="num">Precio</th>
+                  <th class="num">Nuevo</th>
+                  <th class="num">Costo</th>
+                  <th class="num">Nuevo</th>
+                </tr>
+              </thead>
+              <tbody id="bulkPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div class="bulk-footer">
+          <div class="bulk-footer-top">
+            <div class="subtle bulk-error" id="bulkError"></div>
+            <div class="subtle bulk-undo-label" id="bulkUndoLabel" style="display:none;"></div>
+          </div>
+
+          <div class="bulk-footer-actions">
+            <button type="button" class="btn-secondary" id="bulkMarcaCancel">Cancelar</button>
+            <button class="btn-secondary" type="submit" id="bulkUndoBtn" form="bulkUndoForm" style="display:none;"> Deshacer Ajuste </button>
+            <button type="submit" class="btn-primary" id="bulkApplyBtn" disabled>Aplicar</button>
+          </div>
+        </div>
+      </form>
+
+      
+      <form method="post" id="bulkUndoForm" style="display:none;">
+        {% csrf_token %}
+      </form>
+
+
+
+    </div>
+  </div>
+{% endif %}
+<script>
+  function openProductoModal(cardEl){
+    var overlay = document.getElementById("productoModalOverlay");
+    var id = cardEl.dataset.id || "";
+    var nombre = cardEl.dataset.nombre || "";
+    var marca = cardEl.dataset.marca || "";
+    var tipo = cardEl.dataset.tipo || "";
+    var material = cardEl.dataset.material || "";
+    var precio = cardEl.dataset.precio || "";
+    var costo = cardEl.dataset.costo || "";
+
+    document.getElementById("productoModalTitle").textContent = nombre || "Detalle de artículo";
+    document.getElementById("productoModalSubtitle").textContent = marca ? ("Marca: " + marca) : "";
+
+    document.getElementById("m_id").textContent = id || "—";
+    document.getElementById("m_nombre").textContent = nombre || "—";
+    document.getElementById("m_marca").textContent = marca || "—";
+    document.getElementById("m_tipo").textContent = tipo || "—";
+    document.getElementById("m_material").textContent = material || "—";
+    document.getElementById("m_precio").textContent = precio ? ("$ " + precio) : "—";
+    var costoEl = document.getElementById("m_costo");
+    if (costoEl) {
+      costoEl.textContent = costo ? ("$ " + costo) : "—";
+    }
+    var editar = document.getElementById("m_editar");
+    if (editar) {
+      editar.href = "/productos/" + id + "/editar/";
+    }
+
+    var form = document.getElementById("m_borrar_form");
+    if (form) {
+      form.action = "/productos/" + id + "/borrar/";
+    }
+
+    overlay.style.display = "flex";
+    setTimeout(function(){
+      var closeBtn = document.querySelector(".modal-close");
+      if (closeBtn) closeBtn.focus();
+    }, 0);
+  }
+
+  function closeProductoModal(evt){
+    if (evt && evt.target && evt.target.id !== "productoModalOverlay") return;
+    document.getElementById("productoModalOverlay").style.display = "none";
+  }
+
+  var borrarForm = document.getElementById("m_borrar_form");
+  if (borrarForm) {
+    borrarForm.addEventListener("submit", function(e){
+      var nombre = document.getElementById("m_nombre").textContent || "este producto";
+      if (!confirm("¿Seguro que querés borrar " + nombre + "? Esta acción no se puede deshacer.")) {
+        e.preventDefault();
+      }
+    });
+  }
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){
+      var overlay = document.getElementById("productoModalOverlay");
+      if (overlay && overlay.style.display === "flex"){
+        overlay.style.display = "none";
+      }
+    }
+  });
+
+  (function autoOpenFromQuery(){
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (!openId) return;
+
+    
+    const row = document.querySelector(`tr.row-click[data-id="${CSS.escape(openId)}"]`);
+    if (row) {
+      openProductoModal(row);
+
+      
+      params.delete("open");
+      const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+      window.history.replaceState({}, "", newUrl);
+    }
+  })();
+
+  //ajuste por marca
+  (function(){
+    const overlay = document.getElementById("bulkMarcaOverlay");
+    const btnOpen  = document.getElementById("btnBulkMarca");
+    const btnClose = document.getElementById("bulkMarcaClose");
+    const btnCancel= document.getElementById("bulkMarcaCancel");
+
+    const marcaSel = document.getElementById("bulkMarcaSelect");
+    const pctPrecio= document.getElementById("bulkPctPrecio");
+    const pctCosto = document.getElementById("bulkPctCosto");
+
+    const previewBox = document.getElementById("bulkPreview");
+    const previewMeta= document.getElementById("bulkPreviewMeta");
+    const previewBody= document.getElementById("bulkPreviewBody");
+
+    const errEl      = document.getElementById("bulkError");
+    const applyBtn   = document.getElementById("bulkApplyBtn");
+
+    const undoForm  = document.getElementById("bulkUndoForm");
+    const undoBtn   = document.getElementById("bulkUndoBtn");
+    const undoLabel = document.getElementById("bulkUndoLabel");
+
+    function open(){ overlay.style.display="flex"; refreshUndoUI(); triggerPreview(); }
+    function close(){ overlay.style.display="none"; }
+
+    btnOpen && btnOpen.addEventListener("click", open);
+    btnClose && btnClose.addEventListener("click", close);
+    btnCancel && btnCancel.addEventListener("click", close);
+    overlay.addEventListener("click", (e)=>{ if(e.target===overlay) close(); });
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && overlay.style.display!=="none") close(); });
+
+    let previewTimer = null;
+    function debouncePreview(){
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(triggerPreview, 250);
+    }
+
+    [marcaSel, pctPrecio, pctCosto].forEach(el => el && el.addEventListener("input", debouncePreview));
+    marcaSel && marcaSel.addEventListener("change", debouncePreview);
+
+    function setError(msg){
+      errEl.textContent = msg || "";
+      errEl.style.display = msg ? "block" : "none";
+      applyBtn.disabled = !!msg;
+    }
+
+    function moneyCell(v){
+      const td = document.createElement("td");
+      td.className = "num";
+      td.textContent = v;
+      return td;
+    }
+    const bulkForm = document.getElementById("bulkMarcaForm");
+    bulkForm?.addEventListener("submit", (e) => {
+      const marcaText = marcaSel?.selectedOptions?.[0]?.textContent || "la marca seleccionada";
+      const p1 = (pctPrecio.value || "").trim();
+      const p2 = (pctCosto.value || "").trim();
+    
+      // si el preview está visible, intentamos leer el total
+      const meta = (previewMeta?.textContent || "").trim();
+      const totalMatch = meta.match(/·\s*(\d+)\s*productos?/);
+      const totalTxt = totalMatch ? `${totalMatch[1]} articulos` : "varios artículos";
+    
+      const parts = [];
+      if (p1) parts.push(`Precio ${p1}%`);
+      if (p2) parts.push(`Costo ${p2}%`);
+    
+      const msg =
+        `¿Aplicar ajuste masivo?\n\n` +
+        `Marca: ${marcaText}\n` +
+        `Afecta: ${totalTxt}\n` +
+        (parts.length ? `Cambios: ${parts.join(" · ")}\n\n` : "\n") +
+        `Podrás deshacerlo después desde “Deshacer último ajuste”.`;
+    
+      if (!confirm(msg)) {
+        e.preventDefault();
+        return;
+      }
+    
+      // evita doble submit
+      applyBtn.disabled = true;
+    });
+    async function triggerPreview(){
+      const marca_id = (marcaSel.value || "").trim();
+      const p1 = (pctPrecio.value || "").trim();
+      const p2 = (pctCosto.value || "").trim();
+
+      previewBox.style.display = "none";
+      previewBody.innerHTML = "";
+      setError("");
+
+      if(!marca_id){
+        setError("Seleccioná una marca.");
+        return;
+      }
+      if(p1==="" && p2===""){
+        setError("Ingresá % en precio y/o costo.");
+        return;
+      }
+
+      const url = new URL("{% url 'inventory:producto_bulk_marca_preview' %}", window.location.origin);
+      url.searchParams.set("marca_id", marca_id);
+      if(p1!=="") url.searchParams.set("pct_precio", p1);
+      if(p2!=="") url.searchParams.set("pct_costo", p2);
+
+      try{
+        const res = await fetch(url.toString(), { headers: { "X-Requested-With": "fetch" }});
+        const data = await res.json();
+        if(!res.ok || !data.ok){
+          setError(data.error || "No se pudo generar el preview.");
+          return;
+        }
+
+        previewMeta.textContent =
+          `${data.marca.nombre} · ${data.total} artículos afectados`
+          + (data.pct_precio ? ` · Precio ${data.pct_precio}%` : "")
+          + (data.pct_costo ? ` · Costo ${data.pct_costo}%` : "");
+
+        data.sample.forEach(it=>{
+          const tr = document.createElement("tr");
+          const name = document.createElement("td");
+          name.textContent = it.nombre;
+          tr.appendChild(name);
+          tr.appendChild(moneyCell(it.old_precio));
+          tr.appendChild(moneyCell(it.new_precio));
+          tr.appendChild(moneyCell(it.old_costo));
+          tr.appendChild(moneyCell(it.new_costo));
+          previewBody.appendChild(tr);
+        });
+
+        previewBox.style.display = "block";
+        setError(""); // habilita aplicar
+      }catch(e){
+        setError("Error de red al generar el preview.");
+      }
+    }
+
+    // Guardamos el último adjust_id tras aplicar (profesional: ideal devolverlo por redirect + querystring)
+    // Solución práctica: cuando el backend muestre el mensaje de éxito, vos podés setear sessionStorage manualmente
+    // si preferís, pero acá dejamos preparada la UI:
+    function refreshUndoUI(){
+      const params = new URLSearchParams(window.location.search);
+      const lastId = params.get("last_adjust");
+      const lastBrand = params.get("last_brand");
+    
+      if(!lastId){
+        if (undoBtn) undoBtn.style.display = "none";
+        if (undoLabel) undoLabel.style.display = "none";
+        return;
+      }
+    
+      // Action del POST undo
+      if (undoForm) {
+        undoForm.action = "{% url 'inventory:producto_bulk_marca_undo' 0 %}"
+          .replace("/0/", `/${encodeURIComponent(lastId)}/`);
+      }
+    
+      // Texto “último ajuste: Marca”
+      if (undoLabel) {
+        undoLabel.textContent = lastBrand ? `Último ajuste: ${lastBrand}` : "Último ajuste aplicado";
+        undoLabel.style.display = "block";
+      }
+    
+      // Botón visible
+      if (undoBtn) undoBtn.style.display = "inline-flex";
+    }
+    undoBtn?.addEventListener("click", (e) => {
+      const brand = (new URLSearchParams(window.location.search)).get("last_brand") || "esta marca";
+      if (!confirm(`¿Seguro que querés deshacer el último ajuste de ${brand}?`)) {
+        e.preventDefault();
+      }
+    });
+
+    // Hook simple: al submit, deshabilitamos para evitar doble click
+    document.getElementById("bulkMarcaForm")?.addEventListener("submit", ()=>{
+      applyBtn.disabled = true;
+    });
+
+  })();
+
+  
+
+</script>
+
+{% endblock %}

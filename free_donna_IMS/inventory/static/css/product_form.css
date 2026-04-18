@@ -1,0 +1,171 @@
+.product-form-page{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 10px 18px 28px;
+  box-sizing: border-box;
+}
+
+.product-form-shell{
+  width: 100%;
+  max-width: 980px;
+}
+
+.product-header{
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.header-actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-form{
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  padding: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.74),
+    rgba(244,247,252,.96)
+  );
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body[data-theme="dark"] .product-form{
+  background: linear-gradient(
+    180deg,
+    rgba(18, 27, 46, 0.92),
+    rgba(13, 21, 38, 0.96)
+  );
+  border-color: rgba(255,255,255,.10);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.34),
+    0 6px 18px rgba(0,0,0,.18);
+}
+
+.product-grid{
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.product-grid .col-2{
+  grid-column: span 2;
+}
+
+.product-form .field label{
+  display: block;
+  margin-bottom: 7px;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.product-form .field input,
+.product-form .field select,
+.product-form .field textarea{
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.72);
+  color: var(--text);
+  box-sizing: border-box;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.product-form .field input:focus,
+.product-form .field select:focus,
+.product-form .field textarea:focus{
+  outline: none;
+  border-color: var(--stroke2);
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 0 0 4px rgba(160, 190, 255, .16);
+}
+
+body[data-theme="dark"] .product-form .field input,
+body[data-theme="dark"] .product-form .field select,
+body[data-theme="dark"] .product-form .field textarea{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.10);
+  color: #eaf0ff;
+}
+
+body[data-theme="dark"] .product-form .field input:focus,
+body[data-theme="dark"] .product-form .field select:focus,
+body[data-theme="dark"] .product-form .field textarea:focus{
+  background: rgba(255,255,255,.09);
+  border-color: rgba(170, 200, 255, .45);
+  box-shadow: 0 0 0 4px rgba(120, 150, 255, .14);
+}
+
+.form-actions{
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--stroke);
+}
+
+body[data-theme="dark"] .form-actions{
+  border-top-color: rgba(255,255,255,.08);
+}
+
+.form-errors{
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--stroke));
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: color-mix(in srgb, var(--danger) 78%, var(--text));
+  font-weight: 700;
+}
+
+.errorlist{
+  list-style: none;
+  margin: 6px 0 0 0;
+  padding: 0;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 860px){
+  .product-form-shell{
+    max-width: 100%;
+  }
+
+  .product-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .product-grid .col-2{
+    grid-column: span 1;
+  }
+
+  .page-header.product-header{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions{
+    width: 100%;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary{
+    justify-content: center;
+  }
+
+  .form-actions{
+    justify-content: stretch;
+  }
+
+  .form-actions .btn-primary{
+    width: 100%;
+  }
+}

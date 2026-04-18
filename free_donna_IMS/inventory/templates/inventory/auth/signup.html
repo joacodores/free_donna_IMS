@@ -1,0 +1,49 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Registro{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/signup.css' %}">
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h2 class="auth-title">Crear cuenta</h2>
+    <p class="auth-subtitle">Registrate para acceder al sistema</p>
+
+    {% if form.non_field_errors %}
+      <div class="auth-errors">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="auth-form">
+      {% csrf_token %}
+      
+      {% for field in form %}
+        <div>
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}
+            <div class="auth-errors" style="margin-top:4px; margin-bottom:0;">
+              {% for error in field.errors %}
+                <p>{{ error }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
+          
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="btn-auth">Registrarse</button>
+    </form>
+
+    <div class="auth-footer">
+      <p>¿Ya tenés cuenta? <a href="{% url 'inventory:login' %}">Inicia sesión aquí</a></p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

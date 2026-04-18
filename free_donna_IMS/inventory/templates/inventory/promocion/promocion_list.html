@@ -1,0 +1,148 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Promociones{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/promociones.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Promociones</h2>
+    <p class="subtle">Administrá descuentos por marca, artículo o catálogo completo.</p>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn-primary" href="{% url 'inventory:promocion_create' %}">+ Nueva promoción</a>
+  </div>
+</div>
+
+<form method="get" class="search-row" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+  <input
+    name="q"
+    value="{{ q }}"
+    class="search-input"
+    type="text"
+    placeholder="Buscar por nombre o descripción..."
+    autocomplete="off"
+    style="max-width:320px;"
+  />
+
+  <select name="estado" class="select" style="max-width:220px;">
+    <option value="">Todos los estados</option>
+    <option value="ACT" {% if estado == "ACT" %}selected{% endif %}>Activas</option>
+    <option value="PAU" {% if estado == "PAU" %}selected{% endif %}>Pausadas</option>
+  </select>
+
+  <button class="btn-secondary" type="submit">Filtrar</button>
+
+  {% if q or estado %}
+    <a class="btn-secondary" href="{% url 'inventory:promocion_list' %}">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if promociones %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Descuento</th>
+          <th>Alcance</th>
+          <th>Estado</th>
+          <th>Prioridad</th>
+          <th>Vigencia</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in promociones %}
+          <tr>
+            <td class="mono">{{ p.promocion_id }}</td>
+
+            <td>
+              <a href="{% url 'inventory:promocion_detail' p.promocion_id %}" class="strong" style="color:inherit; text-decoration:none;">
+                {{ p.nombre }}
+              </a>
+              {% if p.descripcion %}
+                <div class="subtle" style="margin-top:4px;">{{ p.descripcion }}</div>
+              {% endif %}
+            </td>
+
+            <td>
+              {% if p.tipo_descuento == "PCT" %}
+                <span class="tag">{{ p.valor }}%</span>
+
+              {% elif p.tipo_descuento == "FIX" %}
+                <span class="tag">$ {{ p.valor }}</span>
+
+              {% elif p.tipo_descuento == "ESC" %}
+                <span class="tag">
+                  {{ p.unidad_objetivo }}º unidad -{{ p.descuento_porcentaje }}%
+                </span>
+              {% endif %}
+            </td>
+
+            <td>{{ p.alcance_resumen }}</td>
+
+            <td>
+              {% if p.estado == "ACT" %}
+                <span class="tag">Activa</span>
+              {% else %}
+                <span class="tag">Pausada</span>
+              {% endif %}
+            </td>
+
+            <td>{{ p.prioridad }}</td>
+
+            <td>
+              {% if p.fecha_inicio or p.fecha_fin %}
+                <div class="subtle">
+                  {{ p.fecha_inicio|date:"d/m/Y H:i"|default:"—" }}
+                  →
+                  {{ p.fecha_fin|date:"d/m/Y H:i"|default:"—" }}
+                </div>
+              {% else %}
+                <span class="subtle">Sin límite</span>
+              {% endif %}
+            </td>
+
+            {% if request.user.is_staff %}
+            <td>
+              <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+                <a class="btn-secondary" href="{% url 'inventory:promocion_edit' p.promocion_id %}">Editar</a>
+
+                <form method="post" action="{% url 'inventory:promocion_toggle' p.promocion_id %}" style="margin:0;">
+                  {% csrf_token %}
+                  {% if p.estado == "ACT" %}
+                    <button type="submit" class="btn-secondary">Pausar</button>
+                  {% else %}
+                    <button type="submit" class="btn-secondary">Activar</button>
+                  {% endif %}
+                </form>
+                <form method="post" 
+                      action="{% url 'inventory:promocion_delete' p.promocion_id %}"
+                      onsubmit="return confirm('¿Eliminar la promoción {{ p.nombre|escapejs }}?');"
+                      style="margin:0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-secondary btn-danger">
+                    Borrar
+                  </button>
+                </form>
+              </div>
+            </td>
+            {% endif %}
+
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty">
+    <p style="margin:0; font-weight:900;">No hay promociones cargadas.</p>
+    <p class="subtle" style="margin-bottom:0;">Creá la primera promoción para empezar a aplicar descuentos.</p>
+  </div>
+{% endif %}
+{% endblock %}

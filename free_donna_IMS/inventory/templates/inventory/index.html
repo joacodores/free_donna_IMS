@@ -1,0 +1,156 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Inicio · Free Donna IMS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/index.css' %}">
+{% endblock %}
+
+{% block content %}
+
+
+<div class="dash">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Panel operativo</span>
+        {% if local_activo_id %}
+          <span class="sep">·</span>
+          <span class="mono">Local activo: {{ local_activo_id }}</span>
+        {% endif %}
+      </div>
+
+      <h1 class="hero-title">
+        Buen día <span class="hero-name">{{ request.user.first_name|default:request.user.username }}</span>
+      </h1>
+
+      
+
+      <div class="hero-actions">
+        <a class="btn-primary btn-pos" href="{% url 'inventory:pos' %}">
+          <span class="btn-icon">🛒</span>
+          Abrir carrito
+        </a>
+        <button
+          type="button"
+          class="btn-primary "
+          data-theme-toggle
+          aria-label="Cambiar tema"
+          title="Cambiar tema"
+        >
+          <span class="btn-icon" data-theme-toggle-icon>🌙</span>
+          <span data-theme-toggle-text>Cambiar tema</span>
+        </button>
+
+      </div>
+
+      
+    </div>
+
+    <div class="hero-right">
+
+      <div class="mini-card">
+        <div class="mini-title">Atajos</div>
+        <div class="mini-links">
+          <a href="{% url 'inventory:producto_list' %}">🏷️ Artículos</a>
+          <a href="{% url 'inventory:articulo_list' %}">📦 Productos</a>
+          <a href="{% url 'inventory:movimientos' %}">📈 Historial </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRID -->
+  <section class="grid">
+    <!-- KPIs -->
+    <div class="card kpis">
+      <div class="card-head">
+        <h2>Resumen del día</h2>
+        <span class="chip">
+          <span class="chip-dot"></span>
+          <b>{{ now|date:"d/m/y" }}</b>
+        </span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Ventas</div>
+          <div class="kpi-value mono">{{ ventas_hoy_count|default:"0" }}</div>
+          <div class="kpi-foot subtle">Cantidad de ventas cerradas</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Total vendido</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
+          <div class="kpi-foot subtle">Sumatoria del día</div>
+        </div>
+        <a class="kpi kpi-action" href="{% url 'inventory:promocion_list' %}">
+          <div class="kpi-label">Promociones activas</div>
+          <div class="kpi-value mono">{{ promociones_activas|default:"0" }}</div>
+          <div class="kpi-foot subtle">Ver promociones</div>
+        </a>
+      <a class="kpi kpi-action" href="{% url 'inventory:pos_caja' %}">
+          <div class="kpi-label">Caja</div>
+          <div class="kpi-value mono">$ {{ efectivo_en_caja|default:"0.00" }}</div>
+          <div class="kpi-foot subtle"> Administrar caja</div>
+      </a>
+
+      </div>
+    </div>
+
+    <!-- ACTIVIDAD -->
+    <div class="card activity">
+      <div class="card-head">
+        <h2>Actividad reciente</h2>
+        <a class="link" href="{% url 'inventory:movimientos' %}">Ver todo </a>
+      </div>
+    
+      {% if ventas_hoy or movimientos_caja %}
+        <div class="activity-list">
+        
+          {% for v in ventas_hoy %}
+            <a class="act-row" href="{% url 'inventory:venta_detail' v.venta_id %}">
+              <div class="act-left">
+                <div class="act-title">Venta #{{ v.venta_id }}</div>
+                <div class="act-sub mono">
+                  {{ v.fecha|date:"H:i" }}
+                  {% if v.metodo_de_pago %} · {{ v.metodo_de_pago }}{% endif %}
+                </div>
+              </div>
+              <div class="act-right mono">$ {{ v.total|default:"0.00" }}</div>
+            </a>
+          {% endfor %}
+          
+          {% for m in movimientos_caja %}
+            <a class="act-row" href="{% url 'inventory:pos_caja' %}">
+              <div class="act-left">
+                <div class="act-title">Movimiento de caja</div>
+                <div class="act-sub mono">
+                  {{ m.creado_en|date:"H:i" }}
+                  {% if m.usuario %} · {{ m.usuario.username }}{% endif %}
+                </div>
+              </div>
+              <div class="act-right mono">
+                $ {{ m.monto|default:"0.00" }}
+              </div>
+            </a>
+          {% endfor %}
+          
+        </div>
+      {% else %}
+        <div class="empty-box">
+          <div class="empty-title">Sin actividad reciente</div>
+          <div class="empty-sub">
+            Cuando registres ventas o movimientos de caja, aparecen acá.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+{% endblock %}

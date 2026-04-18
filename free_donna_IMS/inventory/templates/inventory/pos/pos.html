@@ -1,0 +1,358 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Free Donna - Carrito{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
+
+<div class="pos-shell">
+
+  <header class="pos-topbar">
+    <div></div>
+  </header>
+
+  <div class="pos-grid">
+
+    <section class="panel--cart">
+      <div class="panel-head">
+        <div class="panel-title">
+          <div class="panel-title-dot">
+            <span class="dot dot-green"></span>
+            <h3>Carrito</h3>
+          </div>
+          <p class="panel-subtext">
+            Escaneá el código de barras para agregar al carrito. Si no lo tenés, buscá el producto desde su listado.
+          </p>
+        </div>
+
+        <div class="panel-head-actions">
+          <a class="btn-search" href="{% url 'inventory:articulo_list' %}">Buscar productos</a>
+
+          {% if devolucion_activa %}
+            <form method="post" action="{% url 'inventory:pos_devolucion_cancel' %}" class="inline" style="margin:0;">
+              {% csrf_token %}
+              <button class="btn-secondary" type="submit">Cancelar devolución</button>
+            </form>
+          {% else %}
+            <form method="post" action="{% url 'inventory:pos_devolucion_start' %}" class="inline" style="margin:0;">
+              {% csrf_token %}
+              <button class="btn-secondary" type="submit">Iniciar devolución</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if devolucion_activa %}
+        <div class="return-box">
+          <div class="return-box-head">
+            <div class="return-box-title">Modo devolución</div>
+            <div class="return-box-sub">
+              Seleccioná el producto que entrega el cliente y después agregá al carrito los productos nuevos.
+            </div>
+          </div>
+
+          {% if not devolucion_data.articulo_devuelto_id %}
+            <form method="get" action="{% url 'inventory:pos' %}" class="scanbar return-search" autocomplete="off">
+              <input
+                name="dq"
+                class="scanbar-input"
+                type="text"
+                placeholder="Buscar producto vendido por código, SKU o nombre…"
+                value="{{ devolucion_q }}"
+              />
+              <button class="btn-primary btn-pill" type="submit">Buscar</button>
+            </form>
+
+            {% if vendidos %}
+              <div class="return-results">
+                {% for grupo in vendidos %}
+                  <form method="post" action="{% url 'inventory:pos_devolucion_set_returned' %}" class="return-result-row">
+                    {% csrf_token %}
+                    <input type="hidden" name="articulo_id" value="{{ grupo.articulos.0 }}">
+
+                    <div class="return-result-main">
+                      <div class="return-result-title">
+                        {{ grupo.nombre }}
+                      </div>
+                      <div class="return-result-meta">
+                        <span class="mono">{{ grupo.barcode }}</span>
+                        {% if grupo.sku %}<span>· {{ grupo.sku }}</span>{% endif %}
+                        {% if grupo.marca %}<span>· {{ grupo.marca }}</span>{% endif %}
+                        {% if grupo.color %}<span>· {{ grupo.color }}</span>{% endif %}
+                        {% if grupo.talle %}<span>· Talle {{ grupo.talle }}</span>{% endif %}
+                      </div>
+                      <div class="return-result-stats">
+                        <span class="return-stat">Cantidad vendida: <strong>{{ grupo.cantidad }}</strong></span>
+                        <span class="return-stat">Precio unitario: <strong class="mono">$ {{ grupo.precio|floatformat:2 }}</strong></span>
+                      </div>
+                    </div>
+
+                    <button class="btn-secondary" type="submit">Seleccionar</button>
+                  </form>
+                {% endfor %}
+              </div>
+            {% elif devolucion_q %}
+              <div class="empty-state empty-state--soft">
+                <div class="empty-title">No se encontraron productos vendidos</div>
+                <div class="empty-sub">Probá con otro código, SKU o nombre.</div>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="return-selected">
+              <div class="return-selected-grid">
+                <div>
+                  <div class="return-label">Producto devuelto</div>
+                  <div class="return-value">{{ devolucion_data.producto_nombre }}</div>
+                </div>
+                <div>
+                  <div class="return-label">Código</div>
+                  <div class="return-value mono">{{ devolucion_data.barcode|default:"—" }}</div>
+                </div>
+                <div>
+                  <div class="return-label">SKU</div>
+                  <div class="return-value mono">{{ devolucion_data.sku|default:"—" }}</div>
+                </div>
+                <div>
+                  <div class="return-label">Marca</div>
+                  <div class="return-value">{{ devolucion_data.marca|default:"—" }}</div>
+                </div>
+                <div>
+                  <div class="return-label">Color</div>
+                  <div class="return-value">{{ devolucion_data.color|default:"—" }}</div>
+                </div>
+                <div>
+                  <div class="return-label">Talle</div>
+                  <div class="return-value">{{ devolucion_data.talle|default:"—" }}</div>
+                </div>
+              </div>
+
+              <div class="return-summary-inline">
+                <div class="return-summary-chip">
+                  <span>Crédito</span>
+                  <strong class="mono">$ {{ credito_total|floatformat:2 }}</strong>
+                </div>
+                <div class="return-summary-chip">
+                  <span>Diferencia actual</span>
+                  <strong class="mono">$ {{ diferencia_cobrar|floatformat:2 }}</strong>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'inventory:pos_add' %}" class="scanbar" autocomplete="off">
+        {% csrf_token %}
+        <input
+          name="barcode"
+          class="scanbar-input"
+          type="text"
+          inputmode="numeric"
+          placeholder="{% if devolucion_activa and devolucion_data.articulo_devuelto_id %}Escanear producto nuevo…{% else %}Escanear código de barras…{% endif %}"
+          id="scanInput"
+          autofocus
+        />
+        <button class="btn-primary btn-pill" type="submit">
+          {% if devolucion_activa %}Agregar al cambio{% else %}Agregar{% endif %}
+        </button>
+      </form>
+
+      {% if cart %}
+        <div class="cart-table-wrap">
+          <table class="cart-table">
+            <thead>
+              <tr>
+                <th class="col-sku">SKU</th>
+                <th class="col-bc">Código</th>
+                <th class="col-num">Cant.</th>
+                <th class="col-num">Precio u.</th>
+                <th class="col-num">Desc.</th>
+                <th class="col-num">Total</th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, it in cart.items %}
+                <tr>
+                  <td class="mono">{{ it.sku }}</td>
+                  <td class="mono">{{ it.barcode }}</td>
+                  <td class="num strong">{{ it.qty }}</td>
+
+                  <td class="num mono">
+                    {% if it.precio_final_unit and it.precio_final_unit != it.precio_base %}
+                      <div class="price-old">$ {{ it.precio_base|floatformat:2 }}</div>
+                      <div class="price-new">$ {{ it.precio_final_unit|floatformat:2 }}</div>
+                    {% else %}
+                      $ {{ it.precio_base|floatformat:2 }}
+                    {% endif %}
+                  </td>
+
+                  <td class="num mono">
+                    {% if it.descuento_total_linea and it.descuento_total_linea != "0" and it.descuento_total_linea != "0.00" %}
+                      <span class="discount-chip">- $ {{ it.descuento_total_linea|floatformat:2 }}</span>
+                    {% else %}
+                      $ 0,00
+                    {% endif %}
+                  </td>
+
+                  <td class="num strong mono">
+                    $ {{ it.total_linea|default:it.subtotal_bruto|floatformat:2 }}
+                  </td>
+
+                  <td class="act">
+                    <form method="post" action="{% url 'inventory:pos_remove' %}" class="inline" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="key" value="{{ key }}">
+                      <button class="btn-ghost-danger btn-icon" type="submit" title="Quitar">✕</button>
+                    </form>
+                  </td>
+                </tr>
+
+                {% if it.promocion_nombre %}
+                  <tr class="promo-row">
+                    <td colspan="7">
+                      <div class="cell-promo">
+                        Promoción: {{ it.promocion_nombre }}
+                      </div>
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="cart-footer">
+          <a class="btn-danger-soft" href="{% url 'inventory:pos_clear' %}">Vaciar</a>
+
+          <div class="totals totals-stack">
+            <div class="totals-row">
+              <span class="totals-label">Subtotal</span>
+              <span class="totals-subvalue mono">$ {{ subtotal_base|floatformat:2 }}</span>
+            </div>
+
+            {% if total_descuento and total_descuento != 0 %}
+              <div class="totals-row totals-discount">
+                <span class="totals-label">Descuentos</span>
+                <span class="totals-subvalue mono">- $ {{ total_descuento|floatformat:2 }}</span>
+              </div>
+            {% endif %}
+
+            {% if devolucion_activa and devolucion_data.articulo_devuelto_id %}
+              <div class="totals-row">
+                <span class="totals-label">Crédito devolución</span>
+                <span class="totals-subvalue mono">- $ {{ credito_total|floatformat:2 }}</span>
+              </div>
+
+              <div class="totals-row totals-final">
+                <span class="totals-label">Diferencia a cobrar</span>
+                <span class="totals-value mono">$ {{ diferencia_cobrar|floatformat:2 }}</span>
+              </div>
+            {% else %}
+              <div class="totals-row totals-final">
+                <span class="totals-label">Total</span>
+                <span class="totals-value mono">$ {{ total|floatformat:2 }}</span>
+              </div>
+            {% endif %}
+
+            <div class="cart-buttons">
+              <a class="btn-primary" href="{% url 'inventory:pos_checkout' %}">
+                {% if devolucion_activa %}Cerrar devolución{% else %}Cerrar venta{% endif %}
+              </a>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-title">Carrito vacío</div>
+          <div class="empty-sub">
+            {% if devolucion_activa %}
+              Seleccioná el producto devuelto y agregá los productos nuevos.
+            {% else %}
+              Escaneá un código para empezar.
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel panel--sales">
+      <div class="panel-head">
+        <div class=" panel-title-dot">
+          <span class="dot dot-blue"></span>
+          <h3>Mis ventas de hoy</h3>
+        </div>
+
+        <div class="panel-meta">
+          <span class="chip">Usuario: <b>{{ request.user.username }}</b></span>
+          <span class="chip">Fecha: <b>{{ hoy|date:"Y-m-d" }}</b></span>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Ventas</div>
+          <div class="kpi-value mono">{{ ventas_hoy_count|default:0 }}</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Total vendido</div>
+          <div class="kpi-value mono">$ {{ ventas_hoy_total|default:"0.00" }}</div>
+        </div>
+
+        <a class="kpi kpi-action" href="{% url 'inventory:pos_caja' %}">
+          <div class="kpi-label">Caja</div>
+          <div class="kpi-value mono">$ {{ total_en_efectivo|default:"0.00" }}</div>
+          <span class="kpi-tip">Saldo actual</span>
+        </a>
+      </div>
+
+      {% if ventas_hoy %}
+        <div class="sales-list">
+          {% for v in ventas_hoy %}
+            <a class="sale-row" href="{% url 'inventory:venta_detail' v.venta_id %}">
+              <div class="sale-left">
+                <div class="sale-title">Venta #{{ v.venta_id }}</div>
+                <div class="sale-sub mono">
+                  {{ v.fecha|date:"H:i" }}
+                  {% if v.metodo_de_pago %} · {{ v.metodo_de_pago }}{% endif %}
+                </div>
+              </div>
+              <div class="sale-right">
+                <div class="sale-total mono">$ {{ v.total|default:"0.00" }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-title">Todavía no tenés ventas hoy</div>
+          <div class="empty-sub">
+            Cuando cierres ventas, van a aparecer acá con su total y método de pago.
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="sales-actions">
+        <a href="{% url 'inventory:pos_resumen_dia' %}" class="btn-primary" target="_blank">
+          Ver resumen del día
+        </a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const scan = document.getElementById("scanInput");
+    if (scan) {
+      scan.focus();
+      if (typeof scan.select === "function") {
+        scan.select();
+      }
+    }
+  });
+</script>
+{% endblock %}

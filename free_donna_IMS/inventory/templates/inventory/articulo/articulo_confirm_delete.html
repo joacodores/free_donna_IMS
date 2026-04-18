@@ -1,0 +1,28 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Borrar artículo{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/articulos.css' %}">
+
+<div class="page-header">
+  <div>
+    <h2>Borrar artículo</h2>
+    <p class="subtle">Esta acción no se puede deshacer.</p>
+  </div>
+  <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Volver</a>
+</div>
+
+<div class="empty">
+  <p style="margin:0; font-weight:900;">
+    ¿Seguro que querés borrar el artículo {{ articulo.articulo_id }} (SKU {{ articulo.sku }})?
+  </p>
+
+  <form method="post" style="margin-top:14px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+    {% csrf_token %}
+    <button class="btn-danger" type="submit">Sí, borrar</button>
+    <a class="btn-secondary" href="{% url 'inventory:articulo_list' %}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
