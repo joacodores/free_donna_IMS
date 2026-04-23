@@ -1,0 +1,184 @@
+/* ========== POS CAJA (OVERRIDES + LAYOUT) ========== */
+
+.pos-shell--caja {
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: auto;
+}
+
+.pos-shell--caja .pos-topbar {
+  align-items: flex-start;
+}
+
+.pos-shell--caja .panel-head {
+  align-items: center;
+}
+.pos-shell--caja .pos-title {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.pos-shell--caja .pos-subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.pos-shell--caja .pos-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pos-shell--caja .panel--sales {
+  min-height: auto;
+}
+
+.pos-shell--caja .kpis {
+  margin-bottom: 0;
+}
+
+.pos-shell--caja .pos-grid--caja {
+  margin-top: 16px;
+  min-height: auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.pos-shell--caja .pos-grid--caja .panel--cart,
+.pos-shell--caja .pos-grid--caja .panel--sales {
+  min-height: auto;
+  padding: 0;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.pos-shell--caja .empty-state--form {
+  margin: 0;
+  min-height: auto;
+  padding: 22px 18px;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.pos-shell--caja .empty-state--form .empty-title {
+  font-size: 1.08rem;
+  margin-bottom: 14px;
+}
+
+.pos-shell--caja .form-stack {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pos-shell--caja .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pos-shell--caja .form-row label {
+  color: var(--text-strong);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.pos-shell--caja .input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--input-bg, var(--card));
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 0.96rem;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.pos-shell--caja select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.pos-shell--caja .input:focus {
+  border-color: var(--stroke2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent1-strong) 16%, transparent);
+}
+
+.pos-shell--caja .modal-actions {
+  margin-top: 4px;
+  display: flex;
+}
+
+.pos-shell--caja .modal-actions .btn-primary {
+  min-width: 200px;
+}
+
+.pos-shell--caja .sales-list--caja {
+  margin-top: 16px;
+  padding-top: 2px;
+  max-height: 420px;
+}
+
+.pos-shell--caja .kpi-label--movements {
+  margin-bottom: 8px;
+}
+
+.pos-shell--caja .sale-row--static {
+  cursor: default;
+}
+
+.pos-shell--caja .sale-row--static:hover {
+  transform: none;
+}
+
+@media (max-width: 960px) {
+  .pos-shell--caja .pos-grid--caja {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .pos-shell--caja .pos-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pos-shell--caja .pos-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pos-shell--caja .empty-state--form {
+    padding: 16px 14px;
+  }
+
+  .pos-shell--caja .form-stack {
+    max-width: none;
+  }
+
+  .pos-shell--caja .modal-actions .btn-primary {
+    width: 100%;
+    min-width: 0;
+  }
+}

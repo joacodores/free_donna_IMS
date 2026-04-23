@@ -5,8 +5,9 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/pos.css' %}">
+<link rel="stylesheet" href="{% static 'css/pos_caja.css' %}">
 
-<div class="pos-shell">
+<div class="pos-shell pos-shell--caja">
 
   <header class="pos-topbar">
     <div>
@@ -24,7 +25,7 @@
   <section class="panel panel--sales">
 
     <div class="panel-head">
-      <div class="panel-title">
+      <div class="panel-title-dot">
         <span class="dot dot-blue"></span>
         <h3>Caja</h3>
       </div>
@@ -54,10 +55,10 @@
       </div>
     </div>
 
-    <div class="pos-grid" style="margin-top:16px;">
+    <div class="pos-grid pos-grid--caja">
 
       <section class="panel--cart">
-        <div class="empty-state" style="margin:0;">
+        <div class="empty-state empty-state--form">
           <div class="empty-title">Retirar efectivo</div>
 
           <form method="post" action="{% url 'inventory:pos_caja' %}" class="form-stack">
@@ -106,7 +107,7 @@
       </section>
 
       <section class="panel panel--sales">
-        <div class="empty-state" style="margin:0;">
+        <div class="empty-state empty-state--form">
           <div class="empty-title">Agregar efectivo</div>
 
           {% if puede_agregar_efectivo %}
@@ -161,14 +162,14 @@
 
     </div>
 
-    <div class="sales-list" style="padding-top:16px;">
-      <div class="kpi-label" style="margin-bottom:8px;">
+    <div class="sales-list sales-list--caja">
+      <div class="kpi-label kpi-label--movements">
         Movimientos de hoy
       </div>
 
       {% if movimientos_hoy %}
         {% for m in movimientos_hoy %}
-          <div class="sale-row" style="cursor:default;">
+          <div class="sale-row sale-row--static">
             <div class="sale-left">
               <div class="sale-title">
                 {% if m.tipo == "ENTRADA" %}
@@ -196,7 +197,7 @@
           </div>
         {% endfor %}
       {% else %}
-        <div class="empty-state" style="margin:0;">
+        <div class="empty-state empty-state--soft">
           <div class="empty-sub">
             Todavía no hay movimientos registrados hoy.
           </div>
