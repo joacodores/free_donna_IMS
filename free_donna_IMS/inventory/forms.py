@@ -246,7 +246,7 @@ class PromocionForm(forms.ModelForm):
 class ProductoImportXlsxForm(forms.Form):
     file = forms.FileField(
         label="Archivo Excel",
-        help_text="Subí un archivo .xlsx con columnas: nombre, tipo_producto, material, marca, precio, costo"
+        help_text="Subí un archivo .xlsx con columnas: nombre, tipo_producto, material, marca, precio, costo (opcional)"
     )
 
     def clean_file(self):

@@ -13,7 +13,7 @@
       Artículos: <b>{{ stats.productos_count }}</b> ·
       Unidades vendidas: <b>{{ stats.unidades_vendidas }}</b> ·
       Total vendido: <b>$ {{ stats.vendido_total }}</b> ·
-      Profit: <b>$ {{ stats.profit_total }}</b>
+      Profit: <b>{% if stats.profit_total == None %}—{% else %}$ {{ stats.profit_total }}{% endif %}</b>
     </p>
   </div>
 
@@ -44,7 +44,7 @@
           <td><span class="tag">{{ p.tipo_producto }}</span></td>
           <td><span class="tag">{{ p.material }}</span></td>
           <td class="num mono">$ {{ p.precio }}</td>
-          <td class="num mono">$ {{ p.costo }}</td>
+          <td class="num mono">{% if p.costo == None %}—{% else %}$ {{ p.costo }}{% endif %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="subtle">No hay artículos asociados a esta marca.</td></tr>

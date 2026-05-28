@@ -420,9 +420,10 @@ body[data-theme="dark"] .checkout-row-discount {
   font-size: 1.08rem;
   font-weight: 900;
   letter-spacing: -0.01em;
-  color: #162030;
-  background: linear-gradient(90deg, var(--accent2), var(--accent1));
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent1) 34%, transparent);
+  color: #fff;
+  background: linear-gradient(135deg, #a78bfa, #f472b6);
+  box-shadow: 0 12px 24px rgba(167, 139, 250, 0.35);
+  border-color: rgba(255, 255, 255, 0.2);
   transition:
     transform 0.16s ease,
     box-shadow 0.18s ease,
@@ -431,8 +432,8 @@ body[data-theme="dark"] .checkout-row-discount {
 
 .checkout-confirm:hover {
   transform: translateY(-1px);
-  filter: brightness(1.02);
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--accent1) 42%, transparent);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 30px rgba(167, 139, 250, 0.4);
 }
 
 .checkout-confirm:focus-visible,

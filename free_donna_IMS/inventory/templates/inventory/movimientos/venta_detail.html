@@ -68,8 +68,12 @@
           </td>
           <td class="num mono">$ {{ it.total_linea|floatformat:"2" }}</td>
           {% if request.user.is_staff %}
-            <td class="num mono">$ {{ it.costo_unitario|floatformat:"2" }}</td>
-            <td class="num mono">$ {{ it.profit_linea|floatformat:"2" }}</td>
+            <td class="num mono">
+              {% if it.costo_unitario == None %}—{% else %}$ {{ it.costo_unitario|floatformat:"2" }}{% endif %}
+            </td>
+            <td class="num mono">
+              {% if it.profit_linea == None %}—{% else %}$ {{ it.profit_linea|floatformat:"2" }}{% endif %}
+            </td>
           {% endif %}
         </tr>
       {% endfor %}
@@ -83,8 +87,8 @@
     <div class="subtle">Descuentos: <b>$ {{ sale_totals.descuento_total|floatformat:"2" }}</b></div>
     <div class="subtle">Total: <b>$ {{ sale_totals.total|floatformat:"2" }}</b></div>
     {% if request.user.is_staff %}
-      <div class="subtle">Costo total: <b>$ {{ ms_totals.costo_total|floatformat:"2" }}</b></div>
-      <div class="subtle">Ganancia total: <b>$ {{ sale_totals.profit_total|floatformat:"2" }}</b></div>
+      <div class="subtle">Costo total: <b>{% if ms_totals.costo_total == None %}—{% else %}$ {{ ms_totals.costo_total|floatformat:"2" }}{% endif %}</b></div>
+      <div class="subtle">Ganancia total: <b>{% if sale_totals.profit_total == None %}—{% else %}$ {{ sale_totals.profit_total|floatformat:"2" }}{% endif %}</b></div>
     {% endif %}
   </div>
 </div>
@@ -114,9 +118,13 @@
             <td class="mono">{{ m.sku }}</td>
             
             {% if request.user.is_staff %}
-              <td class="num mono">$ {{ m.costo_unitario|floatformat:"2" }}</td>
+              <td class="num mono">
+                {% if m.costo_unitario == None %}—{% else %}$ {{ m.costo_unitario|floatformat:"2" }}{% endif %}
+              </td>
               <td class="num mono">$ {{ m.precio_unitario|floatformat:"2" }}</td>
-              <td class="num mono">$ {{ m.profit_unitario|floatformat:"2" }}</td>
+              <td class="num mono">
+                {% if m.profit_unitario == None %}—{% else %}$ {{ m.profit_unitario|floatformat:"2" }}{% endif %}
+              </td>
             {% endif %}
           </tr>
         {% endfor %}

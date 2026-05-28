@@ -55,7 +55,11 @@
             <td class="num">{{ m.productos_count }}</td>
             <td class="num">{{ m.unidades_vendidas|default:0 }}</td>
             <td class="num mono">$ {{ m.vendido_total|default:"0.00" }}</td>
-            <td class="num mono">$ {{ m.profit_total|default:"0.00" }}</td>
+            <td class="num mono">
+              {% if m.ganancias_desconocidas %}—
+              {% elif m.profit_total == None %}$ 0.00
+              {% else %}$ {{ m.profit_total }}{% endif %}
+            </td>
 
             <td class="cell-menu" onclick="event.stopPropagation();">
               <a class="btn-secondary" href="{% url 'inventory:marca_detail' m.pk %}">Abrir</a>

@@ -70,7 +70,7 @@
             data-tipo="{{ producto.tipo_producto|escapejs }}"
             data-material="{{ producto.material|escapejs }}"
             data-precio="{{ producto.precio }}"
-            data-costo="{{ producto.costo }}"
+            data-costo="{{ producto.costo|default_if_none:'' }}"
           >
             <td class="mono">{{ producto.product_id }}</td>
             <td class="strong">{{ producto.nombre }}</td>
@@ -79,7 +79,9 @@
             <td><span class="tag">{{ producto.material }}</span></td>
             <td class="price-cell">$ {{ producto.precio }}</td>
             {% if request.user.is_staff %}
-              <td class="price-cell">$ {{ producto.costo }}</td>
+              <td class="price-cell">
+                {% if producto.costo == None %}—{% else %}$ {{ producto.costo }}{% endif %}
+              </td>
             {% endif %}
           </tr>
         {% endfor %}

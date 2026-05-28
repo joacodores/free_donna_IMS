@@ -49,8 +49,8 @@
           
           <td class="num">{{ it.cantidad }}</td>
           {% if request.user.is_staff %}
-          <td class="num mono">$ {{ it.costo_unitario }}</td>
-          <td class="num mono">$ {{ it.total_linea }}</td>
+          <td class="num mono">{% if it.costo_unitario == None %}—{% else %}$ {{ it.costo_unitario }}{% endif %}</td>
+          <td class="num mono">{% if it.total_linea == None %}—{% else %}$ {{ it.total_linea }}{% endif %}</td>
           {% endif %}
         </tr>
       {% endfor %}
@@ -63,7 +63,7 @@
     Unidades: <b>{{ ms_totals.unidades }}</b>
   </div>
   <div class="subtle">
-    Costo total: <b>$ {{ ms_totals.costo_total }}</b>
+    Costo total: <b>{% if ms_totals.costo_total == None %}—{% else %}$ {{ ms_totals.costo_total }}{% endif %}</b>
   </div>
 </div>
 
@@ -90,7 +90,7 @@
             <td class="mono">{{ m.sku }}</td>
             
             {% if request.user.is_staff %}
-            <td class="num mono">$ {{ m.costo_unitario }}</td>
+            <td class="num mono">{% if m.costo_unitario == None %}—{% else %}$ {{ m.costo_unitario }}{% endif %}</td>
             {% endif %}
           </tr>
         {% endfor %}

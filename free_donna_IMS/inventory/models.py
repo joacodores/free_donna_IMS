@@ -21,7 +21,7 @@ class Producto(models.Model):
     material = models.CharField(max_length=100)
     marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name="productos")
     precio = models.DecimalField(max_digits=10, decimal_places=2)  
-    costo = models.DecimalField(max_digits=10, decimal_places=2)
+    costo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     def __str__(self):
         return f"[{self.product_id}] {self.nombre} ({self.marca})"
@@ -83,7 +83,7 @@ class Venta(models.Model):
     total_descuento = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     local = models.ForeignKey(Local, null=True, blank=True, on_delete=models.PROTECT)
     metodo_de_pago = models.CharField(max_length=15, choices=MetodoPago.choices, default=MetodoPago.EFECTIVO, db_index=True)
-    profit_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    profit_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     def __str__(self):
         return f"Venta #{self.venta_id}"
     
@@ -103,9 +103,9 @@ class VentaItem(models.Model):
     cantidad = models.IntegerField()
     precio_base_unitario = models.DecimalField(max_digits=12, decimal_places=2)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     descuento_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    profit_linea = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    profit_linea = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     total_linea = models.DecimalField(max_digits=12, decimal_places=2)
     
 class VentaArticulo(models.Model): #unidad exacta vendida
@@ -135,9 +135,9 @@ class IngresoItem(models.Model):
     talle = models.IntegerField()
     color = models.CharField(max_length=50)
     
-    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     cantidad = models.IntegerField()
-    total_linea = models.DecimalField(max_digits=12, decimal_places=2)
+    total_linea = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     
 class Transferencia(models.Model):
     transferencia_id = models.BigAutoField(primary_key=True)
@@ -191,9 +191,9 @@ class MovimientoStock(models.Model):
     
     cantidad = models.IntegerField()
     
-    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    profit_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    profit_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     ingreso = models.ForeignKey(Ingreso, null=True, blank=True, on_delete=models.PROTECT)
     venta = models.ForeignKey(Venta, null=True, blank=True, on_delete=models.PROTECT)
