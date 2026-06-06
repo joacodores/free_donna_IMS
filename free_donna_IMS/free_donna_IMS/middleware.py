@@ -2,7 +2,6 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils.deprecation import MiddlewareMixin
-from httpcore import request
 
 
 class LoginRequiredMiddleware(MiddlewareMixin):
