@@ -175,7 +175,13 @@ def _get_local_activo(request):
     local_id = request.session.get("local_id")
     if not local_id:
         return None
-    return Local.objects.get(local_id=local_id)
+    local = Local.objects.filter(local_id=local_id).first()
+    if local is None:
+        # La sesión apunta a un local inexistente (p. ej. borrado): la limpiamos
+        # en vez de dejar que Local.DoesNotExist tire un 500.
+        request.session.pop("local_id", None)
+        request.session.modified = True
+    return local
 
 def _saldo_caja_local(local):
     if not local:
