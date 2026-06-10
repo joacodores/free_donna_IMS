@@ -15,7 +15,8 @@ El módulo de punto de venta (POS) permite armar ventas con múltiples ítems, a
 También está implementado el flujo de devoluciones, vinculado a una venta, que restaura el stock de forma automática sin necesidad de ajustes manuales. 
 
 El sistema incluye control de caja y reportes diarios, con posibilidad de exportar resúmenes en PDF para tener una visión rápida de ventas, ingresos y movimientos del día.
-<img width="1914" height="952" alt="Screenshot 2026-06-09 105639" src="https://github.com/user-attachments/assets/6795c1b5-8da9-45bd-ab05-dc23fd438558" />
+<img width="1917" height="962" alt="Screenshot 2026-06-09 105651" src="https://github.com/user-attachments/assets/c10d95ed-9762-40fa-9d3b-f9e3e5e6d372" />
+
 
 Además, soporta múltiples locales, permitiendo separar la operación por sucursal y mantener organizado el manejo de productos, ventas y reportes según cada contexto.
 
