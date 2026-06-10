@@ -8,8 +8,6 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, V
 from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F, Case, When
 from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
-from httpcore import request
-from sqlalchemy import Cast
 from ..models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, Promocion, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
 from ..forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, ProductoImportXlsxForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
@@ -32,34 +30,8 @@ from .utilidades import (
     _get_devolucion, _save_devolucion, _clear_devolucion, _articulo_ya_devuelto,
     _get_credito_devolucion
 )
-
-
-def get_mejor_promocion_para_producto(producto, qty=1):
-    """Obtener la mejor promoción disponible para un producto."""
-    promociones = Promocion.objects.filter(
-        Q(producto=producto) | Q(producto__isnull=True),
-        activa=True
-    ).order_by("-descuento_porcentaje")
-    
-    mejor_promo = None
-    mejor_data = None
-    
-    for promo in promociones:
-        if promo.cantidad_minima and qty < promo.cantidad_minima:
-            continue
-        
-        precio_base = Decimal(producto.precio)
-        descuento = (precio_base * Decimal(promo.descuento_porcentaje or 0)) / Decimal("100")
-        precio_final = precio_base - descuento
-        
-        if mejor_data is None or descuento > mejor_data["descuento"]:
-            mejor_promo = promo
-            mejor_data = {
-                "descuento": descuento,
-                "precio_final": precio_final
-            }
-    
-    return mejor_promo, mejor_data if mejor_data else {"descuento": Decimal("0"), "precio_final": Decimal(producto.precio)}
+# Lógica de promociones centralizada en promociones.py (la versión correcta).
+from .promociones import get_mejor_promocion_para_producto
 
 
 class POSView(LoginRequiredMixin, View):

@@ -10,7 +10,7 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from django.db import transaction
 
-from ..models import Promocion, ProductoBulkAdjust, ProductoBulkAdjustItem, Producto
+from ..models import Promocion, ProductoBulkAdjust, ProductoBulkAdjustItem, Producto, Marca
 from ..forms import PromocionForm
 
 
@@ -167,7 +167,7 @@ class ProductoBulkAdjustPreviewView(LoginRequiredMixin, StaffRequiredMixin, View
         if pct_precio is None and pct_costo is None:
             return JsonResponse({"ok": False, "error": "Ingresá % en precio y/o costo."}, status=400)
 
-        marca = get_object_or_404(Producto, pk=marca_id)
+        marca = get_object_or_404(Marca, pk=marca_id)
         qs = Producto.objects.filter(marca=marca).order_by("product_id")
 
         total = qs.count()
@@ -219,7 +219,7 @@ class ProductoBulkAdjustApplyView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.error(request, "Ingresá % en precio y/o costo.")
             return redirect(request.META.get("HTTP_REFERER", "inventory:producto_list"))
 
-        marca = get_object_or_404(Producto, pk=marca_id)
+        marca = get_object_or_404(Marca, pk=marca_id)
         qs = Producto.objects.filter(marca=marca).select_for_update()
 
         total = qs.count()

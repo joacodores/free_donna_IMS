@@ -10,26 +10,50 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# --- Carga de variables de entorno desde .env (sin dependencias externas) ---
+def _load_dotenv(path):
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
+_load_dotenv(BASE_DIR / ".env")
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ix+-fdc^#uky#o_7r!ekhjvg%1a#g!#2a&6qwf94hduefpym4v'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-dev-only-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-ALLOWED_HOSTS = []
+DEBUG = _env_bool("DJANGO_DEBUG", False)
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    if h.strip()
+]
 
 #SECURITY LOGIN/MIDDLEWARE SETTINGS
+# El signup NO es público: solo un administrador (is_staff) puede crear usuarios.
 PUBLIC_URL_NAMES = [
     "inventory:login",
-        "inventory:signup",
     "inventory:logout",
 ]
 LOGIN_URL = '/login/'
@@ -86,11 +110,11 @@ WSGI_APPLICATION = 'free_donna_IMS.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'free_donna_ims_db' ,
-        'USER': 'fd_user',
-        'PASSWORD': 'root',
-        "HOST": "127.0.0.1",
-        "PORT": "5433",
+        'NAME': os.environ.get("DB_NAME", "free_donna_ims_db"),
+        'USER': os.environ.get("DB_USER", "fd_user"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("DB_PORT", "5433"),
     }
 }
 
@@ -136,3 +160,26 @@ STATICFILES_DIRS = [
     BASE_DIR / "free_donna_IMS" / "static",
     BASE_DIR / "inventory" / "static",
 ]
+
+
+# Email
+# https://docs.djangoproject.com/en/6.0/topics/email/
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "joaquindores@gmail.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "joaquindores@gmail.com")
+
+
+# Endurecimiento adicional cuando NO estamos en modo debug (producción)
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "0"))
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

@@ -2,6 +2,8 @@ from ..models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoSt
 from ..forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, ProductoImportXlsxForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
 from .utilidades import _get_local_activo, _saldo_caja_local
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
@@ -72,7 +74,12 @@ def _is_admin(user):
     return user.is_staff or user.is_superuser
 
 
-class SignUpView(View):
+class SignUpView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Alta de usuarios. Solo accesible para administradores (is_staff)."""
+
+    def test_func(self):
+        return self.request.user.is_staff
+
     def get(self, request):
         form = UserRegisterForm()
         return render(request, "inventory/auth/signup.html", {"form": form})
@@ -80,11 +87,10 @@ class SignUpView(View):
     def post(self, request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            form.save()
-            user = authenticate(username=form.cleaned_data['username'],
-                                password=form.cleaned_data['password1'])
-            login(request, user)
-            return redirect("inventory:producto_list")
+            nuevo = form.save()
+            # El admin crea la cuenta: NO iniciamos sesión como el usuario nuevo.
+            messages.success(request, f"Usuario '{nuevo.username}' creado correctamente.")
+            return redirect("inventory:signup")
         return render(request, "inventory/auth/signup.html", {"form": form})
 
 class LoginView(View):

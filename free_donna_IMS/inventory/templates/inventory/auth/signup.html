@@ -1,15 +1,15 @@
 {% extends "inventory/base.html" %}
 {% load static %}
 
-{% block title %}Registro{% endblock %}
+{% block title %}Crear usuario{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/signup.css' %}">
 
 <div class="auth-wrapper">
   <div class="auth-card">
-    <h2 class="auth-title">Crear cuenta</h2>
-    <p class="auth-subtitle">Registrate para acceder al sistema</p>
+    <h2 class="auth-title">Crear usuario</h2>
+    <p class="auth-subtitle">Alta de un nuevo usuario del sistema</p>
 
     {% if form.non_field_errors %}
       <div class="auth-errors">
@@ -37,11 +37,11 @@
         </div>
       {% endfor %}
 
-      <button type="submit" class="btn-auth">Registrarse</button>
+      <button type="submit" class="btn-auth">Crear usuario</button>
     </form>
 
     <div class="auth-footer">
-      <p>¿Ya tenés cuenta? <a href="{% url 'inventory:login' %}">Inicia sesión aquí</a></p>
+      <p><a href="{% url 'inventory:producto_list' %}">Volver al sistema</a></p>
     </div>
   </div>
 </div>

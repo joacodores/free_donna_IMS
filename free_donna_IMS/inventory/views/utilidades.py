@@ -8,8 +8,6 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, V
 from django.db.models import Q, Count, ExpressionWrapper, Sum, Max, Value, CharField, F, Case, When
 from django.db.models.fields import DecimalField, IntegerField
 from django.shortcuts import redirect
-from httpcore import request
-from sqlalchemy import Cast
 from ..models import BajaStock, Ingreso, IngresoItem, Local, Marca, MovimientoStock, Producto, Articulo, ProductoBulkAdjust, ProductoBulkAdjustItem, Promocion, RetiroCaja, Transferencia, TransferenciaItem, Venta, VentaItem, VentaArticulo
 from ..forms import ArticuloEditForm, ArticuloImportXlsxForm, CheckoutForm, ProductoImportXlsxForm, PromocionForm, TransferirArticuloForm, UserLoginForm, UserRegisterForm, ArticuloCreateForm, ArticuloImportXlsxForm
 from django.contrib.auth import authenticate, login, logout
@@ -175,7 +173,13 @@ def _get_local_activo(request):
     local_id = request.session.get("local_id")
     if not local_id:
         return None
-    return Local.objects.get(local_id=local_id)
+    local = Local.objects.filter(local_id=local_id).first()
+    if local is None:
+        # La sesión apunta a un local inexistente (p. ej. borrado): la limpiamos
+        # en vez de dejar que Local.DoesNotExist tire un 500.
+        request.session.pop("local_id", None)
+        request.session.modified = True
+    return local
 
 def _saldo_caja_local(local):
     if not local:

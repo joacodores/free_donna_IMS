@@ -158,23 +158,26 @@ body[data-theme="dark"] .auth-card {
   min-height: 44px;
   margin-top: 12px;
   padding: 12px 18px;
-  border: none;
+  border: 1px solid var(--btn-primary-border);
   border-radius: 12px;
-  background: linear-gradient(90deg, var(--accent1), var(--accent2));
-  color: #000;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   font-size: 14px;
   font-weight: 900;
   cursor: pointer;
+  box-shadow: var(--btn-primary-shadow);
   transition: all 0.2s ease;
 }
 
 .btn-auth:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(91, 110, 217, 0.22);
+  background: var(--btn-primary-bg-hover);
+  box-shadow: var(--btn-primary-shadow-hover);
 }
 
 .btn-auth:active {
   transform: translateY(0);
+  background: var(--btn-primary-bg-active);
 }
 
 /* ===== LINK SIGNUP ===== */
