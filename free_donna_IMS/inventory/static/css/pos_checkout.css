@@ -420,27 +420,31 @@ body[data-theme="dark"] .checkout-row-discount {
   font-size: 1.08rem;
   font-weight: 900;
   letter-spacing: -0.01em;
-  color: #fff;
-  background: linear-gradient(135deg, #a78bfa, #f472b6);
-  box-shadow: 0 12px 24px rgba(167, 139, 250, 0.35);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--btn-primary-text);
+  background: var(--btn-primary-bg);
+  box-shadow: var(--btn-primary-shadow);
+  border-color: var(--btn-primary-border);
   transition:
     transform 0.16s ease,
     box-shadow 0.18s ease,
-    filter 0.18s ease;
+    background 0.18s ease;
 }
 
 .checkout-confirm:hover {
   transform: translateY(-1px);
-  filter: brightness(1.05);
-  box-shadow: 0 14px 30px rgba(167, 139, 250, 0.4);
+  background: var(--btn-primary-bg-hover);
+  box-shadow: var(--btn-primary-shadow-hover);
+}
+
+.checkout-confirm:active {
+  background: var(--btn-primary-bg-active);
 }
 
 .checkout-confirm:focus-visible,
 .checkout-back:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--accent1-strong) 18%, transparent),
+    0 0 0 4px var(--btn-focus-ring),
     var(--shadow-soft);
 }
 
